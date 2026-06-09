@@ -1,0 +1,6 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+  - 'packages/connectors/*'
+  - 'packages/agent-adapters/*'
+  - 'cloud/*'

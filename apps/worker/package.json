@@ -1,0 +1,26 @@
+{
+  "name": "@reqops/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node --experimental-strip-types src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo 'TODO: eslint'",
+    "test": "echo 'TODO: vitest'"
+  },
+  "dependencies": {
+    "@reqops/config": "workspace:*",
+    "@reqops/db": "workspace:*",
+    "bullmq": "^5.30.0",
+    "ioredis": "^5.4.0",
+    "pino": "^9.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

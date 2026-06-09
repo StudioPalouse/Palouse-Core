@@ -1,0 +1,33 @@
+{
+  "name": "reqops",
+  "version": "0.0.0",
+  "private": true,
+  "description": "ReqOps — team task aggregation + agentic handoff platform",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@10.0.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "db:migrate": "pnpm --filter @reqops/db migrate",
+    "db:generate": "pnpm --filter @reqops/db generate"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0",
+    "typescript": "^5.6.0",
+    "@types/node": "^22.10.0",
+    "prettier": "^3.4.0"
+  },
+  "prettier": {
+    "semi": true,
+    "singleQuote": true,
+    "printWidth": 100,
+    "trailingComma": "all"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "@reqops/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node --experimental-strip-types src/index.ts",
+    "build": "echo 'TODO: tsup'",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo 'TODO: eslint'",
+    "test": "echo 'TODO: vitest'"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.0",
+    "@reqops/auth": "workspace:*",
+    "@reqops/config": "workspace:*",
+    "@reqops/db": "workspace:*",
+    "@reqops/shared": "workspace:*",
+    "drizzle-orm": "^0.36.0",
+    "hono": "^4.6.0",
+    "pino": "^9.5.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
