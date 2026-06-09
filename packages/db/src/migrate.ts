@@ -1,12 +1,10 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
+import { loadEnv } from '@reqops/config';
 
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) {
-  console.error('DATABASE_URL is required');
-  process.exit(1);
-}
+// loadEnv picks up the repo-root .env in dev; real env vars win in containers.
+const databaseUrl = loadEnv().DATABASE_URL;
 
 const client = postgres(databaseUrl, { max: 1 });
 const db = drizzle(client);

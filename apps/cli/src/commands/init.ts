@@ -1,16 +1,28 @@
 import { Command } from 'commander';
 import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+
+/** Walk up from cwd to find the directory containing .env.example (repo root). */
+function findProjectRoot(): string {
+  let dir = process.cwd();
+  for (let i = 0; i < 6; i++) {
+    if (existsSync(join(dir, '.env.example'))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return process.cwd();
+}
 
 export function initCommand(): Command {
   return new Command('init')
     .description('Bootstrap a .env from .env.example with safe random secrets')
     .option('-f, --force', 'Overwrite an existing .env')
     .action((opts: { force?: boolean }) => {
-      const cwd = process.cwd();
-      const examplePath = resolve(cwd, '.env.example');
-      const envPath = resolve(cwd, '.env');
+      const root = findProjectRoot();
+      const examplePath = resolve(root, '.env.example');
+      const envPath = resolve(root, '.env');
 
       if (!existsSync(examplePath)) {
         console.error(`No .env.example found at ${examplePath}`);

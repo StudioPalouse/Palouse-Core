@@ -8,22 +8,49 @@ behalf of a human and report back.
 Open core: full product is Apache-2.0 and self-hostable. Hosted SaaS layers a
 small set of BSL-licensed cloud features on top of the same code.
 
-> Status: v0.0 — repository scaffold. Active milestone: **M1 — Repo skeleton & infra**.
+> Status: v0.0 — M3 in progress (connector framework). M2 (tasks core + unified
+> inbox) works end-to-end; Google Tasks and Asana connectors sync through the
+> worker: OAuth connect, encrypted token storage, incremental pull, Asana
+> webhooks with polling fallback, and outbound push of ReqOps edits.
 > See [`docs/architecture.md`](./docs/architecture.md) for the complete plan.
 
 ## Quick start (dev)
 
-Prereqs: Node 22+, pnpm 10+, Docker.
+Prereqs: Node 22+, pnpm 10+, Docker (or local Postgres 16 + Redis 7).
 
 ```bash
 pnpm install
 docker compose -f docker-compose.dev.yml up -d   # postgres + redis only
-cp .env.example .env                              # or: pnpm reqops init
-pnpm db:generate && pnpm db:migrate
+pnpm reqops init                                  # writes .env with random secrets
+pnpm db:migrate
+pnpm reqops seed                                  # optional: demo user + workspace + tasks
 pnpm dev
 ```
 
-Open <http://localhost:3000>.
+Open <http://localhost:3000> and sign in with the seeded account
+(`demo@reqops.local` / `reqops-demo-password`), or sign up fresh.
+The API serves <http://localhost:4000> (`/health`, `/v1/*`, Better-Auth under `/api/auth`).
+
+No Docker? Point `DATABASE_URL` / `REDIS_URL` in `.env` at any local Postgres 16
+and Redis 7 — `.env` is auto-loaded by every app in dev.
+
+### Connectors
+
+Connecting Google Tasks or Asana from Settings requires OAuth apps of your own:
+set `GOOGLE_OAUTH_CLIENT_ID/SECRET` and/or `ASANA_OAUTH_CLIENT_ID/SECRET` in
+`.env`, with redirect URI `http://localhost:4000/oauth/<provider>/callback`.
+Google Tasks is polled every 60s. Asana subscribes a webhook when
+`API_BASE_URL` is publicly reachable and otherwise falls back to 5-minute
+polling. Editing a synced task in ReqOps pushes the change back to the source
+system. For connector development without real credentials,
+`@reqops/testing` ships a fake Asana server and the adapters honor
+`REQOPS_ASANA_API_BASE` / `REQOPS_GOOGLE_TASKS_API_BASE` overrides.
+
+### UI
+
+`packages/ui` is a [shadcn/ui](https://ui.shadcn.com)-based component library on
+Tailwind v4 — stock base theme, neutral palette, no customization. Navigation is
+deliberately minimal: a single top bar (Inbox · Settings · sign out).
 
 ## Full self-host
 

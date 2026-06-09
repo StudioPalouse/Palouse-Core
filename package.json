@@ -2,7 +2,7 @@
   "name": "reqops",
   "version": "0.0.0",
   "private": true,
-  "description": "ReqOps — team task aggregation + agentic handoff platform",
+  "description": "ReqOps \u2014 team task aggregation + agentic handoff platform",
   "license": "Apache-2.0",
   "packageManager": "pnpm@10.0.0",
   "engines": {
@@ -16,7 +16,9 @@
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean && rm -rf node_modules",
     "db:migrate": "pnpm --filter @reqops/db migrate",
-    "db:generate": "pnpm --filter @reqops/db generate"
+    "db:generate": "pnpm --filter @reqops/db generate",
+    "reqops": "pnpm --filter @reqops/cli dev",
+    "db:seed": "pnpm --filter @reqops/cli dev seed"
   },
   "devDependencies": {
     "turbo": "^2.3.0",

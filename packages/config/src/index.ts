@@ -1,4 +1,20 @@
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { config as loadDotenv } from 'dotenv';
 import { z } from 'zod';
+
+/** Find the nearest .env walking up from cwd (monorepo root in dev). */
+function findDotenv(): string | undefined {
+  let dir = process.cwd();
+  for (let i = 0; i < 6; i++) {
+    const candidate = join(dir, '.env');
+    if (existsSync(candidate)) return candidate;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return undefined;
+}
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -41,6 +57,11 @@ let cached: Env | undefined;
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   if (cached) return cached;
+  if (source === process.env) {
+    const dotenvPath = findDotenv();
+    // Real environment variables win over .env file values.
+    if (dotenvPath) loadDotenv({ path: dotenvPath });
+  }
   const result = envSchema.safeParse(source);
   if (!result.success) {
     console.error('Invalid environment configuration:');

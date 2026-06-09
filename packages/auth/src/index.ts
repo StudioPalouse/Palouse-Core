@@ -28,9 +28,12 @@ function build() {
   }
 
   return betterAuth({
-    database: drizzleAdapter(db, { provider: 'pg' }),
+    database: drizzleAdapter(db, { provider: 'pg', usePlural: true }),
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
+    trustedOrigins: [env.WEB_BASE_URL],
+    // Tables use uuid PKs with gen_random_uuid() defaults — let Postgres mint ids.
+    advanced: { database: { generateId: false } },
     emailAndPassword: { enabled: true },
     socialProviders,
   });

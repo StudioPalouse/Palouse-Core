@@ -13,7 +13,9 @@
     "test": "echo 'TODO: vitest'"
   },
   "dependencies": {
+    "@reqops/auth": "workspace:^",
     "@reqops/config": "workspace:*",
+    "@reqops/core": "workspace:^",
     "@reqops/db": "workspace:*",
     "commander": "^12.1.0",
     "drizzle-orm": "^0.36.0"

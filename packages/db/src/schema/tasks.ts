@@ -88,6 +88,23 @@ export const taskSources = pgTable(
   }),
 );
 
+export const taskComments = pgTable(
+  'task_comments',
+  {
+    id: baseId(),
+    taskId: uuid('task_id')
+      .notNull()
+      .references(() => tasks.id, { onDelete: 'cascade' }),
+    authorUserId: uuid('author_user_id').references(() => users.id, { onDelete: 'set null' }),
+    bodyMd: text('body_md').notNull(),
+    createdAt: ts('created_at'),
+    updatedAt: ts('updated_at'),
+  },
+  (t) => ({
+    taskCreatedIdx: index('task_comments_task_created_idx').on(t.taskId, t.createdAt),
+  }),
+);
+
 export const assigneeType = pgEnum('assignee_type', ['user', 'agent']);
 
 export const taskAssignments = pgTable(

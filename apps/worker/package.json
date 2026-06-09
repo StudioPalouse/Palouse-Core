@@ -13,9 +13,16 @@
   },
   "dependencies": {
     "@reqops/config": "workspace:*",
+    "@reqops/connector-asana": "workspace:^",
+    "@reqops/connector-core": "workspace:^",
+    "@reqops/connector-google-tasks": "workspace:^",
+    "@reqops/core": "workspace:^",
     "@reqops/db": "workspace:*",
+    "@reqops/queue": "workspace:^",
+    "@reqops/shared": "workspace:^",
     "bullmq": "^5.30.0",
-    "ioredis": "^5.4.0",
+    "drizzle-orm": "^0.36.0",
+    "ioredis": "^5.10.1",
     "pino": "^9.5.0"
   },
   "devDependencies": {

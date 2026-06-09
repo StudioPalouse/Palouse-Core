@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  transpilePackages: ['@reqops/shared'],
+  transpilePackages: ['@reqops/shared', '@reqops/ui'],
   experimental: {
     typedRoutes: true,
   },
