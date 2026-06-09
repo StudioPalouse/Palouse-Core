@@ -35,12 +35,47 @@ export const taskSourceSchema = z.object({
 });
 export type TaskSource = z.infer<typeof taskSourceSchema>;
 
-export const createTaskInput = taskSchema.pick({
-  title: true,
-  descriptionMd: true,
-  priority: true,
-  dueAt: true,
-  assigneeUserId: true,
-  parentTaskId: true,
+export const createTaskInput = z.object({
+  title: z.string().min(1).max(500),
+  descriptionMd: z.string().nullish(),
+  priority: z.number().int().min(0).max(4).default(2),
+  dueAt: z.string().datetime().nullish(),
+  assigneeUserId: uuid.nullish(),
+  parentTaskId: uuid.nullish(),
 });
 export type CreateTaskInput = z.infer<typeof createTaskInput>;
+
+export const updateTaskInput = z.object({
+  title: z.string().min(1).max(500).optional(),
+  descriptionMd: z.string().nullable().optional(),
+  status: taskStatus.optional(),
+  priority: z.number().int().min(0).max(4).optional(),
+  dueAt: z.string().datetime().nullable().optional(),
+  assigneeUserId: uuid.nullable().optional(),
+});
+export type UpdateTaskInput = z.infer<typeof updateTaskInput>;
+
+export const listTasksQuery = z.object({
+  workspaceId: uuid,
+  status: taskStatus.optional(),
+  assigneeUserId: uuid.optional(),
+  search: z.string().max(200).optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+export type ListTasksQuery = z.infer<typeof listTasksQuery>;
+
+export const taskCommentSchema = z.object({
+  id: uuid,
+  taskId: uuid,
+  authorUserId: uuid.nullable(),
+  bodyMd: z.string(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type TaskComment = z.infer<typeof taskCommentSchema>;
+
+export const createCommentInput = z.object({
+  bodyMd: z.string().min(1).max(20_000),
+});
+export type CreateCommentInput = z.infer<typeof createCommentInput>;

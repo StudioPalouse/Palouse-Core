@@ -1,3 +1,4 @@
 // Domain services for tasks, handoffs, orgs, memberships.
-// Concrete services land in M2 (tasks) and M5 (handoffs) per docs/architecture.md.
-export const PACKAGE = '@reqops/core';
+// Handoff services land in M5 per docs/architecture.md.
+export * as workspaces from './workspaces/service.js';
+export * as taskService from './tasks/service.js';

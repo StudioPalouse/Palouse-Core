@@ -1,2 +1,13 @@
-// React component library (shadcn/ui-based). Components land in M2 alongside the inbox UI.
-export const PACKAGE = '@reqops/ui';
+// shadcn/ui-based component library. Base theme, neutral palette.
+export * from './lib/utils';
+export * from './components/badge';
+export * from './components/button';
+export * from './components/card';
+export * from './components/dialog';
+export * from './components/input';
+export * from './components/label';
+export * from './components/select';
+export * from './components/separator';
+export * from './components/sheet';
+export * from './components/skeleton';
+export * from './components/textarea';

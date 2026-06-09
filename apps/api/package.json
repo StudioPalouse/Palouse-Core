@@ -16,6 +16,7 @@
     "@hono/node-server": "^1.13.0",
     "@reqops/auth": "workspace:*",
     "@reqops/config": "workspace:*",
+    "@reqops/core": "workspace:^",
     "@reqops/db": "workspace:*",
     "@reqops/shared": "workspace:*",
     "drizzle-orm": "^0.36.0",

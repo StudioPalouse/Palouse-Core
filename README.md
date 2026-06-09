@@ -8,22 +8,35 @@ behalf of a human and report back.
 Open core: full product is Apache-2.0 and self-hostable. Hosted SaaS layers a
 small set of BSL-licensed cloud features on top of the same code.
 
-> Status: v0.0 — repository scaffold. Active milestone: **M1 — Repo skeleton & infra**.
+> Status: v0.0 — M2 in progress (tasks core + unified inbox). Sign-up, workspaces,
+> task CRUD, comments and the inbox UI work end-to-end against the local API.
 > See [`docs/architecture.md`](./docs/architecture.md) for the complete plan.
 
 ## Quick start (dev)
 
-Prereqs: Node 22+, pnpm 10+, Docker.
+Prereqs: Node 22+, pnpm 10+, Docker (or local Postgres 16 + Redis 7).
 
 ```bash
 pnpm install
 docker compose -f docker-compose.dev.yml up -d   # postgres + redis only
-cp .env.example .env                              # or: pnpm reqops init
-pnpm db:generate && pnpm db:migrate
+pnpm reqops init                                  # writes .env with random secrets
+pnpm db:migrate
+pnpm reqops seed                                  # optional: demo user + workspace + tasks
 pnpm dev
 ```
 
-Open <http://localhost:3000>.
+Open <http://localhost:3000> and sign in with the seeded account
+(`demo@reqops.local` / `reqops-demo-password`), or sign up fresh.
+The API serves <http://localhost:4000> (`/health`, `/v1/*`, Better-Auth under `/api/auth`).
+
+No Docker? Point `DATABASE_URL` / `REDIS_URL` in `.env` at any local Postgres 16
+and Redis 7 — `.env` is auto-loaded by every app in dev.
+
+### UI
+
+`packages/ui` is a [shadcn/ui](https://ui.shadcn.com)-based component library on
+Tailwind v4 — stock base theme, neutral palette, no customization. Navigation is
+deliberately minimal: a single top bar (Inbox · Settings · sign out).
 
 ## Full self-host
 
