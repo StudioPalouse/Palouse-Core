@@ -4,7 +4,10 @@ import { ReqOpsError } from '@reqops/shared';
 import { getAuth } from '@reqops/auth';
 import { loadEnv } from '@reqops/config';
 import { health } from './routes/health.js';
+import { integrationRoutes } from './routes/integrations.js';
+import { oauthRoutes } from './routes/oauth.js';
 import { taskRoutes } from './routes/tasks.js';
+import { webhookRoutes } from './routes/webhooks.js';
 import { workspaceRoutes } from './routes/workspaces.js';
 import { logger } from './logger.js';
 
@@ -37,6 +40,9 @@ export function buildApp() {
   app.get('/v1', (c) => c.json({ name: 'reqops', version: '0.0.0' }));
   app.route('/v1/workspaces', workspaceRoutes);
   app.route('/v1/tasks', taskRoutes);
+  app.route('/v1/integrations', integrationRoutes);
+  app.route('/oauth', oauthRoutes);
+  app.route('/webhooks', webhookRoutes);
 
   return app;
 }

@@ -9,6 +9,8 @@ import {
 import { taskService, workspaces } from '@reqops/core';
 import { loadEnv } from '@reqops/config';
 import { getDb } from '@reqops/db';
+import { enqueuePush } from '@reqops/queue';
+import { getSyncQueue } from '../queue.js';
 import { requireSession, type SessionVars } from '../middleware/session.js';
 
 export const taskRoutes = new Hono<SessionVars>();
@@ -60,6 +62,9 @@ taskRoutes.patch('/:id', async (c) => {
     c.req.param('id'),
     parsed.data,
   );
+  // Mirror the change back to any linked external systems (worker no-ops
+  // when the task has no sources).
+  await enqueuePush(getSyncQueue(), task.id, workspaceId).catch(() => {});
   return c.json({ task });
 });
 

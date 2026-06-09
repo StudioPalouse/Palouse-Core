@@ -2,3 +2,5 @@
 // Handoff services land in M5 per docs/architecture.md.
 export * as workspaces from './workspaces/service.js';
 export * as taskService from './tasks/service.js';
+export * as integrationService from './integrations/service.js';
+export * from './tasks/upsert.js';

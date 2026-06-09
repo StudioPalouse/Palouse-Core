@@ -8,8 +8,10 @@ behalf of a human and report back.
 Open core: full product is Apache-2.0 and self-hostable. Hosted SaaS layers a
 small set of BSL-licensed cloud features on top of the same code.
 
-> Status: v0.0 — M2 in progress (tasks core + unified inbox). Sign-up, workspaces,
-> task CRUD, comments and the inbox UI work end-to-end against the local API.
+> Status: v0.0 — M3 in progress (connector framework). M2 (tasks core + unified
+> inbox) works end-to-end; Google Tasks and Asana connectors sync through the
+> worker: OAuth connect, encrypted token storage, incremental pull, Asana
+> webhooks with polling fallback, and outbound push of ReqOps edits.
 > See [`docs/architecture.md`](./docs/architecture.md) for the complete plan.
 
 ## Quick start (dev)
@@ -31,6 +33,18 @@ The API serves <http://localhost:4000> (`/health`, `/v1/*`, Better-Auth under `/
 
 No Docker? Point `DATABASE_URL` / `REDIS_URL` in `.env` at any local Postgres 16
 and Redis 7 — `.env` is auto-loaded by every app in dev.
+
+### Connectors
+
+Connecting Google Tasks or Asana from Settings requires OAuth apps of your own:
+set `GOOGLE_OAUTH_CLIENT_ID/SECRET` and/or `ASANA_OAUTH_CLIENT_ID/SECRET` in
+`.env`, with redirect URI `http://localhost:4000/oauth/<provider>/callback`.
+Google Tasks is polled every 60s. Asana subscribes a webhook when
+`API_BASE_URL` is publicly reachable and otherwise falls back to 5-minute
+polling. Editing a synced task in ReqOps pushes the change back to the source
+system. For connector development without real credentials,
+`@reqops/testing` ships a fake Asana server and the adapters honor
+`REQOPS_ASANA_API_BASE` / `REQOPS_GOOGLE_TASKS_API_BASE` overrides.
 
 ### UI
 

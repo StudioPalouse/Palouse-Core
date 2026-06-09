@@ -1,5 +1,6 @@
 import type {
   CreateTaskInput,
+  Integration,
   Task,
   TaskComment,
   TaskSource,
@@ -68,6 +69,24 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ workspaceId, bodyMd }),
     }),
+
+  listIntegrations: (workspaceId: string) =>
+    request<{ integrations: Integration[] }>(`/v1/integrations?workspaceId=${workspaceId}`),
+
+  syncIntegration: (workspaceId: string, id: string) =>
+    request<{ queued: boolean }>(`/v1/integrations/${id}/sync?workspaceId=${workspaceId}`, {
+      method: 'POST',
+    }),
+
+  deleteIntegration: (workspaceId: string, id: string) =>
+    request<{ deleted: boolean }>(`/v1/integrations/${id}?workspaceId=${workspaceId}`, {
+      method: 'DELETE',
+    }),
 };
+
+/** Browser navigation target that starts a connector OAuth flow (carries cookies). */
+export function oauthStartUrl(provider: string, workspaceId: string): string {
+  return `${API_URL}/oauth/${provider}/start?workspaceId=${workspaceId}`;
+}
 
 export { ApiError };

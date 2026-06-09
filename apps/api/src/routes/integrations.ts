@@ -1,0 +1,45 @@
+import { Hono } from 'hono';
+import { integrationService, workspaces } from '@reqops/core';
+import { loadEnv } from '@reqops/config';
+import { getDb } from '@reqops/db';
+import { validation } from '@reqops/shared';
+import { enqueuePull, removePolling } from '@reqops/queue';
+import { getSyncQueue } from '../queue.js';
+import { requireSession, type SessionVars } from '../middleware/session.js';
+
+export const integrationRoutes = new Hono<SessionVars>();
+
+integrationRoutes.use('*', requireSession);
+
+integrationRoutes.get('/', async (c) => {
+  const workspaceId = c.req.query('workspaceId') ?? '';
+  if (!workspaceId) throw validation('workspaceId query param required');
+  const db = getDb(loadEnv().DATABASE_URL);
+  await workspaces.requireMembership(db, workspaceId, c.get('userId'));
+  const items = await integrationService.listIntegrations(db, workspaceId);
+  return c.json({ integrations: items });
+});
+
+integrationRoutes.post('/:id/sync', async (c) => {
+  const workspaceId = c.req.query('workspaceId') ?? '';
+  if (!workspaceId) throw validation('workspaceId query param required');
+  const db = getDb(loadEnv().DATABASE_URL);
+  await workspaces.requireMembership(db, workspaceId, c.get('userId'));
+  const row = await integrationService.getIntegrationRow(db, c.req.param('id'));
+  if (row.workspaceId !== workspaceId) throw validation('Integration not in this workspace');
+  await enqueuePull(getSyncQueue(), row.id);
+  return c.json({ queued: true });
+});
+
+integrationRoutes.delete('/:id', async (c) => {
+  const workspaceId = c.req.query('workspaceId') ?? '';
+  if (!workspaceId) throw validation('workspaceId query param required');
+  const db = getDb(loadEnv().DATABASE_URL);
+  await workspaces.requireMembership(db, workspaceId, c.get('userId'));
+  const id = c.req.param('id');
+  await integrationService.deleteIntegration(db, workspaceId, id);
+  await removePolling(getSyncQueue(), id).catch(() => {
+    // Worker's reconciler removes orphaned schedulers within 5 minutes anyway.
+  });
+  return c.json({ deleted: true });
+});

@@ -46,6 +46,8 @@ export const integrations = pgTable(
     scopes: text('scopes').array().notNull().default(sql`'{}'::text[]`),
     externalAccountId: text('external_account_id'),
     webhookSubscriptionId: text('webhook_subscription_id'),
+    // Per-subscription signing secret (e.g. Asana X-Hook-Secret), AES-256-GCM encrypted.
+    webhookSecretEnc: bytea('webhook_secret_enc'),
     webhookExpiresAt: timestamp('webhook_expires_at', { withTimezone: true, mode: 'date' }),
     status: integrationStatus('status').notNull().default('active'),
     lastSyncAt: timestamp('last_sync_at', { withTimezone: true, mode: 'date' }),
