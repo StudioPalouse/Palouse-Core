@@ -5,7 +5,9 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "echo 'TODO: eslint'",
@@ -13,7 +15,10 @@
   },
   "dependencies": {
     "@reqops/connector-core": "workspace:*",
-    "@reqops/shared": "workspace:*"
+    "@reqops/shared": "workspace:*",
+    "@reqops/connector-microsoft-graph": "workspace:*"
   },
-  "devDependencies": { "typescript": "^5.6.0" }
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
 }

@@ -41,6 +41,12 @@ importers:
       '@reqops/connector-google-tasks':
         specifier: workspace:^
         version: link:../../packages/connectors/google-tasks
+      '@reqops/connector-microsoft-planner':
+        specifier: workspace:^
+        version: link:../../packages/connectors/microsoft-planner
+      '@reqops/connector-microsoft-todo':
+        specifier: workspace:^
+        version: link:../../packages/connectors/microsoft-todo
       '@reqops/core':
         specifier: workspace:^
         version: link:../../packages/core
@@ -192,6 +198,12 @@ importers:
       '@reqops/connector-google-tasks':
         specifier: workspace:^
         version: link:../../packages/connectors/google-tasks
+      '@reqops/connector-microsoft-planner':
+        specifier: workspace:^
+        version: link:../../packages/connectors/microsoft-planner
+      '@reqops/connector-microsoft-todo':
+        specifier: workspace:^
+        version: link:../../packages/connectors/microsoft-todo
       '@reqops/core':
         specifier: workspace:^
         version: link:../../packages/core
@@ -321,11 +333,27 @@ importers:
         specifier: ^5.6.0
         version: 5.9.3
 
+  packages/connectors/microsoft-graph:
+    dependencies:
+      '@reqops/connector-core':
+        specifier: workspace:*
+        version: link:../core
+      '@reqops/shared':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
   packages/connectors/microsoft-planner:
     dependencies:
       '@reqops/connector-core':
         specifier: workspace:*
         version: link:../core
+      '@reqops/connector-microsoft-graph':
+        specifier: workspace:*
+        version: link:../microsoft-graph
       '@reqops/shared':
         specifier: workspace:*
         version: link:../../shared
@@ -339,6 +367,9 @@ importers:
       '@reqops/connector-core':
         specifier: workspace:*
         version: link:../core
+      '@reqops/connector-microsoft-graph':
+        specifier: workspace:*
+        version: link:../microsoft-graph
       '@reqops/shared':
         specifier: workspace:*
         version: link:../../shared

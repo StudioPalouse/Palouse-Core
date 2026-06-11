@@ -1,0 +1,50 @@
+name: Deploy Staging
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never overlap deploys; queue instead of cancel so migrations are not interrupted.
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+env:
+  FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+jobs:
+  deploy-api:
+    name: Deploy api (runs migrations)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy . --config fly/api.toml --dockerfile apps/api/Dockerfile --remote-only --yes
+
+  deploy-services:
+    name: Deploy ${{ matrix.app }}
+    needs: deploy-api
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # mcp rejoins at M5 — it's a placeholder scaled to 0 machines until the
+        # real MCP server ships (standing rule: minimal hosting spend in testing).
+        app: [web, worker]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy . --config fly/${{ matrix.app }}.toml --dockerfile apps/${{ matrix.app }}/Dockerfile --remote-only --yes
+
+  smoke:
+    name: Staging smoke test
+    needs: deploy-services
+    runs-on: ubuntu-latest
+    steps:
+      - name: API liveness
+        run: curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://reqops-staging-api.fly.dev/health
+      - name: API readiness (DB reachable)
+        run: curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://reqops-staging-api.fly.dev/health/ready
+      - name: Web responds
+        run: curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors -o /dev/null https://reqops-staging-web.fly.dev/

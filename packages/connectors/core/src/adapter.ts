@@ -86,6 +86,9 @@ export interface ConnectorAdapter {
     ctx: PullContext,
     callbackUrl: string,
   ): Promise<WebhookSubscription>;
+
+  /** Extends an expiring subscription (MS Graph caps lifetimes at ~3 days). */
+  renewWebhook?(ctx: PullContext, subscriptionId: string): Promise<WebhookSubscription>;
 }
 
 export class ConnectorHttpError extends Error {

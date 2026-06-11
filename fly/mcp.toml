@@ -1,0 +1,28 @@
+# ReqOps MCP server — staging
+# Deploy from repo root: flyctl deploy . --config fly/mcp.toml --dockerfile apps/mcp/Dockerfile --remote-only
+#
+# apps/mcp is a placeholder until M5 lands the streamable-HTTP transport.
+# When it does, add the [http_service] block below so reqops-staging-mcp.fly.dev:443
+# routes to internal port 7777:
+#   [http_service]
+#     internal_port = 7777
+#     force_https = true
+#     auto_stop_machines = "stop"
+#     auto_start_machines = true
+#     min_machines_running = 0
+app = "reqops-staging-mcp"
+primary_region = "iad"
+
+[env]
+  NODE_ENV = "production"
+  LOG_LEVEL = "info"
+  MCP_HTTP_PORT = "7777"
+  REQOPS_API_URL = "https://reqops-staging-api.fly.dev"
+  # Required by the shared env loader; public base URLs are the web origin.
+  API_BASE_URL = "https://test.reqops.ai"
+  BETTER_AUTH_URL = "https://test.reqops.ai"
+  WEB_BASE_URL = "https://test.reqops.ai"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

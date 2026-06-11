@@ -1,13 +1,16 @@
 import type { ConnectorAdapter, OAuthClientConfig } from '@reqops/connector-core';
 import { googleTasksAdapter } from '@reqops/connector-google-tasks';
 import { asanaAdapter } from '@reqops/connector-asana';
+import { microsoftTodoAdapter } from '@reqops/connector-microsoft-todo';
+import { microsoftPlannerAdapter } from '@reqops/connector-microsoft-planner';
 import type { Env } from '@reqops/config';
 import { validation, type IntegrationProvider } from '@reqops/shared';
 
 const ADAPTERS: Partial<Record<IntegrationProvider, ConnectorAdapter>> = {
   google_tasks: googleTasksAdapter,
   asana: asanaAdapter,
-  // ms_todo / ms_planner land in M4
+  ms_todo: microsoftTodoAdapter,
+  ms_planner: microsoftPlannerAdapter,
 };
 
 export function adapterFor(provider: IntegrationProvider): ConnectorAdapter {

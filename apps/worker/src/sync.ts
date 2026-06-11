@@ -1,6 +1,6 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, isNotNull, ne } from 'drizzle-orm';
 import type { Logger } from 'pino';
-import { taskSources, tasks, webhookDeliveries, type Database } from '@reqops/db';
+import { integrations, taskSources, tasks, webhookDeliveries, type Database } from '@reqops/db';
 import type { Env } from '@reqops/config';
 import { integrationService, upsertExternalTask } from '@reqops/core';
 import type { PullContext } from '@reqops/connector-core';
@@ -126,5 +126,66 @@ export async function runPush(
       { taskId, integrationId: row.id, provider: row.provider },
       'Pushed task to external system',
     );
+  }
+}
+
+// Renew when a subscription is within this window of lapsing (MS Graph caps
+// To Do subscriptions at ~3 days; the sweep runs every 6 hours).
+const RENEW_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/** Sweeps integrations with webhook subscriptions and renews any near expiry. */
+export async function runRenewSubscriptions(
+  db: Database,
+  env: Env,
+  logger: Logger,
+): Promise<void> {
+  const rows = await db
+    .select()
+    .from(integrations)
+    .where(and(isNotNull(integrations.webhookSubscriptionId), ne(integrations.status, 'revoked')));
+
+  for (const row of rows) {
+    const adapter = adapterFor(row.provider);
+    if (!adapter.renewWebhook || !row.webhookSubscriptionId) continue;
+    if (
+      row.webhookExpiresAt &&
+      row.webhookExpiresAt.getTime() > Date.now() + RENEW_WINDOW_MS
+    ) {
+      continue;
+    }
+
+    const ctx: PullContext = {
+      integrationId: row.id,
+      workspaceId: row.workspaceId,
+      accessToken: await freshAccessToken(db, env, row),
+    };
+    try {
+      const sub = await adapter.renewWebhook(ctx, row.webhookSubscriptionId);
+      await integrationService.setWebhookSubscription(db, row.id, sub.subscriptionId, sub.expiresAt);
+      logger.info(
+        { integrationId: row.id, provider: row.provider, expiresAt: sub.expiresAt },
+        'Webhook subscription renewed',
+      );
+    } catch (err) {
+      // Lapsed subscriptions cannot be renewed — fall back to creating a new one.
+      logger.warn(
+        { integrationId: row.id, provider: row.provider, err: (err as Error).message },
+        'Renewal failed — attempting fresh subscription',
+      );
+      try {
+        if (!adapter.subscribeWebhook) continue;
+        const sub = await adapter.subscribeWebhook(
+          ctx,
+          `${env.API_BASE_URL}/webhooks/${row.provider}/${row.id}`,
+        );
+        await integrationService.setWebhookSubscription(db, row.id, sub.subscriptionId, sub.expiresAt);
+        logger.info({ integrationId: row.id }, 'Webhook re-subscribed');
+      } catch (err2) {
+        logger.error(
+          { integrationId: row.id, err: (err2 as Error).message },
+          'Webhook re-subscription failed — polling remains the fallback',
+        );
+      }
+    }
   }
 }

@@ -1,13 +1,16 @@
 import type { ConnectorAdapter, OAuthClientConfig } from '@reqops/connector-core';
 import { googleTasksAdapter } from '@reqops/connector-google-tasks';
 import { asanaAdapter } from '@reqops/connector-asana';
+import { microsoftTodoAdapter } from '@reqops/connector-microsoft-todo';
+import { microsoftPlannerAdapter } from '@reqops/connector-microsoft-planner';
 import type { Env } from '@reqops/config';
 import type { IntegrationProvider } from '@reqops/shared';
 
 const ADAPTERS: Partial<Record<IntegrationProvider, ConnectorAdapter>> = {
   google_tasks: googleTasksAdapter,
   asana: asanaAdapter,
-  // ms_todo / ms_planner land in M4
+  ms_todo: microsoftTodoAdapter,
+  ms_planner: microsoftPlannerAdapter,
 };
 
 export function adapterFor(provider: IntegrationProvider): ConnectorAdapter {
@@ -30,8 +33,13 @@ export function oauthConfigFor(env: Env, provider: IntegrationProvider): OAuthCl
   return { clientId, clientSecret };
 }
 
-/** Poll cadence per provider (ms). Google Tasks has no webhooks; Asana polling is a fallback. */
+/**
+ * Poll cadence per provider (ms). Google Tasks and Planner have no webhooks;
+ * Asana and MS To Do polling is a fallback behind their webhook subscriptions.
+ */
 export const POLL_INTERVAL_MS: Partial<Record<IntegrationProvider, number>> = {
   google_tasks: 60_000,
   asana: 300_000,
+  ms_todo: 300_000,
+  ms_planner: 120_000,
 };

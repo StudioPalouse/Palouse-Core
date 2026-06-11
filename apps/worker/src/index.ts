@@ -9,6 +9,7 @@ import {
   listPollingSchedulers,
   removePolling,
   schedulePolling,
+  scheduleSubscriptionRenewal,
   QUEUE_NAMES,
   SYNC_JOBS,
   type SyncJobData,
@@ -17,7 +18,7 @@ import {
   type SyncPushJob,
 } from '@reqops/queue';
 import { adapterFor, POLL_INTERVAL_MS } from './adapters.js';
-import { runProcessWebhook, runPull, runPush } from './sync.js';
+import { runProcessWebhook, runPull, runPush, runRenewSubscriptions } from './sync.js';
 
 const env = loadEnv();
 const logger = pino({ level: env.LOG_LEVEL, base: { service: 'reqops-worker' } });
@@ -42,6 +43,10 @@ const worker = new Worker<SyncJobData>(
       case SYNC_JOBS.pushTask: {
         const { taskId } = job.data as SyncPushJob;
         await runPush(db, env, logger, taskId);
+        break;
+      }
+      case SYNC_JOBS.renewSubscriptions: {
+        await runRenewSubscriptions(db, env, logger);
         break;
       }
       default:
@@ -87,6 +92,9 @@ async function reconcilePolling(): Promise<void> {
 }
 
 await reconcilePolling().catch((err) => logger.error({ err }, 'Polling reconcile failed'));
+await scheduleSubscriptionRenewal(syncQueue).catch((err) =>
+  logger.error({ err }, 'Failed to schedule subscription renewal sweep'),
+);
 const reconcileTimer = setInterval(
   () => void reconcilePolling().catch((err) => logger.error({ err }, 'Polling reconcile failed')),
   5 * 60_000,

@@ -13,4 +13,4 @@ FROM deps AS runtime
 COPY apps/api apps/api
 WORKDIR /repo/apps/api
 EXPOSE 4000
-CMD ["pnpm", "dev"]
+CMD ["pnpm", "start"]

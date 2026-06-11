@@ -22,7 +22,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   ms_planner: 'Microsoft Planner',
 };
 
-const CONNECTABLE = ['google_tasks', 'asana'] as const;
+const CONNECTABLE = ['google_tasks', 'asana', 'ms_todo', 'ms_planner'] as const;
 
 function formatTime(iso: string | null): string {
   if (!iso) return 'never';
