@@ -257,7 +257,7 @@ Lives entirely in `cloud/*` and simply does not exist in the OSS build:
 
 ### Hosted
 - **Platform**: **Fly.io** — better region story + cheaper egress than Render; avoid AWS-native lock-in.
-- **Postgres**: **Neon** (branching = preview envs; scale-to-zero). Alt: Supabase Postgres for built-in pooling — but only the database, not auth/storage.
+- **Postgres**: **Fly Postgres** in the same org (staging runs this today — single service, private networking). Alt for prod: Neon (branching = preview envs; scale-to-zero).
 - **Redis**: Upstash or Fly Upstash addon.
 - **Object storage**: **Cloudflare R2** (S3 API, zero egress).
 - **Email**: Resend. **Errors**: Sentry. **Telemetry**: OTel → Axiom.

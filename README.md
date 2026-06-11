@@ -69,7 +69,7 @@ Brings up `postgres`, `redis`, `minio`, `api`, `web`, `worker`, `mcp`.
 ## Cloud staging
 
 Every push to `main` deploys to the Fly.io staging environment
-(`reqops-staging-*` apps, Supabase Postgres, Upstash Redis) and smoke-tests
+(`reqops-staging-*` apps, Fly Postgres, Upstash Redis) and smoke-tests
 <https://reqops-staging-api.fly.dev/health>. See
 [`docs/deployment.md`](./docs/deployment.md) for setup, manual deploys
 (`./scripts/fly-deploy.sh`), and the day-to-day cloud testing workflow.

@@ -1,8 +1,8 @@
 # Deployment — Fly.io staging
 
 The staging environment is where everything gets tested from M4 onward — cloud
-first, local second. One Fly app per compose service (architecture §8), backed
-by managed Postgres and Redis:
+first, local second. One Fly app per compose service (architecture §8), with
+Postgres and Redis also on Fly so the whole environment lives in one org:
 
 | Piece | Where | Name / URL |
 |---|---|---|
@@ -10,7 +10,7 @@ by managed Postgres and Redis:
 | Web (Next.js) | Fly `iad` | `reqops-staging-web` → <https://reqops-staging-web.fly.dev> |
 | Worker (BullMQ) | Fly `iad` | `reqops-staging-worker` (no public URL) |
 | MCP | Fly `iad` | `reqops-staging-mcp` (placeholder until M5; HTTP service commented out in `fly/mcp.toml`) |
-| Postgres | Supabase `us-east-1` | project `reqops-staging`, ref `sbjosayjlbcvgevobwlj` |
+| Postgres | Fly `iad` | `reqops-staging-db` (single node, private — `reqops-staging-db.flycast:5432`) |
 | Redis | Upstash via Fly | `reqops-staging-redis` (eviction disabled — BullMQ requirement) |
 
 Config lives in `fly/*.toml` (one per app). Non-secret env (URLs, ports,
@@ -22,11 +22,13 @@ migrations on every deploy, before new machines receive traffic.
 
 ```bash
 fly auth login
-./scripts/fly-provision.sh        # creates the 4 apps + Upstash Redis (prints REDIS_URL)
+./scripts/fly-provision.sh        # creates the 4 apps + Fly Postgres + Upstash Redis
+                                  # (prints REDIS_URL; follow its prompt to create the
+                                  #  reqops_app role + reqops database on Postgres)
 
 cp .env.staging.example .env.staging
-# Fill in: DATABASE_URL (Supabase dashboard → reqops-staging → Project Settings →
-# Database → reset password), REDIS_URL (printed by provision), and generate
+# Fill in: DATABASE_URL (reqops_app password chosen during provisioning),
+# REDIS_URL (printed by provision), and generate
 # BETTER_AUTH_SECRET / REQOPS_ENCRYPTION_KEY per the comments in the file.
 
 ./scripts/fly-secrets.sh          # pushes secrets to api / worker / mcp
@@ -132,15 +134,19 @@ standbys (no compute billed). Roughly $7–8/mo in machines plus pay-as-you-go
 Redis commands.
 
 - Web auto-stops (`min_machines_running = 0`) and auto-starts on request.
-- Supabase `reqops-staging` is on the free tier ($0/mo). The direct connection
-  string is IPv6-only, which works from Fly machines; if something IPv4-only
-  ever needs the DB, use the session pooler URL from the Supabase dashboard
-  (never the transaction pooler on port 6543 — it breaks migrations).
+- Postgres is a single Fly machine (`shared-cpu-1x`, 1 GB volume, ~$2–3/mo) in
+  the same org — private networking only (`.flycast`, no TLS, no public IP).
+  No HA on staging by design; production gets its own properly sized cluster.
+  Connect ad-hoc with `fly postgres connect -a reqops-staging-db`.
 - Upstash Redis must keep eviction disabled or BullMQ can silently lose jobs.
+
+History: staging originally ran on a free-tier Supabase Postgres (project
+`reqops-staging`); it was consolidated onto Fly in June 2026 so the whole
+environment lives in one provider, and the Supabase project was paused.
 
 ## Production (later)
 
-Production gets its own `fly/*.prod.toml` set, its own Postgres (Neon or a paid
-Supabase project per architecture §8), its own Redis, and a tag- or
+Production gets its own `fly/*.prod.toml` set, its own Postgres (a properly
+sized Fly Postgres cluster, or Neon per architecture §8), its own Redis, and a tag- or
 release-triggered workflow. Nothing in the staging setup assumes it is the only
 environment — app names, URLs, and secrets are all per-environment.
