@@ -1,0 +1,18 @@
+# ReqOps Worker (BullMQ) — staging
+# Deploy from repo root: flyctl deploy . --config fly/worker.toml --dockerfile apps/worker/Dockerfile --remote-only
+# No [http_service]: headless queue consumer, machine runs continuously.
+app = "reqops-staging-worker"
+primary_region = "iad"
+
+[env]
+  NODE_ENV = "production"
+  LOG_LEVEL = "info"
+  # Public base URLs route through the web origin's rewrite proxy (the worker
+  # uses API_BASE_URL when registering webhook targets with providers).
+  API_BASE_URL = "https://reqops-staging-web.fly.dev"
+  BETTER_AUTH_URL = "https://reqops-staging-web.fly.dev"
+  WEB_BASE_URL = "https://reqops-staging-web.fly.dev"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

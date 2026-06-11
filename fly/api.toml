@@ -1,0 +1,39 @@
+# ReqOps API — staging
+# Deploy from repo root: flyctl deploy . --config fly/api.toml --dockerfile apps/api/Dockerfile --remote-only
+app = "reqops-staging-api"
+primary_region = "iad"
+
+[deploy]
+  # Runs in a one-off machine with this app's env + secrets before new machines start.
+  release_command = "pnpm --filter @reqops/db migrate"
+
+[env]
+  NODE_ENV = "production"
+  LOG_LEVEL = "info"
+  API_PORT = "4000"
+  # Public traffic (browsers, OAuth callbacks, webhooks) enters through the web
+  # origin's rewrite proxy, so the public-facing base URLs are the WEB origin.
+  # Swap all three to https://test.reqops.ai once the custom domain is live.
+  API_BASE_URL = "https://reqops-staging-web.fly.dev"
+  BETTER_AUTH_URL = "https://reqops-staging-web.fly.dev"
+  WEB_BASE_URL = "https://reqops-staging-web.fly.dev"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # Keep one machine warm: the web proxy targets reqops-staging-api.internal,
+  # and .internal DNS only resolves started machines (it cannot wake stopped ones).
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "15s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

@@ -13,4 +13,4 @@ FROM deps AS runtime
 COPY apps/mcp apps/mcp
 WORKDIR /repo/apps/mcp
 EXPOSE 7777
-CMD ["pnpm", "dev"]
+CMD ["pnpm", "start"]

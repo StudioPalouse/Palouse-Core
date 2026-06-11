@@ -71,10 +71,14 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        # Next rewrite proxy target inside the compose network.
+        API_PROXY_TARGET: http://api:4000
     restart: unless-stopped
     env_file: .env
     environment:
       REQOPS_API_URL: http://api:4000
+      API_PROXY_TARGET: http://api:4000
     ports:
       - '3000:3000'
     depends_on:

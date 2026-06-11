@@ -38,7 +38,8 @@ and Redis 7 — `.env` is auto-loaded by every app in dev.
 
 Connecting Google Tasks or Asana from Settings requires OAuth apps of your own:
 set `GOOGLE_OAUTH_CLIENT_ID/SECRET` and/or `ASANA_OAUTH_CLIENT_ID/SECRET` in
-`.env`, with redirect URI `http://localhost:4000/oauth/<provider>/callback`.
+`.env`, with redirect URI `http://localhost:3000/oauth/<provider>/callback`
+(the web origin — API traffic rides the Next rewrite proxy).
 Google Tasks is polled every 60s. Asana subscribes a webhook when
 `API_BASE_URL` is publicly reachable and otherwise falls back to 5-minute
 polling. Editing a synced task in ReqOps pushes the change back to the source
@@ -60,6 +61,14 @@ docker compose up -d
 ```
 
 Brings up `postgres`, `redis`, `minio`, `api`, `web`, `worker`, `mcp`.
+
+## Cloud staging
+
+Every push to `main` deploys to the Fly.io staging environment
+(`reqops-staging-*` apps, Supabase Postgres, Upstash Redis) and smoke-tests
+<https://reqops-staging-api.fly.dev/health>. See
+[`docs/deployment.md`](./docs/deployment.md) for setup, manual deploys
+(`./scripts/fly-deploy.sh`), and the day-to-day cloud testing workflow.
 
 ## Repository layout
 

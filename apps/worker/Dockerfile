@@ -12,4 +12,4 @@ RUN pnpm install --frozen-lockfile || pnpm install
 FROM deps AS runtime
 COPY apps/worker apps/worker
 WORKDIR /repo/apps/worker
-CMD ["pnpm", "dev"]
+CMD ["pnpm", "start"]
