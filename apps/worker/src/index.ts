@@ -4,20 +4,26 @@ import pino from 'pino';
 import { loadEnv } from '@reqops/config';
 import { getDb, integrations } from '@reqops/db';
 import {
+  createHandoffQueue,
   createRedisConnection,
   createSyncQueue,
   listPollingSchedulers,
   removePolling,
   schedulePolling,
+  scheduleReaper,
   scheduleSubscriptionRenewal,
+  HANDOFF_JOBS,
   QUEUE_NAMES,
   SYNC_JOBS,
+  type HandoffJobData,
+  type HandoffNotifyJob,
   type SyncJobData,
   type SyncProcessWebhookJob,
   type SyncPullJob,
   type SyncPushJob,
 } from '@reqops/queue';
 import { adapterFor, POLL_INTERVAL_MS } from './adapters.js';
+import { runNotifyAgent, runReapExpired } from './handoffs.js';
 import { runProcessWebhook, runPull, runPush, runRenewSubscriptions } from './sync.js';
 
 const env = loadEnv();
@@ -60,6 +66,29 @@ worker.on('failed', (job, err) => {
   logger.error({ jobId: job?.id, name: job?.name, err: err.message }, 'Sync job failed');
 });
 
+const handoffQueue = createHandoffQueue(connection);
+
+const handoffWorker = new Worker<HandoffJobData>(
+  QUEUE_NAMES.handoff,
+  async (job) => {
+    switch (job.name) {
+      case HANDOFF_JOBS.reapExpired:
+        await runReapExpired(db, logger);
+        break;
+      case HANDOFF_JOBS.notifyAgent:
+        await runNotifyAgent(logger, job.data as HandoffNotifyJob);
+        break;
+      default:
+        logger.warn({ name: job.name }, 'Unknown handoff job');
+    }
+  },
+  { connection, concurrency: 2 },
+);
+
+handoffWorker.on('failed', (job, err) => {
+  logger.error({ jobId: job?.id, name: job?.name, err: err.message }, 'Handoff job failed');
+});
+
 /**
  * Keeps repeatable poll schedulers in lockstep with active integrations:
  * adds missing ones, removes orphans. Runs at boot and every 5 minutes.
@@ -95,6 +124,9 @@ await reconcilePolling().catch((err) => logger.error({ err }, 'Polling reconcile
 await scheduleSubscriptionRenewal(syncQueue).catch((err) =>
   logger.error({ err }, 'Failed to schedule subscription renewal sweep'),
 );
+await scheduleReaper(handoffQueue).catch((err) =>
+  logger.error({ err }, 'Failed to schedule handoff reaper'),
+);
 const reconcileTimer = setInterval(
   () => void reconcilePolling().catch((err) => logger.error({ err }, 'Polling reconcile failed')),
   5 * 60_000,
@@ -106,7 +138,9 @@ const shutdown = async (signal: string) => {
   logger.info({ signal }, 'Shutting down');
   clearInterval(reconcileTimer);
   await worker.close();
+  await handoffWorker.close();
   await syncQueue.close();
+  await handoffQueue.close();
   connection.disconnect();
   process.exit(0);
 };

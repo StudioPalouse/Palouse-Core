@@ -5,6 +5,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -87,6 +88,10 @@ export const agentHandoffs = pgTable(
     claimedAt: timestamp('claimed_at', { withTimezone: true, mode: 'date' }),
     lastHeartbeatAt: timestamp('last_heartbeat_at', { withTimezone: true, mode: 'date' }),
     deadlineAt: timestamp('deadline_at', { withTimezone: true, mode: 'date' }),
+    // Heartbeat/claim window in minutes; used to (re)compute deadline_at on
+    // claim and on every heartbeat.
+    deadlineMinutes: smallint('deadline_minutes').notNull().default(30),
+    requeueCount: smallint('requeue_count').notNull().default(0),
     resultSummaryMd: text('result_summary_md'),
     failureReason: text('failure_reason'),
     requestedByUserId: uuid('requested_by_user_id').references(() => users.id, {
@@ -105,6 +110,7 @@ export const agentHandoffs = pgTable(
     claimTokenUq: uniqueIndex('agent_handoffs_claim_token_uq').on(t.claimToken),
     workspaceStateIdx: index('agent_handoffs_workspace_state_idx').on(t.workspaceId, t.state),
     taskIdx: index('agent_handoffs_task_idx').on(t.taskId),
+    reaperIdx: index('agent_handoffs_reaper_idx').on(t.state, t.deadlineAt),
   }),
 );
 

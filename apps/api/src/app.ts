@@ -3,6 +3,8 @@ import { cors } from 'hono/cors';
 import { ReqOpsError } from '@reqops/shared';
 import { getAuth } from '@reqops/auth';
 import { loadEnv } from '@reqops/config';
+import { agentRoutes } from './routes/agents.js';
+import { handoffRoutes } from './routes/handoffs.js';
 import { health } from './routes/health.js';
 import { integrationRoutes } from './routes/integrations.js';
 import { oauthRoutes } from './routes/oauth.js';
@@ -40,6 +42,8 @@ export function buildApp() {
   app.get('/v1', (c) => c.json({ name: 'reqops', version: '0.0.0' }));
   app.route('/v1/workspaces', workspaceRoutes);
   app.route('/v1/tasks', taskRoutes);
+  app.route('/v1/agents', agentRoutes);
+  app.route('/v1', handoffRoutes); // /v1/tasks/:id/handoff + /v1/handoffs/*
   app.route('/v1/integrations', integrationRoutes);
   app.route('/oauth', oauthRoutes);
   app.route('/webhooks', webhookRoutes);

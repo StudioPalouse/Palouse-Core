@@ -17,6 +17,7 @@
     "@reqops/config": "workspace:*",
     "@reqops/core": "workspace:^",
     "@reqops/db": "workspace:*",
+    "@reqops/shared": "workspace:^",
     "commander": "^12.1.0",
     "drizzle-orm": "^0.36.0"
   },

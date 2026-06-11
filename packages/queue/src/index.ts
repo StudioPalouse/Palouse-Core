@@ -41,6 +41,22 @@ export type SyncJobData =
   | SyncPushJob
   | SyncRenewSubscriptionsJob;
 
+export const HANDOFF_JOBS = {
+  reapExpired: 'handoff.reap_expired',
+  notifyAgent: 'handoff.notify_agent',
+} as const;
+
+/** Sweep carries no payload. */
+export type HandoffReapJob = Record<string, never>;
+
+export interface HandoffNotifyJob {
+  handoffId: string;
+  workspaceId: string;
+  agentId: string;
+}
+
+export type HandoffJobData = HandoffReapJob | HandoffNotifyJob;
+
 export function createRedisConnection(redisUrl: string): IORedis {
   // BullMQ requires maxRetriesPerRequest: null on its connections.
   return new IORedis(redisUrl, { maxRetriesPerRequest: null });
@@ -109,6 +125,36 @@ export async function scheduleSubscriptionRenewal(
     'renew-subscriptions',
     { every: everyMs },
     { name: SYNC_JOBS.renewSubscriptions, data: {} },
+  );
+}
+
+export function createHandoffQueue(connection: IORedis) {
+  return new Queue<HandoffJobData>(QUEUE_NAMES.handoff, {
+    connection,
+    defaultJobOptions: DEFAULT_JOB_OPTS,
+  });
+}
+
+export type HandoffQueue = ReturnType<typeof createHandoffQueue>;
+
+/** Repeatable reaper sweep: requeue/fail handoffs with lapsed heartbeats. */
+export async function scheduleReaper(queue: HandoffQueue, everyMs = 30_000) {
+  await queue.upsertJobScheduler('handoff-reaper', { every: everyMs }, {
+    name: HANDOFF_JOBS.reapExpired,
+    data: {},
+  });
+}
+
+export async function enqueueNotifyAgent(
+  queue: HandoffQueue,
+  handoffId: string,
+  workspaceId: string,
+  agentId: string,
+) {
+  await queue.add(
+    HANDOFF_JOBS.notifyAgent,
+    { handoffId, workspaceId, agentId },
+    { jobId: `notify-${handoffId}` },
   );
 }
 
