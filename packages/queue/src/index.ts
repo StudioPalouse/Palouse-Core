@@ -15,6 +15,7 @@ export const SYNC_JOBS = {
   pullIntegration: 'sync.pull_integration',
   processWebhook: 'sync.process_webhook',
   pushTask: 'sync.push_task',
+  renewSubscriptions: 'sync.renew_subscriptions',
 } as const;
 
 export interface SyncPullJob {
@@ -31,7 +32,14 @@ export interface SyncPushJob {
   workspaceId: string;
 }
 
-export type SyncJobData = SyncPullJob | SyncProcessWebhookJob | SyncPushJob;
+/** Workspace-wide sweep — carries no payload. */
+export type SyncRenewSubscriptionsJob = Record<string, never>;
+
+export type SyncJobData =
+  | SyncPullJob
+  | SyncProcessWebhookJob
+  | SyncPushJob
+  | SyncRenewSubscriptionsJob;
 
 export function createRedisConnection(redisUrl: string): IORedis {
   // BullMQ requires maxRetriesPerRequest: null on its connections.
@@ -89,6 +97,18 @@ export async function schedulePolling(
     `poll-${integrationId}`,
     { every: everyMs },
     { name: SYNC_JOBS.pullIntegration, data: { integrationId } },
+  );
+}
+
+/** Repeatable sweep renewing provider webhook subscriptions before they lapse. */
+export async function scheduleSubscriptionRenewal(
+  queue: SyncQueue,
+  everyMs = 6 * 60 * 60 * 1000,
+) {
+  await queue.upsertJobScheduler(
+    'renew-subscriptions',
+    { every: everyMs },
+    { name: SYNC_JOBS.renewSubscriptions, data: {} },
   );
 }
 

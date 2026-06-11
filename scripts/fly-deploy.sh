@@ -6,7 +6,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-if [[ $# -gt 0 ]]; then TARGETS=("$@"); else TARGETS=(api web worker mcp); fi
+# mcp excluded from the default set until M5 — it's scaled to 0 machines
+# (standing rule: minimal hosting spend while testing). Deploy explicitly with
+# `./scripts/fly-deploy.sh mcp` when it ships.
+if [[ $# -gt 0 ]]; then TARGETS=("$@"); else TARGETS=(api web worker); fi
 
 deploy() {
   local name="$1"

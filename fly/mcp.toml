@@ -19,9 +19,9 @@ primary_region = "iad"
   MCP_HTTP_PORT = "7777"
   REQOPS_API_URL = "https://reqops-staging-api.fly.dev"
   # Required by the shared env loader; public base URLs are the web origin.
-  API_BASE_URL = "https://reqops-staging-web.fly.dev"
-  BETTER_AUTH_URL = "https://reqops-staging-web.fly.dev"
-  WEB_BASE_URL = "https://reqops-staging-web.fly.dev"
+  API_BASE_URL = "https://test.reqops.ai"
+  BETTER_AUTH_URL = "https://test.reqops.ai"
+  WEB_BASE_URL = "https://test.reqops.ai"
 
 [[vm]]
   size = "shared-cpu-1x"

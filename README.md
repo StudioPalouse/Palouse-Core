@@ -8,10 +8,12 @@ behalf of a human and report back.
 Open core: full product is Apache-2.0 and self-hostable. Hosted SaaS layers a
 small set of BSL-licensed cloud features on top of the same code.
 
-> Status: v0.0 — M3 in progress (connector framework). M2 (tasks core + unified
-> inbox) works end-to-end; Google Tasks and Asana connectors sync through the
-> worker: OAuth connect, encrypted token storage, incremental pull, Asana
-> webhooks with polling fallback, and outbound push of ReqOps edits.
+> Status: v0.0 — M4 (Microsoft connectors) built, pending live-tenant testing.
+> M2 (tasks core + unified inbox) and M3 (Google Tasks + Asana sync) work
+> end-to-end. Microsoft To Do + Planner share a Graph client: OAuth, pull,
+> outbound push, Graph change notifications (To Do) with subscription
+> auto-renewal, and polling fallback. Cloud staging runs at
+> <https://test.reqops.ai> (see [`docs/deployment.md`](./docs/deployment.md)).
 > See [`docs/architecture.md`](./docs/architecture.md) for the complete plan.
 
 ## Quick start (dev)
@@ -36,9 +38,11 @@ and Redis 7 — `.env` is auto-loaded by every app in dev.
 
 ### Connectors
 
-Connecting Google Tasks or Asana from Settings requires OAuth apps of your own:
-set `GOOGLE_OAUTH_CLIENT_ID/SECRET` and/or `ASANA_OAUTH_CLIENT_ID/SECRET` in
-`.env`, with redirect URI `http://localhost:3000/oauth/<provider>/callback`
+Connecting Google Tasks, Asana, Microsoft To Do, or Microsoft Planner from
+Settings requires OAuth apps of your own: set `GOOGLE_OAUTH_CLIENT_ID/SECRET`,
+`ASANA_OAUTH_CLIENT_ID/SECRET`, and/or `MICROSOFT_OAUTH_CLIENT_ID/SECRET`
+(one Entra app registration covers both Microsoft providers) in `.env`, with
+redirect URI `http://localhost:3000/oauth/<provider>/callback`
 (the web origin — API traffic rides the Next rewrite proxy).
 Google Tasks is polled every 60s. Asana subscribes a webhook when
 `API_BASE_URL` is publicly reachable and otherwise falls back to 5-minute

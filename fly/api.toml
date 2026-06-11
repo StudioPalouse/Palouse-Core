@@ -13,10 +13,10 @@ primary_region = "iad"
   API_PORT = "4000"
   # Public traffic (browsers, OAuth callbacks, webhooks) enters through the web
   # origin's rewrite proxy, so the public-facing base URLs are the WEB origin.
-  # Swap all three to https://test.reqops.ai once the custom domain is live.
-  API_BASE_URL = "https://reqops-staging-web.fly.dev"
-  BETTER_AUTH_URL = "https://reqops-staging-web.fly.dev"
-  WEB_BASE_URL = "https://reqops-staging-web.fly.dev"
+  
+  API_BASE_URL = "https://test.reqops.ai"
+  BETTER_AUTH_URL = "https://test.reqops.ai"
+  WEB_BASE_URL = "https://test.reqops.ai"
 
 [http_service]
   internal_port = 4000

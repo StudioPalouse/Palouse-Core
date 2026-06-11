@@ -27,7 +27,9 @@
     "drizzle-orm": "^0.36.0",
     "hono": "^4.6.0",
     "pino": "^9.5.0",
-    "zod": "^3.23.0"
+    "zod": "^3.23.0",
+    "@reqops/connector-microsoft-todo": "workspace:^",
+    "@reqops/connector-microsoft-planner": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

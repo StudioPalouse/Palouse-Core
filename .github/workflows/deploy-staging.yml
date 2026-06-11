@@ -29,7 +29,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [web, worker, mcp]
+        # mcp rejoins at M5 — it's a placeholder scaled to 0 machines until the
+        # real MCP server ships (standing rule: minimal hosting spend in testing).
+        app: [web, worker]
     steps:
       - uses: actions/checkout@v4
       - uses: superfly/flyctl-actions/setup-flyctl@master

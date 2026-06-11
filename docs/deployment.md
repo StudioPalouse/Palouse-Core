@@ -123,8 +123,15 @@ machine-to-machine use. Production later repeats the same steps with
 
 ## Costs & scaling notes
 
-- API and web machines auto-stop when idle (`min_machines_running = 0`) and
-  auto-start on request; the worker and mcp machines run continuously.
+**Standing rule: hosting spend stays at a bare minimum while testing.**
+Running footprint is one warm API machine (the rewrite proxy targets
+`.internal`, which can't wake stopped machines), one worker machine, and
+nothing else: web machines auto-stop to zero between requests, the mcp app is
+scaled to 0 machines until M5, and the spare api/worker machines are stopped
+standbys (no compute billed). Roughly $7–8/mo in machines plus pay-as-you-go
+Redis commands.
+
+- Web auto-stops (`min_machines_running = 0`) and auto-starts on request.
 - Supabase `reqops-staging` is on the free tier ($0/mo). The direct connection
   string is IPv6-only, which works from Fly machines; if something IPv4-only
   ever needs the DB, use the session pooler URL from the Supabase dashboard

@@ -23,7 +23,9 @@
     "bullmq": "^5.30.0",
     "drizzle-orm": "^0.36.0",
     "ioredis": "^5.10.1",
-    "pino": "^9.5.0"
+    "pino": "^9.5.0",
+    "@reqops/connector-microsoft-todo": "workspace:^",
+    "@reqops/connector-microsoft-planner": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

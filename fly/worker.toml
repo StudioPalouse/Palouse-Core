@@ -9,9 +9,9 @@ primary_region = "iad"
   LOG_LEVEL = "info"
   # Public base URLs route through the web origin's rewrite proxy (the worker
   # uses API_BASE_URL when registering webhook targets with providers).
-  API_BASE_URL = "https://reqops-staging-web.fly.dev"
-  BETTER_AUTH_URL = "https://reqops-staging-web.fly.dev"
-  WEB_BASE_URL = "https://reqops-staging-web.fly.dev"
+  API_BASE_URL = "https://test.reqops.ai"
+  BETTER_AUTH_URL = "https://test.reqops.ai"
+  WEB_BASE_URL = "https://test.reqops.ai"
 
 [[vm]]
   size = "shared-cpu-1x"
