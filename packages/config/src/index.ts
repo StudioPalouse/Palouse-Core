@@ -26,6 +26,16 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(32),
   BETTER_AUTH_URL: z.string().url(),
 
+  // Signup policy: 'true'/'1' rejects sign-ups from public email providers
+  // (gmail.com, outlook.com, …). On for the hosted cloud; off by default so
+  // self-hosted admins opt in deliberately.
+  AUTH_BLOCK_PUBLIC_EMAIL_DOMAINS: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true' || v === '1'),
+  // Comma-separated extra domains to reject, applied even when the flag above is off.
+  AUTH_BLOCKED_EMAIL_DOMAINS: z.string().optional(),
+
   API_PORT: z.coerce.number().int().positive().default(4000),
   API_BASE_URL: z.string().url(),
   WEB_BASE_URL: z.string().url(),

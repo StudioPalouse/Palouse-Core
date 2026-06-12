@@ -11,7 +11,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "echo 'TODO: eslint'",
-    "test": "echo 'TODO: vitest'"
+    "test": "vitest run"
   },
   "dependencies": {
     "@reqops/config": "workspace:*",
@@ -19,6 +19,7 @@
     "better-auth": "^1.1.0"
   },
   "devDependencies": {
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.4"
   }
 }

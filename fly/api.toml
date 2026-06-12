@@ -17,6 +17,8 @@ primary_region = "iad"
   API_BASE_URL = "https://test.reqops.ai"
   BETTER_AUTH_URL = "https://test.reqops.ai"
   WEB_BASE_URL = "https://test.reqops.ai"
+  # Hosted cloud: work emails only — public providers (gmail, outlook, …) can't sign up.
+  AUTH_BLOCK_PUBLIC_EMAIL_DOMAINS = "true"
 
 [http_service]
   internal_port = 4000

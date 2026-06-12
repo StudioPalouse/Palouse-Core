@@ -26,6 +26,9 @@
     "@types/node": "^22.10.0",
     "prettier": "^3.4.0"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": ["cpu-features", "esbuild", "protobufjs", "ssh2"]
+  },
   "prettier": {
     "semi": true,
     "singleQuote": true,
