@@ -1,11 +1,20 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { isTerminal, type HandoffEvent, type HandoffListItem } from '@reqops/shared';
+import Link from 'next/link';
+import {
+  isTerminal,
+  type HandoffEvent,
+  type HandoffListItem,
+  type HandoffStep,
+  type HandoffUsageSummary,
+} from '@reqops/shared';
 import { Badge, Button, Textarea } from '@reqops/ui';
 import { api } from '@/lib/api';
 import {
   formatDateTime,
+  formatTokens,
+  formatUsd,
   HANDOFF_STATE_BADGE,
   HANDOFF_STATE_LABELS,
 } from '@/lib/handoff-meta';
@@ -18,6 +27,8 @@ const POLL_MS = 5_000;
 export function HandoffPanel({ workspaceId, taskId }: { workspaceId: string; taskId: string }) {
   const [latest, setLatest] = useState<HandoffListItem | null | undefined>(undefined);
   const [events, setEvents] = useState<HandoffEvent[]>([]);
+  const [steps, setSteps] = useState<HandoffStep[]>([]);
+  const [summary, setSummary] = useState<HandoffUsageSummary | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [reviewNote, setReviewNote] = useState('');
   const [acting, setActing] = useState(false);
@@ -27,16 +38,22 @@ export function HandoffPanel({ workspaceId, taskId }: { workspaceId: string; tas
     const current = handoffs[0] ?? null;
     setLatest(current);
     if (current) {
-      const { events } = await api.getHandoff(workspaceId, current.id);
-      setEvents(events);
+      const detail = await api.getHandoff(workspaceId, current.id);
+      setEvents(detail.events);
+      setSteps(detail.steps);
+      setSummary(detail.summary);
     } else {
       setEvents([]);
+      setSteps([]);
+      setSummary(null);
     }
   }, [workspaceId, taskId]);
 
   useEffect(() => {
     setLatest(undefined);
     setEvents([]);
+    setSteps([]);
+    setSummary(null);
     void refresh();
   }, [refresh]);
 
@@ -94,7 +111,22 @@ export function HandoffPanel({ workspaceId, taskId }: { workspaceId: string; tas
             <span className="text-muted-foreground text-xs">
               {latest.agentName ?? 'Agent'} · handed off {formatDateTime(latest.createdAt)}
             </span>
+            <Link
+              href={{ pathname: `/handoffs/${latest.id}` }}
+              className="text-muted-foreground hover:text-foreground ml-auto text-xs underline underline-offset-2"
+            >
+              Full activity report
+            </Link>
           </div>
+
+          {summary && summary.generationCount > 0 && (
+            <p className="text-muted-foreground text-xs">
+              {summary.costUsd !== null ? `${formatUsd(summary.costUsd)} · ` : ''}
+              {formatTokens(summary.inputTokens)} tokens in / {formatTokens(summary.outputTokens)}{' '}
+              out · {summary.generationCount} LLM call{summary.generationCount === 1 ? '' : 's'}
+              {summary.unpricedCount > 0 ? ' · includes unpriced calls' : ''}
+            </p>
+          )}
 
           {latest.resultSummaryMd && (
             <p className="text-sm whitespace-pre-wrap">{latest.resultSummaryMd}</p>
@@ -147,7 +179,7 @@ export function HandoffPanel({ workspaceId, taskId }: { workspaceId: string; tas
             </div>
           )}
 
-          <HandoffTimeline events={events} />
+          <HandoffTimeline events={events} steps={steps} />
         </div>
       )}
 

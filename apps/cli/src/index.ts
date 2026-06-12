@@ -6,6 +6,8 @@ import { migrateCommand } from './commands/migrate.js';
 import { seedCommand } from './commands/seed.js';
 import { createAgentCommand } from './commands/create-agent.js';
 import { createAgentKeyCommand } from './commands/create-agent-key.js';
+import { seedModelPricesCommand } from './commands/seed-model-prices.js';
+import { rebuildRollupsCommand } from './commands/rebuild-rollups.js';
 
 const program = new Command();
 
@@ -20,6 +22,8 @@ program.addCommand(migrateCommand());
 program.addCommand(seedCommand());
 program.addCommand(createAgentCommand());
 program.addCommand(createAgentKeyCommand());
+program.addCommand(seedModelPricesCommand());
+program.addCommand(rebuildRollupsCommand());
 
 program.parseAsync(process.argv).catch((err) => {
   console.error(err);

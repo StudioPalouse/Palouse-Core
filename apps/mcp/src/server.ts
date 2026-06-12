@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { TOOL_DESCRIPTIONS, TOOL_INPUTS, type ToolName } from '@reqops/mcp-sdk';
-import { agentService, handoffService, taskService } from '@reqops/core';
+import { agentService, handoffService, taskService, usageService } from '@reqops/core';
 import type { Database } from '@reqops/db';
 import { enqueuePush } from '@reqops/queue';
 import { agentActor, ReqOpsError, type AgentKeyScope } from '@reqops/shared';
@@ -17,6 +17,8 @@ const SCOPES: Record<ToolName, AgentKeyScope> = {
   update_task: 'tasks:write',
   add_comment: 'tasks:write',
   heartbeat: 'handoffs:claim',
+  log_step: 'usage:write',
+  report_usage: 'usage:write',
   request_review: 'handoffs:complete',
   complete_task: 'handoffs:complete',
   fail_task: 'handoffs:complete',
@@ -108,19 +110,32 @@ export function buildServer(db: Database, key: VerifiedAgentKey): McpServer {
   }));
 
   register('heartbeat', async (args) => ({
-    handoff: await handoffService.heartbeat(db, args.claimToken),
+    handoff: await handoffService.heartbeat(db, args.claimToken, args.usage),
   }));
+
+  register('log_step', async (args) =>
+    usageService.recordStep(db, args.claimToken, {
+      title: args.title,
+      detailMd: args.detail,
+      status: args.status,
+      usage: args.usage,
+    }),
+  );
+
+  register('report_usage', async (args) =>
+    usageService.reportUsage(db, args.claimToken, args.usage, args.stepTitle),
+  );
 
   register('request_review', async (args) => ({
     handoff: await handoffService.requestReview(db, args.claimToken, args.summary),
   }));
 
   register('complete_task', async (args) => ({
-    handoff: await handoffService.complete(db, args.claimToken, args.resultSummaryMd),
+    handoff: await handoffService.complete(db, args.claimToken, args.resultSummaryMd, args.usage),
   }));
 
   register('fail_task', async (args) => ({
-    handoff: await handoffService.fail(db, args.claimToken, args.reason),
+    handoff: await handoffService.fail(db, args.claimToken, args.reason, args.usage),
   }));
 
   registerResources(server, db, key);

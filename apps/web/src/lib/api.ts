@@ -4,13 +4,18 @@ import type {
   Handoff,
   HandoffEvent,
   HandoffListItem,
+  HandoffNarrative,
   HandoffState,
+  HandoffStep,
+  HandoffUsageSummary,
   Integration,
+  LlmGeneration,
   ReviewDecision,
   Task,
   TaskComment,
   TaskSource,
   UpdateTaskInput,
+  UsageSummaryRow,
   Workspace,
 } from '@reqops/shared';
 import { API_URL } from './auth-client';
@@ -98,9 +103,24 @@ export const api = {
   },
 
   getHandoff: (workspaceId: string, handoffId: string) =>
-    request<{ handoff: Handoff; events: HandoffEvent[] }>(
-      `/v1/handoffs/${handoffId}?workspaceId=${workspaceId}`,
-    ),
+    request<{
+      handoff: Handoff;
+      events: HandoffEvent[];
+      taskTitle: string | null;
+      agentName: string | null;
+      steps: HandoffStep[];
+      generations: LlmGeneration[];
+      summary: HandoffUsageSummary;
+      narrative: HandoffNarrative;
+    }>(`/v1/handoffs/${handoffId}?workspaceId=${workspaceId}`),
+
+  getUsageSummary: (
+    workspaceId: string,
+    params?: { from?: string; to?: string; groupBy?: 'agent' | 'model' | 'day' },
+  ) => {
+    const qs = new URLSearchParams({ workspaceId, ...params });
+    return request<{ rows: UsageSummaryRow[]; totalCostUsd: number }>(`/v1/usage/summary?${qs}`);
+  },
 
   reviewHandoff: (
     workspaceId: string,

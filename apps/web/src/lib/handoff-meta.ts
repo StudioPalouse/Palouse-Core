@@ -43,6 +43,16 @@ export const EVENT_LABELS: Record<string, string> = {
   cancelled: 'Cancelled',
 };
 
+export function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 10_000) return `${Math.round(n / 1000)}k`;
+  return n.toLocaleString('en-US');
+}
+
+export function formatUsd(n: number): string {
+  return n < 0.01 && n > 0 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}`;
+}
+
 export function formatDateTime(iso: string | null): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleString(undefined, {

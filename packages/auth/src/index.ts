@@ -3,6 +3,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError } from 'better-auth/api';
 import { loadEnv } from '@reqops/config';
 import { getDb } from '@reqops/db';
+import { renderBasicEmail, sendEmail } from '@reqops/mail';
 import { BLOCKED_EMAIL_MESSAGE, isEmailDomainBlocked, policyFromEnv } from './email-policy.js';
 
 function build() {
@@ -37,7 +38,43 @@ function build() {
     trustedOrigins: [env.WEB_BASE_URL],
     // Tables use uuid PKs with gen_random_uuid() defaults — let Postgres mint ids.
     advanced: { database: { generateId: false } },
-    emailAndPassword: { enabled: true },
+    emailAndPassword: {
+      enabled: true,
+      // Mail is best-effort: with no RESEND_API_KEY @reqops/mail logs and
+      // no-ops, so password auth keeps working on bare self-hosted installs.
+      sendResetPassword: async ({ user, url }) => {
+        await sendEmail({
+          to: user.email,
+          subject: 'Reset your ReqOps password',
+          html: renderBasicEmail({
+            heading: 'Reset your password',
+            bodyLines: [
+              'Someone (hopefully you) asked to reset the password for this ReqOps account.',
+              'If you didn’t ask, you can ignore this email.',
+            ],
+            ctaLabel: 'Reset password',
+            ctaUrl: url,
+          }),
+        });
+      },
+    },
+    emailVerification: {
+      // Verification emails go out on signup but are not (yet) required to
+      // sign in — flipping requireEmailVerification is a deliberate later step.
+      sendOnSignUp: true,
+      sendVerificationEmail: async ({ user, url }) => {
+        await sendEmail({
+          to: user.email,
+          subject: 'Verify your ReqOps email',
+          html: renderBasicEmail({
+            heading: 'Verify your email',
+            bodyLines: [`Confirm that ${user.email} belongs to you to finish setting up ReqOps.`],
+            ctaLabel: 'Verify email',
+            ctaUrl: url,
+          }),
+        });
+      },
+    },
     socialProviders,
     databaseHooks: {
       user: {

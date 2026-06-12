@@ -1,5 +1,5 @@
 {
-  "name": "@reqops/auth",
+  "name": "@reqops/mail",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,16 +11,13 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "echo 'TODO: eslint'",
-    "test": "vitest run"
+    "test": "echo 'TODO: vitest'"
   },
   "dependencies": {
     "@reqops/config": "workspace:*",
-    "@reqops/db": "workspace:*",
-    "@reqops/mail": "workspace:*",
-    "better-auth": "^1.1.0"
+    "resend": "^6.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.6.0",
-    "vitest": "^3.2.4"
+    "typescript": "^5.6.0"
   }
 }
