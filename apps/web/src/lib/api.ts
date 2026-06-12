@@ -1,6 +1,12 @@
 import type {
+  Agent,
   CreateTaskInput,
+  Handoff,
+  HandoffEvent,
+  HandoffListItem,
+  HandoffState,
   Integration,
+  ReviewDecision,
   Task,
   TaskComment,
   TaskSource,
@@ -68,6 +74,48 @@ export const api = {
     request<{ comment: TaskComment }>(`/v1/tasks/${taskId}/comments`, {
       method: 'POST',
       body: JSON.stringify({ workspaceId, bodyMd }),
+    }),
+
+  listAgents: (workspaceId: string) =>
+    request<{ agents: Agent[] }>(`/v1/agents?workspaceId=${workspaceId}`),
+
+  createHandoff: (
+    workspaceId: string,
+    taskId: string,
+    input: { agentId: string; reviewRequired?: boolean; deadlineMinutes?: number },
+  ) =>
+    request<{ handoff: Handoff }>(`/v1/tasks/${taskId}/handoff`, {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId, ...input }),
+    }),
+
+  listHandoffs: (
+    workspaceId: string,
+    params?: { state?: HandoffState; taskId?: string; agentId?: string },
+  ) => {
+    const qs = new URLSearchParams({ workspaceId, ...params });
+    return request<{ handoffs: HandoffListItem[]; total: number }>(`/v1/handoffs?${qs}`);
+  },
+
+  getHandoff: (workspaceId: string, handoffId: string) =>
+    request<{ handoff: Handoff; events: HandoffEvent[] }>(
+      `/v1/handoffs/${handoffId}?workspaceId=${workspaceId}`,
+    ),
+
+  reviewHandoff: (
+    workspaceId: string,
+    handoffId: string,
+    input: { decision: ReviewDecision; note?: string; rejectAction?: 'retry' | 'fail' },
+  ) =>
+    request<{ handoff: Handoff }>(`/v1/handoffs/${handoffId}/review`, {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId, ...input }),
+    }),
+
+  cancelHandoff: (workspaceId: string, handoffId: string) =>
+    request<{ handoff: Handoff }>(`/v1/handoffs/${handoffId}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId }),
     }),
 
   listIntegrations: (workspaceId: string) =>

@@ -9,7 +9,7 @@ Postgres and Redis also on Fly so the whole environment lives in one org:
 | API (Hono) | Fly `iad` | `reqops-staging-api` → <https://reqops-staging-api.fly.dev> |
 | Web (Next.js) | Fly `iad` | `reqops-staging-web` → <https://reqops-staging-web.fly.dev> |
 | Worker (BullMQ) | Fly `iad` | `reqops-staging-worker` (no public URL) |
-| MCP | Fly `iad` | `reqops-staging-mcp` (placeholder until M5; HTTP service commented out in `fly/mcp.toml`) |
+| MCP | Fly `iad` | `reqops-staging-mcp` → <https://reqops-staging-mcp.fly.dev> (streamable HTTP, per-request agent-key auth) |
 | Postgres | Fly `iad` | `reqops-staging-db` (single node, private — `reqops-staging-db.flycast:5432`) |
 | Redis | Upstash via Fly | `reqops-staging-redis` (eviction disabled — BullMQ requirement) |
 
@@ -128,8 +128,8 @@ machine-to-machine use. Production later repeats the same steps with
 **Standing rule: hosting spend stays at a bare minimum while testing.**
 Running footprint is one warm API machine (the rewrite proxy targets
 `.internal`, which can't wake stopped machines), one worker machine, and
-nothing else: web machines auto-stop to zero between requests, the mcp app is
-scaled to 0 machines until M5, and the spare api/worker machines are stopped
+nothing else: web machines auto-stop to zero between requests, the mcp app
+auto-stops to zero between agent calls, and the spare api/worker machines are stopped
 standbys (no compute billed). Roughly $7–8/mo in machines plus pay-as-you-go
 Redis commands.
 

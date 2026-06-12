@@ -13,6 +13,7 @@ import {
   type CreateHandoffInput,
   type Handoff,
   type HandoffEvent,
+  type HandoffListItem,
   type ListHandoffsQuery,
   type ReviewHandoffInput,
 } from '@reqops/shared';
@@ -277,7 +278,7 @@ export async function cancel(
 export async function listHandoffs(
   db: Database,
   query: ListHandoffsQuery,
-): Promise<{ handoffs: Handoff[]; total: number }> {
+): Promise<{ handoffs: HandoffListItem[]; total: number }> {
   const conditions = [eq(agentHandoffs.workspaceId, query.workspaceId)];
   if (query.state) conditions.push(eq(agentHandoffs.state, query.state));
   if (query.agentId) conditions.push(eq(agentHandoffs.actorAgentId, query.agentId));
@@ -286,15 +287,20 @@ export async function listHandoffs(
 
   const [rows, [count]] = await Promise.all([
     db
-      .select()
+      .select({ handoff: agentHandoffs, taskTitle: tasks.title, agentName: agents.name })
       .from(agentHandoffs)
+      .leftJoin(tasks, eq(tasks.id, agentHandoffs.taskId))
+      .leftJoin(agents, eq(agents.id, agentHandoffs.actorAgentId))
       .where(where)
       .orderBy(desc(agentHandoffs.createdAt))
       .limit(query.limit)
       .offset(query.offset),
     db.select({ total: sql<number>`count(*)::int` }).from(agentHandoffs).where(where),
   ]);
-  return { handoffs: rows.map(toDto), total: count?.total ?? 0 };
+  return {
+    handoffs: rows.map((r) => ({ ...toDto(r.handoff), taskTitle: r.taskTitle, agentName: r.agentName })),
+    total: count?.total ?? 0,
+  };
 }
 
 export async function getHandoff(

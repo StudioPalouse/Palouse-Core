@@ -59,8 +59,9 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   if (cached) return cached;
   if (source === process.env) {
     const dotenvPath = findDotenv();
-    // Real environment variables win over .env file values.
-    if (dotenvPath) loadDotenv({ path: dotenvPath });
+    // Real environment variables win over .env file values. quiet: dotenv v17
+    // logs a tip to stdout, which would corrupt MCP's stdio transport.
+    if (dotenvPath) loadDotenv({ path: dotenvPath, quiet: true });
   }
   const result = envSchema.safeParse(source);
   if (!result.success) {

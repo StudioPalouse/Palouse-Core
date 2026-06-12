@@ -2,6 +2,8 @@ import { and, desc, eq, ilike, sql, type SQL } from 'drizzle-orm';
 import { auditEvents, taskComments, taskSources, tasks, type Database } from '@reqops/db';
 import {
   notFound,
+  userActor,
+  type Actor,
   type CreateCommentInput,
   type CreateTaskInput,
   type ListTasksQuery,
@@ -112,14 +114,14 @@ export async function createTask(
       parentTaskId: input.parentTaskId ?? null,
     })
     .returning();
-  await audit(db, workspaceId, actorUserId, 'task.created', row!.id);
+  await audit(db, workspaceId, userActor(actorUserId), 'task.created', row!.id);
   return toDto(row!);
 }
 
 export async function updateTask(
   db: Database,
   workspaceId: string,
-  actorUserId: string,
+  actor: Actor,
   taskId: string,
   input: UpdateTaskInput,
 ): Promise<Task> {
@@ -137,14 +139,14 @@ export async function updateTask(
     .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)))
     .returning();
   if (!row) throw notFound('Task not found');
-  await audit(db, workspaceId, actorUserId, 'task.updated', taskId, { fields: Object.keys(input) });
+  await audit(db, workspaceId, actor, 'task.updated', taskId, { fields: Object.keys(input) });
   return toDto(row);
 }
 
 export async function addComment(
   db: Database,
   workspaceId: string,
-  actorUserId: string,
+  actor: Actor,
   taskId: string,
   input: CreateCommentInput,
 ): Promise<TaskComment> {
@@ -155,26 +157,28 @@ export async function addComment(
     .limit(1);
   if (!task) throw notFound('Task not found');
 
+  // Comments have a user author column only; agent comments keep it null and
+  // are attributed via the audit trail.
   const [row] = await db
     .insert(taskComments)
-    .values({ taskId, authorUserId: actorUserId, bodyMd: input.bodyMd })
+    .values({ taskId, authorUserId: actor.type === 'user' ? actor.id : null, bodyMd: input.bodyMd })
     .returning();
-  await audit(db, workspaceId, actorUserId, 'task.commented', taskId);
+  await audit(db, workspaceId, actor, 'task.commented', taskId);
   return commentToDto(row!);
 }
 
 async function audit(
   db: Database,
   workspaceId: string,
-  userId: string,
+  actor: Actor,
   action: string,
   targetId: string,
   payload: Record<string, unknown> = {},
 ): Promise<void> {
   await db.insert(auditEvents).values({
     workspaceId,
-    actorType: 'user',
-    actorId: userId,
+    actorType: actor.type,
+    actorId: actor.id,
     action,
     targetType: 'task',
     targetId,

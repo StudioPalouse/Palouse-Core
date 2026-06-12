@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { loadEnv } from '@reqops/config';
 import { closeDb, getDb, users } from '@reqops/db';
 import { getAuth } from '@reqops/auth';
+import { userActor } from '@reqops/shared';
 import { workspaces as workspaceService, taskService } from '@reqops/core';
 
 const DEMO_EMAIL = 'demo@reqops.local';
@@ -52,7 +53,9 @@ export function seedCommand(): Command {
             priority: t.priority,
           });
           if (t.status !== 'open') {
-            await taskService.updateTask(db, ws.id, user.id, created.id, { status: t.status });
+            await taskService.updateTask(db, ws.id, userActor(user.id), created.id, {
+              status: t.status,
+            });
           }
         }
       }

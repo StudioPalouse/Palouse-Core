@@ -4,6 +4,7 @@ import {
   createTaskInput,
   listTasksQuery,
   updateTaskInput,
+  userActor,
   validation,
 } from '@reqops/shared';
 import { taskService, workspaces } from '@reqops/core';
@@ -58,7 +59,7 @@ taskRoutes.patch('/:id', async (c) => {
   const task = await taskService.updateTask(
     db,
     workspaceId,
-    c.get('userId'),
+    userActor(c.get('userId')),
     c.req.param('id'),
     parsed.data,
   );
@@ -79,7 +80,7 @@ taskRoutes.post('/:id/comments', async (c) => {
   const comment = await taskService.addComment(
     db,
     workspaceId,
-    c.get('userId'),
+    userActor(c.get('userId')),
     c.req.param('id'),
     parsed.data,
   );

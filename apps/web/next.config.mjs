@@ -6,6 +6,12 @@ const API_PROXY_TARGET = process.env.API_PROXY_TARGET ?? 'http://localhost:4000'
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@reqops/shared', '@reqops/ui'],
+  // @reqops/shared uses NodeNext-style `./x.js` specifiers for `.ts` sources;
+  // webpack needs the alias to resolve them when bundling runtime imports.
+  webpack: (config) => {
+    config.resolve.extensionAlias = { '.js': ['.ts', '.tsx', '.js'] };
+    return config;
+  },
   experimental: {
     typedRoutes: true,
   },
