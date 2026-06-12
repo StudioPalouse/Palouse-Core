@@ -38,6 +38,14 @@ export const handoffSchema = z.object({
 });
 export type Handoff = z.infer<typeof handoffSchema>;
 
+// List rows carry display context so the review queue and task panel don't
+// need an extra request per handoff.
+export const handoffListItemSchema = handoffSchema.extend({
+  taskTitle: z.string().nullable(),
+  agentName: z.string().nullable(),
+});
+export type HandoffListItem = z.infer<typeof handoffListItemSchema>;
+
 export const handoffEventSchema = z.object({
   id: uuid,
   handoffId: uuid,

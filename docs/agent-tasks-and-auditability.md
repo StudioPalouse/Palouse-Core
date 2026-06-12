@@ -1,6 +1,6 @@
 # ReqOps — Agent Tasks (M5 Runtime) + Agent Visibility & Auditability
 
-Implementation plan. Status: **Phase 1 server side shipped** (migration `0002`, handoff state machine, agents service + keys, reaper worker, REST `agents.ts`/`handoffs.ts`, CLI `create-agent`/`create-agent-key`); MCP server, web UI, and Phases 2–6 remain. Companion to `docs/architecture.md` (§5 handoff lifecycle, §6 MCP design, §9 queues).
+Implementation plan. Status: **Phase 1 complete** — migration `0002`, handoff state machine, agents service + keys, reaper worker, REST `agents.ts`/`handoffs.ts`, CLI `create-agent`/`create-agent-key`, MCP server (stdio + streamable HTTP, all 9 §6 tools + 3 resources, per-call agent-key auth + audit), and the basic web UI (handoff panel in the task sheet, review queue at `/reviews`). Phases 2–6 remain. Companion to `docs/architecture.md` (§5 handoff lifecycle, §6 MCP design, §9 queues).
 
 ## Context
 

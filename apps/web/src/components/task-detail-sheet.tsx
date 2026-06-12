@@ -21,6 +21,7 @@ import {
 } from '@reqops/ui';
 import { api } from '@/lib/api';
 import { formatDate, PRIORITY_LABELS, STATUS_LABELS, STATUS_ORDER } from '@/lib/task-meta';
+import { HandoffPanel } from './handoff-panel';
 
 export function TaskDetailSheet({
   workspaceId,
@@ -137,6 +138,10 @@ export function TaskDetailSheet({
                   {task.descriptionMd}
                 </p>
               )}
+
+              <Separator />
+
+              <HandoffPanel workspaceId={workspaceId} taskId={task.id} />
 
               <Separator />
 

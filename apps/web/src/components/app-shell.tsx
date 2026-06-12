@@ -8,6 +8,7 @@ import { signOut, useSession } from '@/lib/auth-client';
 
 const NAV = [
   { href: '/inbox', label: 'Inbox' },
+  { href: '/reviews', label: 'Reviews' },
   { href: '/settings', label: 'Settings' },
 ] as const;
 

@@ -17,8 +17,13 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@reqops/config": "workspace:*",
+    "@reqops/core": "workspace:*",
+    "@reqops/db": "workspace:*",
+    "@reqops/mcp-sdk": "workspace:*",
+    "@reqops/queue": "workspace:*",
     "@reqops/shared": "workspace:*",
-    "pino": "^9.5.0"
+    "pino": "^9.5.0",
+    "zod": "^3.23.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
