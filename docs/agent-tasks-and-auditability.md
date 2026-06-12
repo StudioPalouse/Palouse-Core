@@ -398,9 +398,10 @@ Endpoints (`apps/api/src/routes/exports.ts`):
 Migration `0002`; handoffs state-machine + agents service; handoff queue + worker reaper; REST `agents.ts` + `handoffs.ts`; MCP server with original 9 tools (stdio + HTTP); CLI create-agent/-key; `handoff-panel` in task sheet + `reviews` page.
 **Verify**: Testcontainers — claim race (two concurrent claims, exactly one wins), heartbeat-timeout requeue, review gate. Manual e2e: create agent via CLI → configure Claude Code against local MCP → hand off task in UI → watch `queued → claimed → in_progress → completed` in timeline → confirm `audit_events` for every tool call.
 
-### Phase 2 — Usage ledger + cost engine
+### Phase 2 — Usage ledger + cost engine ✅ (PR #6, 2026-06-12)
 Migration `0003`; pricing + usage services; seed catalog; MCP `log_step`/`report_usage` + `usage` on lifecycle tools; usage REST.
 **Verify**: unit tests for price resolution (override beats catalog; effective dating; pattern match; unknown → null) and cost math vs hand-computed values. Integration: `report_usage` → generation row with correct snapshot + rollup increment; `rebuild-rollups` reproduces identical totals.
+**Done as specified, plus**: narrative module (`packages/core/src/handoffs/narrative.ts`, pulled forward from Phase 4 with snapshot tests); an early slice of the §7 UI (Activity Report at `/handoffs/[id]`, steps + cost in the handoff panel — so explainability is user-visible from day one); catalog auto-seed at the end of `migrate`; `@reqops/mail` (Resend) wired into Better-Auth reset/verification (adjacent to this milestone, not part of the §10 plan). Deviation: only Anthropic models are seeded — OpenAI/Google/Mistral wait until their pricing pages are verified (§1b note); unknown models surface as "Unpriced".
 
 ### Phase 3 — OTLP ingest
 Mapper + route + agent-key middleware.
@@ -417,6 +418,36 @@ Migration `0004`; `appendAuditEvent` funnel (migrate all existing `audit()` call
 ### Phase 6 — Exports + audit package
 react-pdf report, CSV endpoints, audit package zip, UI download buttons; `cloud/audit-export` README updated with scheduled-export design.
 **Verify**: PDF golden-file smoke (renders; contains narrative + cost + catalog version); CSV row counts match DB; audit package `verification.json` validates and the documented hash recipe re-verifies `audit-events.jsonl` with a standalone script.
+
+---
+
+## Next steps (as of 2026-06-12, after Phase 2 / PR #6)
+
+### 0. Land + verify Phase 2 on staging
+- Merge PR #6 → the deploy workflow runs migration `0003` and auto-seeds the price catalog via the release command.
+- Staging e2e (all testing happens on staging, not locally): hand off a task → have an agent call `log_step` + `report_usage` (and a final `usage` on `complete_task`) → confirm the Activity Report at `/handoffs/[id]` shows narrative, steps, and a priced generation table → cross-check `GET /v1/usage/summary` totals → run `reqops rebuild-rollups` and confirm totals are unchanged.
+
+### 1. Finish Resend setup (manual, owner: Jonathan)
+- Create an API key at resend.com → `RESEND_API_KEY` in `.env.staging` → `./scripts/fly-secrets.sh`.
+- Verify the sending domain in the Resend dashboard, then set `MAIL_FROM` in `fly/*.toml` `[env]` (not a secret). Until then the onboarding sender only delivers to the Resend account owner.
+- Once delivery is confirmed, decide whether to flip `requireEmailVerification` in `packages/auth` (deliberately left off so staging sign-in keeps working).
+
+### 2. Phase 3 — OTLP ingest (next build milestone)
+Everything in §4. The schema is already in place from `0003` (`otel_trace_id`/`otel_span_id` columns, partial unique dedupe index, `source='otlp'` enum value), so this is mapper + route + middleware only:
+- `packages/core/src/usage/otlp.ts` pure mapper (OTel GenAI semconv + legacy token attr names).
+- `apps/api/src/middleware/agent-key.ts` (agent-key auth, scope `usage:write`) + `apps/api/src/routes/otlp.ts` mounted at `/v1/otlp` (OTLP JSON only; protobuf → 415).
+- Implement the §4 **double-counting rule** in `getHandoffUsage`/rollup queries: exclude `source='mcp'` rows for any handoff that also has `source='otlp'` rows. Not needed until OTLP exists, but it lands with it.
+- Verify per §10 Phase 3 (fixture-shaped payloads, re-POST dedupe, live instrumented script against staging).
+
+### 3. Phase 4 — remaining business UI
+Activity Report shipped early; still to build: `agents/page.tsx` directory ("worked on N tasks / spent $X this month" from rollups), `agents/[agentId]` detail (keys, sparkline), `agents/spend` dashboard (charts via shadcn/recharts added to `packages/ui`, CSV export), **Agents** nav entry in `app-shell.tsx`, and `listAgents` joined with rollup cost summaries (§2b).
+
+### 4. Phase 5 — hash chain, then Phase 6 — exports
+Unchanged from §10. Note for Phase 6: the PDF/CSV must reuse `narrateHandoff` and the `priceSnapshot` columns so exports match the UI verbatim — both already exist.
+
+### 5. Catalog upkeep (ongoing)
+- Add OpenAI/Google/Mistral rows to `packages/db/src/seed/model-prices.ts` only after checking the providers' current pricing pages; bump `CATALOG_VERSION` (re-seed closes superseded rows automatically).
+- When Anthropic prices change, same procedure — never edit rows in place.
 
 ---
 
