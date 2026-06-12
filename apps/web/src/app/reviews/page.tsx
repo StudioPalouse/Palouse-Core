@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { HandoffListItem, Workspace } from '@reqops/shared';
 import { Badge, Button, Skeleton, Textarea } from '@reqops/ui';
@@ -85,6 +86,12 @@ export default function ReviewsPage() {
                   <span className="text-muted-foreground ml-auto text-xs">
                     {handoff.agentName ?? 'Agent'} · {formatDateTime(handoff.updatedAt)}
                   </span>
+                  <Link
+                    href={{ pathname: `/handoffs/${handoff.id}` }}
+                    className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2"
+                  >
+                    Activity report
+                  </Link>
                 </div>
                 {handoff.resultSummaryMd && (
                   <p className="text-sm whitespace-pre-wrap">{handoff.resultSummaryMd}</p>

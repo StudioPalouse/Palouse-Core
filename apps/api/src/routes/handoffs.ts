@@ -5,7 +5,7 @@ import {
   reviewHandoffInput,
   validation,
 } from '@reqops/shared';
-import { handoffService, workspaces } from '@reqops/core';
+import { handoffService, narrateHandoff, usageService, workspaces } from '@reqops/core';
 import { loadEnv } from '@reqops/config';
 import { getDb } from '@reqops/db';
 import { enqueueNotifyAgent } from '@reqops/queue';
@@ -48,13 +48,25 @@ handoffRoutes.get('/handoffs', async (c) => {
   return c.json(result);
 });
 
+// Full Activity Report payload: lifecycle events, narrative steps, the
+// generation ledger, its aggregate, and the plain-English narrative.
 handoffRoutes.get('/handoffs/:id', async (c) => {
   const workspaceId = c.req.query('workspaceId') ?? '';
   if (!workspaceId) throw validation('workspaceId query param required');
   const db = getDb(loadEnv().DATABASE_URL);
   await workspaces.requireMembership(db, workspaceId, c.get('userId'));
-  const result = await handoffService.getHandoff(db, workspaceId, c.req.param('id'));
-  return c.json(result);
+  const handoffId = c.req.param('id');
+  const detail = await handoffService.getHandoff(db, workspaceId, handoffId);
+  const usage = await usageService.getHandoffUsage(db, workspaceId, handoffId);
+  const narrative = narrateHandoff({
+    handoff: detail.handoff,
+    agentName: detail.agentName,
+    taskTitle: detail.taskTitle,
+    events: detail.events,
+    steps: usage.steps,
+    summary: usage.summary,
+  });
+  return c.json({ ...detail, ...usage, narrative });
 });
 
 handoffRoutes.post('/handoffs/:id/review', async (c) => {

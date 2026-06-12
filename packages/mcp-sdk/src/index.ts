@@ -12,6 +12,8 @@ export const TOOLS = [
   'update_task',
   'add_comment',
   'heartbeat',
+  'log_step',
+  'report_usage',
   'request_review',
   'complete_task',
   'fail_task',
@@ -24,6 +26,28 @@ const claimToken = z
   .string()
   .uuid()
   .describe('Claim token returned by claim_task; required on every call about a claimed handoff');
+
+/**
+ * Usage increment since your previous report — copy the usage block from the
+ * provider's API response. Each report becomes exactly one ledger row; never
+ * re-send cumulative totals.
+ */
+const usageInput = z.object({
+  model: z.string().min(1).max(200).describe("Model id as the provider reports it, e.g. 'claude-opus-4-8'"),
+  inputTokens: z.number().int().nonnegative(),
+  outputTokens: z.number().int().nonnegative(),
+  cacheReadTokens: z.number().int().nonnegative().optional(),
+  cacheWriteTokens: z.number().int().nonnegative().optional(),
+  costUsd: z
+    .number()
+    .nonnegative()
+    .optional()
+    .describe('Your own cost estimate, if you have one. Stored separately; ReqOps computes the official cost from its price catalog.'),
+});
+
+const optionalUsage = usageInput
+  .optional()
+  .describe('Optional usage increment since your previous report (one ledger entry per report)');
 
 /** Zod raw shapes, consumable directly by McpServer.registerTool. */
 export const TOOL_INPUTS = {
@@ -51,7 +75,28 @@ export const TOOL_INPUTS = {
     taskId,
     bodyMd: z.string().min(1).max(20_000).describe('Comment body (markdown)'),
   },
-  heartbeat: { claimToken },
+  heartbeat: { claimToken, usage: optionalUsage },
+  log_step: {
+    claimToken,
+    title: z
+      .string()
+      .min(1)
+      .max(300)
+      .describe("Plain-English step title a business user will read, e.g. 'Drafted the Q2 summary'"),
+    detail: z.string().max(20_000).optional().describe('Optional detail (markdown)'),
+    status: z.enum(['started', 'completed', 'failed']).optional().describe("Defaults to 'completed'"),
+    usage: optionalUsage,
+  },
+  report_usage: {
+    claimToken,
+    usage: usageInput.describe('Usage from one LLM call (required)'),
+    stepTitle: z
+      .string()
+      .min(1)
+      .max(300)
+      .optional()
+      .describe('Optionally create a narrative step this usage belongs to'),
+  },
   request_review: {
     claimToken,
     summary: z.string().min(1).max(20_000).describe('What you did and what the reviewer should check (markdown)'),
@@ -59,10 +104,12 @@ export const TOOL_INPUTS = {
   complete_task: {
     claimToken,
     resultSummaryMd: z.string().min(1).max(20_000).describe('Plain-English summary of the result (markdown)'),
+    usage: optionalUsage,
   },
   fail_task: {
     claimToken,
     reason: z.string().min(1).max(4000).describe('Why the task could not be finished'),
+    usage: optionalUsage,
   },
 } satisfies Record<ToolName, z.ZodRawShape>;
 
@@ -74,7 +121,11 @@ export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
   update_task: 'Update task fields (title, description, status, priority, due date).',
   add_comment: 'Append a comment to a task. Use it to leave progress notes humans will read.',
   heartbeat:
-    'Refresh your claim deadline. Call at least every 60 seconds while working — three missed heartbeats requeue the task for another attempt.',
+    'Refresh your claim deadline. Call at least every 60 seconds while working — three missed heartbeats requeue the task for another attempt. You may attach a usage increment.',
+  log_step:
+    "Record one plain-English step of your work (e.g. 'Read the task and gathered context'). These steps become the activity report a business user and their auditor read, so call it for each meaningful unit of work. Optionally attach the usage spent on this step.",
+  report_usage:
+    "Report token usage from one LLM API call — call it after each LLM call, passing the usage block from the provider's response. ReqOps prices it against its model catalog so people can see what the work cost. If your agent exports OpenTelemetry GenAI traces to ReqOps you do not need report_usage.",
   request_review:
     'Hand your work to a human reviewer and pause: moves the handoff to needs_review with your summary.',
   complete_task:

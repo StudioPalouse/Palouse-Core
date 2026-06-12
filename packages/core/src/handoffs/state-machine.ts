@@ -16,7 +16,9 @@ import {
   type HandoffListItem,
   type ListHandoffsQuery,
   type ReviewHandoffInput,
+  type UsageReport,
 } from '@reqops/shared';
+import { recordGeneration } from '../usage/service.js';
 
 const MAX_REQUEUES = 3;
 const HEARTBEAT_GRACE_SECONDS = 180;
@@ -150,8 +152,27 @@ export async function claimNext(
   return { handoff: toDto(row), claimToken: row.claimToken! };
 }
 
+/** Last usage increment riding on a lifecycle call becomes one generation row. */
+async function recordLifecycleUsage(
+  db: Database,
+  row: HandoffRow,
+  usage: UsageReport | undefined,
+): Promise<void> {
+  if (!usage) return;
+  await recordGeneration(db, {
+    handoffId: row.id,
+    workspaceId: row.workspaceId,
+    agentId: row.actorAgentId,
+    usage,
+  });
+}
+
 /** Refresh the deadline; first heartbeat moves claimed → in_progress. */
-export async function heartbeat(db: Database, claimToken: string): Promise<Handoff> {
+export async function heartbeat(
+  db: Database,
+  claimToken: string,
+  usage?: UsageReport,
+): Promise<Handoff> {
   const rows = await db.execute<Record<string, unknown>>(sql`
     UPDATE agent_handoffs SET
       last_heartbeat_at = now(),
@@ -163,13 +184,16 @@ export async function heartbeat(db: Database, claimToken: string): Promise<Hando
   `);
   const raw = rows[0];
   if (!raw) throw conflict('No active handoff for this claim token');
-  return toDto(rawToRow(raw));
+  const row = rawToRow(raw);
+  await recordLifecycleUsage(db, row, usage);
+  return toDto(row);
 }
 
 export async function complete(
   db: Database,
   claimToken: string,
   resultSummaryMd: string,
+  usage?: UsageReport,
 ): Promise<Handoff> {
   const rows = await db.execute<Record<string, unknown>>(sql`
     UPDATE agent_handoffs SET
@@ -181,6 +205,7 @@ export async function complete(
   const raw = rows[0];
   if (!raw) throw conflict('No active handoff for this claim token');
   const row = rawToRow(raw);
+  await recordLifecycleUsage(db, row, usage);
   await recordEvent(db, row.id, row.state === 'needs_review' ? 'review_requested' : 'completed', {});
   await audit(db, row.workspaceId, 'agent', row.actorAgentId, 'handoff.completed', row.id, {
     state: row.state,
@@ -188,7 +213,12 @@ export async function complete(
   return toDto(row);
 }
 
-export async function fail(db: Database, claimToken: string, reason: string): Promise<Handoff> {
+export async function fail(
+  db: Database,
+  claimToken: string,
+  reason: string,
+  usage?: UsageReport,
+): Promise<Handoff> {
   const rows = await db.execute<Record<string, unknown>>(sql`
     UPDATE agent_handoffs SET
       state = 'failed'::handoff_state, failure_reason = ${reason}, updated_at = now()
@@ -198,6 +228,7 @@ export async function fail(db: Database, claimToken: string, reason: string): Pr
   const raw = rows[0];
   if (!raw) throw conflict('No active handoff for this claim token');
   const row = rawToRow(raw);
+  await recordLifecycleUsage(db, row, usage);
   await recordEvent(db, row.id, 'failed', { reason });
   await audit(db, row.workspaceId, 'agent', row.actorAgentId, 'handoff.failed', row.id, { reason });
   return toDto(row);
@@ -307,10 +338,17 @@ export async function getHandoff(
   db: Database,
   workspaceId: string,
   handoffId: string,
-): Promise<{ handoff: Handoff; events: HandoffEvent[] }> {
+): Promise<{
+  handoff: Handoff;
+  events: HandoffEvent[];
+  taskTitle: string | null;
+  agentName: string | null;
+}> {
   const [row] = await db
-    .select()
+    .select({ handoff: agentHandoffs, taskTitle: tasks.title, agentName: agents.name })
     .from(agentHandoffs)
+    .leftJoin(tasks, eq(tasks.id, agentHandoffs.taskId))
+    .leftJoin(agents, eq(agents.id, agentHandoffs.actorAgentId))
     .where(and(eq(agentHandoffs.id, handoffId), eq(agentHandoffs.workspaceId, workspaceId)))
     .limit(1);
   if (!row) throw notFound('Handoff not found');
@@ -319,7 +357,12 @@ export async function getHandoff(
     .from(handoffEvents)
     .where(eq(handoffEvents.handoffId, handoffId))
     .orderBy(handoffEvents.at);
-  return { handoff: toDto(row), events: events.map(eventToDto) };
+  return {
+    handoff: toDto(row.handoff),
+    events: events.map(eventToDto),
+    taskTitle: row.taskTitle,
+    agentName: row.agentName,
+  };
 }
 
 /**
