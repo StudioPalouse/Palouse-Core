@@ -19,6 +19,13 @@ import {
   type UsageSource,
 } from '@reqops/shared';
 import { computeCostUsd, resolvePrice } from './pricing.js';
+import {
+  mapOtlpTraces,
+  type MappedGeneration,
+  type MappedStep,
+  type OtlpCorrelation,
+  type OtlpTracePayload,
+} from './otlp.js';
 
 type StepRow = typeof handoffSteps.$inferSelect;
 type GenerationRow = typeof llmGenerations.$inferSelect;
@@ -137,17 +144,45 @@ async function recordGenerationTx(
     })
     .returning();
 
-  const day = occurredAt.toISOString().slice(0, 10); // UTC day, matches rebuildRollups
+  await upsertDailyRollupTx(tx, {
+    workspaceId: input.workspaceId,
+    agentId: input.agentId,
+    model: usage.model,
+    occurredAt,
+    inputTokens: usage.inputTokens,
+    outputTokens: usage.outputTokens,
+    cacheReadTokens: usage.cacheReadTokens ?? 0,
+    cacheWriteTokens: usage.cacheWriteTokens ?? 0,
+    costUsd,
+  });
+
+  return generationToDto(row!);
+}
+
+interface RollupDelta {
+  workspaceId: string;
+  agentId: string;
+  model: string;
+  occurredAt: Date;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  costUsd: string | null; // null = unpriced
+}
+
+/** Increment one daily rollup bucket; the +1 generation count is implicit per call. */
+async function upsertDailyRollupTx(tx: Database, r: RollupDelta): Promise<void> {
+  const day = r.occurredAt.toISOString().slice(0, 10); // UTC day, matches rebuildRollups
   await tx.execute(sql`
     INSERT INTO usage_rollups_daily (
       workspace_id, agent_id, model, day, generation_count,
       input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
       cost_usd, unpriced_count
     ) VALUES (
-      ${input.workspaceId}, ${input.agentId}, ${usage.model}, ${day}, 1,
-      ${usage.inputTokens}, ${usage.outputTokens},
-      ${usage.cacheReadTokens ?? 0}, ${usage.cacheWriteTokens ?? 0},
-      ${costUsd ?? '0'}, ${costUsd === null ? 1 : 0}
+      ${r.workspaceId}, ${r.agentId}, ${r.model}, ${day}, 1,
+      ${r.inputTokens}, ${r.outputTokens}, ${r.cacheReadTokens}, ${r.cacheWriteTokens},
+      ${r.costUsd ?? '0'}, ${r.costUsd === null ? 1 : 0}
     )
     ON CONFLICT (workspace_id, agent_id, model, day) DO UPDATE SET
       generation_count = usage_rollups_daily.generation_count + 1,
@@ -159,8 +194,6 @@ async function recordGenerationTx(
       unpriced_count = usage_rollups_daily.unpriced_count + EXCLUDED.unpriced_count,
       updated_at = now()
   `);
-
-  return generationToDto(row!);
 }
 
 /** report_usage MCP tool: one generation per call, optionally creating/linking a step. */
@@ -262,10 +295,17 @@ export async function getHandoffUsage(
       )
       .orderBy(asc(llmGenerations.occurredAt)),
   ]);
+  // Double-counting rule (docs §4): OTLP is strictly more granular, so when a
+  // handoff has any OTLP generation we drop its self-reported MCP rows from
+  // both the table and the summary.
+  const priced = generations.some((g) => g.source === 'otlp')
+    ? generations.filter((g) => g.source === 'otlp')
+    : generations;
+
   return {
     steps: steps.map(stepToDto),
-    generations: generations.map(generationToDto),
-    summary: summarize(generations),
+    generations: priced.map(generationToDto),
+    summary: summarize(priced),
   };
 }
 
@@ -349,28 +389,39 @@ export async function getWorkspaceSpend(
 }
 
 /**
- * Escape hatch: truncate and re-aggregate rollups from the generation
- * ledger. Must reproduce ingest-time totals exactly (verified in tests).
+ * Escape hatch: truncate and re-aggregate rollups from the generation ledger.
+ * Reproduces ingest-time totals exactly (verified in tests) and additionally
+ * applies the §4 double-counting rule — MCP rows are dropped for any handoff
+ * that also has OTLP rows. (The incremental ingest path can't do this
+ * per-handoff exclusion, so an agent that wrongly reports via BOTH paths
+ * transiently double-counts in live rollups until a rebuild corrects it.)
  */
 export async function rebuildRollups(db: Database, workspaceId?: string): Promise<number> {
   return db.transaction(async (rawTx) => {
     const tx = rawTx as unknown as Database;
     const scope = workspaceId ? sql`WHERE workspace_id = ${workspaceId}` : sql``;
     await tx.execute(sql`DELETE FROM usage_rollups_daily ${scope}`);
+    const filters = [
+      sql`NOT (g.source = 'mcp' AND EXISTS (
+        SELECT 1 FROM llm_generations o
+        WHERE o.handoff_id = g.handoff_id AND o.source = 'otlp'))`,
+    ];
+    if (workspaceId) filters.push(sql`g.workspace_id = ${workspaceId}`);
+    const where = sql.join(filters, sql` AND `);
     const rows = await tx.execute(sql`
       INSERT INTO usage_rollups_daily (
         workspace_id, agent_id, model, day, generation_count,
         input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
         cost_usd, unpriced_count
       )
-      SELECT workspace_id, agent_id, model, (occurred_at AT TIME ZONE 'UTC')::date,
+      SELECT g.workspace_id, g.agent_id, g.model, (g.occurred_at AT TIME ZONE 'UTC')::date,
              count(*)::int,
-             sum(input_tokens), sum(output_tokens),
-             sum(cache_read_tokens), sum(cache_write_tokens),
-             coalesce(sum(cost_usd), 0),
-             count(*) FILTER (WHERE cost_usd IS NULL)::int
-      FROM llm_generations
-      ${scope}
+             sum(g.input_tokens), sum(g.output_tokens),
+             sum(g.cache_read_tokens), sum(g.cache_write_tokens),
+             coalesce(sum(g.cost_usd), 0),
+             count(*) FILTER (WHERE g.cost_usd IS NULL)::int
+      FROM llm_generations g
+      WHERE ${where}
       GROUP BY 1, 2, 3, 4
       RETURNING id
     `);
@@ -489,4 +540,200 @@ export async function upsertWorkspacePrice(
 /** Handoff that owns this claim token, for lifecycle tools that carry usage. */
 export async function refForClaim(db: Database, claimToken: string): Promise<ClaimedHandoffRef> {
   return requireActiveClaim(db, claimToken);
+}
+
+// --- OTLP ingest -----------------------------------------------------------
+
+/** Identity an OTLP request authenticates as; only its own handoffs are writable. */
+export interface OtlpAgentRef {
+  agentId: string;
+  workspaceId: string;
+}
+
+export interface OtlpIngestResult {
+  generationsIngested: number;
+  generationsDuplicate: number;
+  stepsIngested: number;
+  stepsDuplicate: number;
+  /** Spans whose handoff could not be resolved/authorized — counted, not stored. */
+  uncorrelatedSpans: number;
+  ignoredSpans: number;
+}
+
+/**
+ * Resolve a span's owning handoff. Precedence (docs §4): explicit handoff id →
+ * claim token → the agent's single active handoff. Every path is scoped to the
+ * authenticated agent + workspace, so a key can never write to another agent's
+ * trace by guessing an id.
+ */
+async function resolveOtlpHandoff(
+  db: Database,
+  key: OtlpAgentRef,
+  hint: OtlpCorrelation,
+): Promise<ClaimedHandoffRef | null> {
+  const select = (where: ReturnType<typeof sql>) =>
+    db.execute<Record<string, unknown>>(sql`
+      SELECT id, workspace_id, actor_agent_id FROM agent_handoffs
+      WHERE actor_agent_id = ${key.agentId} AND workspace_id = ${key.workspaceId}
+        AND state IN ('claimed', 'in_progress') AND ${where}
+      LIMIT 2
+    `);
+
+  let rows: Record<string, unknown>[];
+  if (hint.handoffId) rows = await select(sql`id = ${hint.handoffId}`);
+  else if (hint.claimToken) rows = await select(sql`claim_token = ${hint.claimToken}`);
+  else rows = await select(sql`TRUE`); // fallback: only usable when exactly one is active
+
+  if (rows.length !== 1) return null;
+  const row = rows[0]!;
+  return {
+    handoffId: row.id as string,
+    workspaceId: row.workspace_id as string,
+    agentId: row.actor_agent_id as string,
+  };
+}
+
+function correlationKey(c: OtlpCorrelation): string {
+  return c.handoffId ? `h:${c.handoffId}` : c.claimToken ? `c:${c.claimToken}` : 'fallback';
+}
+
+/**
+ * Ingest one OTLP trace export. Generations are deduped on (handoff_id,
+ * otel_span_id) so re-exported batches are idempotent and never double-count
+ * the rollups. Steps dedupe the same way (no unique index, so checked first).
+ */
+export async function ingestOtlp(
+  db: Database,
+  key: OtlpAgentRef,
+  payload: OtlpTracePayload,
+): Promise<OtlpIngestResult> {
+  const { generations, steps, ignoredSpans } = mapOtlpTraces(payload);
+  const result: OtlpIngestResult = {
+    generationsIngested: 0,
+    generationsDuplicate: 0,
+    stepsIngested: 0,
+    stepsDuplicate: 0,
+    uncorrelatedSpans: 0,
+    ignoredSpans,
+  };
+
+  // Resolve each distinct correlation hint once per batch.
+  const refCache = new Map<string, ClaimedHandoffRef | null>();
+  const refFor = async (c: OtlpCorrelation): Promise<ClaimedHandoffRef | null> => {
+    const k = correlationKey(c);
+    if (!refCache.has(k)) refCache.set(k, await resolveOtlpHandoff(db, key, c));
+    return refCache.get(k)!;
+  };
+
+  for (const gen of generations) {
+    const ref = await refFor(gen);
+    if (!ref) {
+      result.uncorrelatedSpans += 1;
+      continue;
+    }
+    const inserted = await insertOtlpGeneration(db, ref, gen);
+    if (inserted) result.generationsIngested += 1;
+    else result.generationsDuplicate += 1;
+  }
+
+  for (const step of steps) {
+    const ref = await refFor(step);
+    if (!ref) {
+      result.uncorrelatedSpans += 1;
+      continue;
+    }
+    const inserted = await insertOtlpStep(db, ref, step);
+    if (inserted) result.stepsIngested += 1;
+    else result.stepsDuplicate += 1;
+  }
+
+  return result;
+}
+
+/** Insert one OTLP generation + roll it up atomically; returns false on dedupe. */
+async function insertOtlpGeneration(
+  db: Database,
+  ref: ClaimedHandoffRef,
+  gen: MappedGeneration,
+): Promise<boolean> {
+  return db.transaction(async (rawTx) => {
+    const tx = rawTx as unknown as Database;
+    const occurredAt = gen.occurredAt ?? new Date();
+    const resolved = await resolvePrice(tx, ref.workspaceId, gen.model, occurredAt);
+    const usage: UsageReport = {
+      model: gen.model,
+      inputTokens: gen.inputTokens,
+      outputTokens: gen.outputTokens,
+      cacheReadTokens: gen.cacheReadTokens,
+      cacheWriteTokens: gen.cacheWriteTokens,
+    };
+    const costUsd = resolved ? computeCostUsd(usage, resolved.snapshot) : null;
+
+    const [row] = await tx
+      .insert(llmGenerations)
+      .values({
+        handoffId: ref.handoffId,
+        workspaceId: ref.workspaceId,
+        agentId: ref.agentId,
+        source: 'otlp',
+        model: gen.model,
+        provider: resolved?.provider ?? gen.provider,
+        inputTokens: gen.inputTokens,
+        outputTokens: gen.outputTokens,
+        cacheReadTokens: gen.cacheReadTokens,
+        cacheWriteTokens: gen.cacheWriteTokens,
+        costUsd,
+        priceSource: resolved?.priceSource ?? 'unpriced',
+        modelPriceId: resolved?.modelPriceId ?? null,
+        priceSnapshot: resolved?.snapshot ?? null,
+        otelTraceId: gen.otelTraceId,
+        otelSpanId: gen.otelSpanId,
+        occurredAt,
+      })
+      .onConflictDoNothing({
+        target: [llmGenerations.handoffId, llmGenerations.otelSpanId],
+      })
+      .returning({ id: llmGenerations.id });
+
+    if (!row) return false; // duplicate span — no rollup increment
+    await upsertDailyRollupTx(tx, {
+      workspaceId: ref.workspaceId,
+      agentId: ref.agentId,
+      model: gen.model,
+      occurredAt,
+      inputTokens: gen.inputTokens,
+      outputTokens: gen.outputTokens,
+      cacheReadTokens: gen.cacheReadTokens,
+      cacheWriteTokens: gen.cacheWriteTokens,
+      costUsd,
+    });
+    return true;
+  });
+}
+
+/** Insert one OTLP step (seq under handoff lock); returns false if the span was already stored. */
+async function insertOtlpStep(
+  db: Database,
+  ref: ClaimedHandoffRef,
+  step: MappedStep,
+): Promise<boolean> {
+  return db.transaction(async (rawTx) => {
+    const tx = rawTx as unknown as Database;
+    await tx.execute(sql`SELECT id FROM agent_handoffs WHERE id = ${ref.handoffId} FOR UPDATE`);
+    const dupe = await tx.execute<Record<string, unknown>>(sql`
+      SELECT 1 FROM handoff_steps
+      WHERE handoff_id = ${ref.handoffId} AND otel_span_id = ${step.otelSpanId}
+      LIMIT 1
+    `);
+    if (dupe[0]) return false;
+    await tx.execute(sql`
+      INSERT INTO handoff_steps
+        (handoff_id, workspace_id, seq, title, status, source, otel_span_id, started_at, ended_at)
+      SELECT ${ref.handoffId}, ${ref.workspaceId}, coalesce(max(seq), 0) + 1,
+             ${step.title}, ${step.status}, 'otlp', ${step.otelSpanId},
+             ${step.startedAt ?? null}, ${step.endedAt ?? null}
+      FROM handoff_steps WHERE handoff_id = ${ref.handoffId}
+    `);
+    return true;
+  });
 }
