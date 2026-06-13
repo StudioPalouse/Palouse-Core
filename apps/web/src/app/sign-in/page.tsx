@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useState, type FormEvent } from 'react';
 import {
   Button,
   Card,
@@ -14,6 +14,17 @@ import {
   Label,
 } from '@reqops/ui';
 import { signIn } from '@/lib/auth-client';
+
+/** Confirmation shown after a completed password reset redirects back here. */
+function ResetSuccessNotice() {
+  const reset = useSearchParams().get('reset');
+  if (!reset) return null;
+  return (
+    <p className="bg-muted text-muted-foreground mb-4 rounded-md px-3 py-2 text-sm">
+      Your password has been reset. Sign in with your new password.
+    </p>
+  );
+}
 
 export default function SignInPage() {
   const router = useRouter();
@@ -43,6 +54,9 @@ export default function SignInPage() {
           <CardDescription>Use your email and password.</CardDescription>
         </CardHeader>
         <CardContent>
+          <Suspense fallback={null}>
+            <ResetSuccessNotice />
+          </Suspense>
           <form onSubmit={onSubmit} className="flex flex-col gap-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
@@ -56,7 +70,15 @@ export default function SignInPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <Link
+                  href="/forgot-password"
+                  className="text-muted-foreground text-sm underline-offset-4 hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <Input
                 id="password"
                 type="password"
