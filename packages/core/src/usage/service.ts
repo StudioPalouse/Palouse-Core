@@ -692,6 +692,8 @@ async function insertOtlpGeneration(
       })
       .onConflictDoNothing({
         target: [llmGenerations.handoffId, llmGenerations.otelSpanId],
+        // Match the partial unique index predicate so Postgres can infer it.
+        where: sql`otel_span_id IS NOT NULL`,
       })
       .returning({ id: llmGenerations.id });
 
@@ -719,6 +721,7 @@ async function insertOtlpStep(
 ): Promise<boolean> {
   return db.transaction(async (rawTx) => {
     const tx = rawTx as unknown as Database;
+    // Serialize seq assignment per handoff (same lock as MCP steps).
     await tx.execute(sql`SELECT id FROM agent_handoffs WHERE id = ${ref.handoffId} FOR UPDATE`);
     const dupe = await tx.execute<Record<string, unknown>>(sql`
       SELECT 1 FROM handoff_steps
@@ -726,14 +729,21 @@ async function insertOtlpStep(
       LIMIT 1
     `);
     if (dupe[0]) return false;
-    await tx.execute(sql`
-      INSERT INTO handoff_steps
-        (handoff_id, workspace_id, seq, title, status, source, otel_span_id, started_at, ended_at)
-      SELECT ${ref.handoffId}, ${ref.workspaceId}, coalesce(max(seq), 0) + 1,
-             ${step.title}, ${step.status}, 'otlp', ${step.otelSpanId},
-             ${step.startedAt ?? null}, ${step.endedAt ?? null}
-      FROM handoff_steps WHERE handoff_id = ${ref.handoffId}
+    const seqRows = await tx.execute<Record<string, unknown>>(sql`
+      SELECT coalesce(max(seq), 0) + 1 AS seq FROM handoff_steps WHERE handoff_id = ${ref.handoffId}
     `);
+    // Use the ORM insert so Date columns (started_at/ended_at) encode correctly.
+    await tx.insert(handoffSteps).values({
+      handoffId: ref.handoffId,
+      workspaceId: ref.workspaceId,
+      seq: Number(seqRows[0]!.seq),
+      title: step.title,
+      status: step.status,
+      source: 'otlp',
+      otelSpanId: step.otelSpanId,
+      startedAt: step.startedAt ?? null,
+      endedAt: step.endedAt ?? null,
+    });
     return true;
   });
 }

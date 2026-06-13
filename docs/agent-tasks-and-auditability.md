@@ -1,6 +1,6 @@
 # ReqOps — Agent Tasks (M5 Runtime) + Agent Visibility & Auditability
 
-Implementation plan. Status: **Phases 1–2 complete** — Phase 1: migration `0002`, handoff state machine, agents service + keys, reaper worker, REST `agents.ts`/`handoffs.ts`, CLI `create-agent`/`create-agent-key`, MCP server (stdio + streamable HTTP, all 9 §6 tools + 3 resources, per-call agent-key auth + audit), and the basic web UI (handoff panel in the task sheet, review queue at `/reviews`). Phase 2: migration `0003` (steps/generations/prices/rollups), pricing + usage services, narrative module, seeded Anthropic price catalog (auto-seeded by `migrate`), MCP `log_step`/`report_usage` + `usage` on lifecycle tools, usage REST (`/v1/usage/summary`, `/v1/model-prices*`), expanded `/v1/handoffs/:id` (steps + generations + summary + narrative), CLI `seed-model-prices`/`rebuild-rollups`, and an early slice of the §7 explainability UI (Activity Report page at `/handoffs/[id]`, steps + cost in the handoff panel). Phases 3–6 remain. Companion to `docs/architecture.md` (§5 handoff lifecycle, §6 MCP design, §9 queues).
+Implementation plan. Status: **Phases 1–3 complete** (Phase 3 = OTLP ingest, PR #7) — Phase 1: migration `0002`, handoff state machine, agents service + keys, reaper worker, REST `agents.ts`/`handoffs.ts`, CLI `create-agent`/`create-agent-key`, MCP server (stdio + streamable HTTP, all 9 §6 tools + 3 resources, per-call agent-key auth + audit), and the basic web UI (handoff panel in the task sheet, review queue at `/reviews`). Phase 2: migration `0003` (steps/generations/prices/rollups), pricing + usage services, narrative module, seeded Anthropic price catalog (auto-seeded by `migrate`), MCP `log_step`/`report_usage` + `usage` on lifecycle tools, usage REST (`/v1/usage/summary`, `/v1/model-prices*`), expanded `/v1/handoffs/:id` (steps + generations + summary + narrative), CLI `seed-model-prices`/`rebuild-rollups`, and an early slice of the §7 explainability UI (Activity Report page at `/handoffs/[id]`, steps + cost in the handoff panel). Phase 3: OTLP ingest — pure mapper, `ingestOtlp` with agent/workspace-scoped correlation + span dedupe, agent-key middleware, `/v1/otlp/v1/traces` route (JSON only), and the double-counting rule in `getHandoffUsage`/`rebuildRollups`. Phases 4–6 remain. Companion to `docs/architecture.md` (§5 handoff lifecycle, §6 MCP design, §9 queues).
 
 ## Context
 
@@ -403,9 +403,9 @@ Migration `0003`; pricing + usage services; seed catalog; MCP `log_step`/`report
 **Verify**: unit tests for price resolution (override beats catalog; effective dating; pattern match; unknown → null) and cost math vs hand-computed values. Integration: `report_usage` → generation row with correct snapshot + rollup increment; `rebuild-rollups` reproduces identical totals.
 **Done as specified, plus**: narrative module (`packages/core/src/handoffs/narrative.ts`, pulled forward from Phase 4 with snapshot tests); an early slice of the §7 UI (Activity Report at `/handoffs/[id]`, steps + cost in the handoff panel — so explainability is user-visible from day one); catalog auto-seed at the end of `migrate`; `@reqops/mail` (Resend) wired into Better-Auth reset/verification (adjacent to this milestone, not part of the §10 plan). Deviation: only Anthropic models are seeded — OpenAI/Google/Mistral wait until their pricing pages are verified (§1b note); unknown models surface as "Unpriced".
 
-### Phase 3 — OTLP ingest
-Mapper + route + agent-key middleware.
-**Verify**: fixture OTLP JSON (OpenLLMetry-shaped, Langfuse-SDK-shaped, legacy token attr names) maps correctly; dedupe on re-POST; live test with instrumented script (`OTEL_EXPORTER_OTLP_PROTOCOL=http/json`) against a claimed handoff; mcp-source rows excluded from summary when otlp rows exist.
+### Phase 3 — OTLP ingest ✅ (PR #7, 2026-06-13)
+Pure mapper (`packages/core/src/usage/otlp.ts`, OTel GenAI semconv + legacy token attr names), `ingestOtlp` in the usage service (correlation: handoff_id → claim_token → single-active-handoff fallback, all scoped to the authenticated agent+workspace), span dedupe via the `0003` partial unique index `(handoff_id, otel_span_id)` with rollups incremented only on actual insert, agent-key middleware (`apps/api/src/middleware/agent-key.ts`, scope `usage:write`), and the route `apps/api/src/routes/otlp.ts` mounted at `/v1/otlp` (full path `/v1/otlp/v1/traces`; OTLP/JSON only, protobuf → 415). Double-counting rule (§4) lands in `getHandoffUsage` (drops MCP rows when OTLP rows exist) and `rebuildRollups` (same exclusion in re-aggregation); the incremental ingest path can't do per-handoff exclusion, so an agent wrongly reporting via both paths double-counts in live rollups until a rebuild — documented in code.
+**Verified**: 11 pure-mapper unit tests (OpenLLMetry/Langfuse/legacy shapes, step vs generation classification, correlation hints) + 7 integration tests (priced generation + rollup; re-POST dedupe; claim-token & fallback correlation; uncorrelated span counted; OTLP step dedupe; double-counting in `getHandoffUsage` + `rebuildRollups`). Still TODO: live instrumented-script test against staging (`OTEL_EXPORTER_OTLP_PROTOCOL=http/json`).
 
 ### Phase 4 — Business UI
 Agents directory, agent detail, spend dashboard, Activity Report, narrative module.
@@ -421,23 +421,29 @@ react-pdf report, CSV endpoints, audit package zip, UI download buttons; `cloud/
 
 ---
 
-## Next steps (as of 2026-06-12, after Phase 2 / PR #6)
+## Next steps (as of 2026-06-13, after Phase 3 / PR #7)
 
-### 0. Land + verify Phase 2 on staging
-- Merge PR #6 → the deploy workflow runs migration `0003` and auto-seeds the price catalog via the release command.
-- Staging e2e (all testing happens on staging, not locally): hand off a task → have an agent call `log_step` + `report_usage` (and a final `usage` on `complete_task`) → confirm the Activity Report at `/handoffs/[id]` shows narrative, steps, and a priced generation table → cross-check `GET /v1/usage/summary` totals → run `reqops rebuild-rollups` and confirm totals are unchanged.
+### Pick up here — open PRs + resume sequence (2026-06-13)
+Two PRs are open and green-pending; nothing else is in flight. Resume in this order:
+1. **Merge PR #8** (`claude/fix-otlp-ci-and-docs`) — fixes the OTLP-ingest test failures that turned `main` red after PR #7 (partial-index `ON CONFLICT` predicate + step `Date` binding), and carries these doc updates. CI is green. **`main` stays red until this merges.**
+2. **Merge PR #9** (`claude/web-password-reset`) — self-service password-reset UI (`/forgot-password`, `/reset-password`, "Forgot password?" on sign-in). Web-only, independent of #8.
+3. **Deploy web to staging**: `./scripts/fly-deploy.sh web`, then send a live reset email and confirm delivery from `test.reqops.ai` (closes the Resend §1 loop below).
+4. **Then start the Notion integration** (§2 / `docs/notion-integration.md`) — the next build milestone.
 
-### 1. Finish Resend setup (manual, owner: Jonathan)
-- Create an API key at resend.com → `RESEND_API_KEY` in `.env.staging` → `./scripts/fly-secrets.sh`.
-- Verify the sending domain in the Resend dashboard, then set `MAIL_FROM` in `fly/*.toml` `[env]` (not a secret). Until then the onboarding sender only delivers to the Resend account owner.
-- Once delivery is confirmed, decide whether to flip `requireEmailVerification` in `packages/auth` (deliberately left off so staging sign-in keeps working).
+Manual, owner Jonathan: join the Notion **External Agents** waitlist (Track B2); optionally rotate the Resend API key (shared once in chat); bump the GitHub Actions off the deprecated Node 20 runner.
 
-### 2. Phase 3 — OTLP ingest (next build milestone)
-Everything in §4. The schema is already in place from `0003` (`otel_trace_id`/`otel_span_id` columns, partial unique dedupe index, `source='otlp'` enum value), so this is mapper + route + middleware only:
-- `packages/core/src/usage/otlp.ts` pure mapper (OTel GenAI semconv + legacy token attr names).
-- `apps/api/src/middleware/agent-key.ts` (agent-key auth, scope `usage:write`) + `apps/api/src/routes/otlp.ts` mounted at `/v1/otlp` (OTLP JSON only; protobuf → 415).
-- Implement the §4 **double-counting rule** in `getHandoffUsage`/rollup queries: exclude `source='mcp'` rows for any handoff that also has `source='otlp'` rows. Not needed until OTLP exists, but it lands with it.
-- Verify per §10 Phase 3 (fixture-shaped payloads, re-POST dedupe, live instrumented script against staging).
+### 0. Verify Phase 2 + Phase 3 on staging
+Phases 2 and 3 are deployed (migration `0003` + auto-seeded catalog ran on the PR #6/#7 release; the `api` app was redeployed 2026-06-13 so the OTLP route is live). Remaining manual staging e2e (all testing happens on staging, not locally):
+- **Usage (Phase 2)**: hand off a task → agent calls `log_step` + `report_usage` (and a final `usage` on `complete_task`) → Activity Report at `/handoffs/[id]` shows narrative, steps, priced generation table → cross-check `GET /v1/usage/summary` → `reqops rebuild-rollups` leaves totals unchanged.
+- **OTLP (Phase 3)**: point an instrumented script at `POST /v1/otlp/v1/traces` with `OTEL_EXPORTER_OTLP_PROTOCOL=http/json` + `Authorization: Bearer reqops_agk_…` (scope `usage:write`) against a claimed handoff → confirm `source='otlp'` generations appear, re-POST dedupes, and MCP rows drop from the summary once OTLP rows exist.
+
+### 1. Resend setup ✅ (2026-06-13)
+- `RESEND_API_KEY` is in `.env.staging` (gitignored) and pushed to the staging apps via `./scripts/fly-secrets.sh`.
+- `test.reqops.ai` is the verified sending domain; `MAIL_FROM = "ReqOps <no-reply@test.reqops.ai>"` is set in `fly/api.toml` `[env]` (api is the only mail sender) and applied via deploy. `app.reqops.ai` to be added later.
+- The self-service password-reset UI is built (PR #9: `/forgot-password` + `/reset-password` + a "Forgot password?" link on sign-in, all over Better-Auth's `requestPasswordReset`/`resetPassword`). Still open: deploy web to staging and send a live reset email to confirm delivery, then decide whether to flip `requireEmailVerification` in `packages/auth` (deliberately left off so staging sign-in keeps working).
+
+### 2. Notion integration (next build milestone)
+See `docs/notion-integration.md`. Two tracks: (A) task sync mirroring the Asana connector (new piece: per-connection field mapping; pin `Notion-Version: 2025-09-03` for the data-sources model), and (B) agent visibility — push Activity Reports into Notion (B1, stable API today) with the External Agents API (B2) as a later, waitlisted path.
 
 ### 3. Phase 4 — remaining business UI
 Activity Report shipped early; still to build: `agents/page.tsx` directory ("worked on N tasks / spent $X this month" from rollups), `agents/[agentId]` detail (keys, sparkline), `agents/spend` dashboard (charts via shadcn/recharts added to `packages/ui`, CSV export), **Agents** nav entry in `app-shell.tsx`, and `listAgents` joined with rollup cost summaries (§2b).

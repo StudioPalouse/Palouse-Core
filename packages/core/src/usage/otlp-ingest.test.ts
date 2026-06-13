@@ -88,6 +88,8 @@ function genTrace(spanId: string, correlation: Record<string, string>): OtlpTrac
     { key: 'gen_ai.usage.output_tokens', value: { intValue: '200' } },
     ...Object.entries(correlation).map(([key, v]) => ({ key, value: { stringValue: v } })),
   ];
+  // Stamp at call time (after the catalog is seeded with effectiveFrom = now), so
+  // the span's occurredAt falls inside the price window and the gen is priced.
   return {
     resourceSpans: [
       {
@@ -97,7 +99,7 @@ function genTrace(spanId: string, correlation: Record<string, string>): OtlpTrac
               {
                 traceId: 'trace-1',
                 spanId,
-                endTimeUnixNano: '1700000000000000000',
+                endTimeUnixNano: String(Date.now() * 1_000_000),
                 attributes: attrs,
               } as never,
             ],
