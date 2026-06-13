@@ -423,6 +423,15 @@ react-pdf report, CSV endpoints, audit package zip, UI download buttons; `cloud/
 
 ## Next steps (as of 2026-06-13, after Phase 3 / PR #7)
 
+### Pick up here — open PRs + resume sequence (2026-06-13)
+Two PRs are open and green-pending; nothing else is in flight. Resume in this order:
+1. **Merge PR #8** (`claude/fix-otlp-ci-and-docs`) — fixes the OTLP-ingest test failures that turned `main` red after PR #7 (partial-index `ON CONFLICT` predicate + step `Date` binding), and carries these doc updates. CI is green. **`main` stays red until this merges.**
+2. **Merge PR #9** (`claude/web-password-reset`) — self-service password-reset UI (`/forgot-password`, `/reset-password`, "Forgot password?" on sign-in). Web-only, independent of #8.
+3. **Deploy web to staging**: `./scripts/fly-deploy.sh web`, then send a live reset email and confirm delivery from `test.reqops.ai` (closes the Resend §1 loop below).
+4. **Then start the Notion integration** (§2 / `docs/notion-integration.md`) — the next build milestone.
+
+Manual, owner Jonathan: join the Notion **External Agents** waitlist (Track B2); optionally rotate the Resend API key (shared once in chat); bump the GitHub Actions off the deprecated Node 20 runner.
+
 ### 0. Verify Phase 2 + Phase 3 on staging
 Phases 2 and 3 are deployed (migration `0003` + auto-seeded catalog ran on the PR #6/#7 release; the `api` app was redeployed 2026-06-13 so the OTLP route is live). Remaining manual staging e2e (all testing happens on staging, not locally):
 - **Usage (Phase 2)**: hand off a task → agent calls `log_step` + `report_usage` (and a final `usage` on `complete_task`) → Activity Report at `/handoffs/[id]` shows narrative, steps, priced generation table → cross-check `GET /v1/usage/summary` → `reqops rebuild-rollups` leaves totals unchanged.
@@ -431,7 +440,7 @@ Phases 2 and 3 are deployed (migration `0003` + auto-seeded catalog ran on the P
 ### 1. Resend setup ✅ (2026-06-13)
 - `RESEND_API_KEY` is in `.env.staging` (gitignored) and pushed to the staging apps via `./scripts/fly-secrets.sh`.
 - `test.reqops.ai` is the verified sending domain; `MAIL_FROM = "ReqOps <no-reply@test.reqops.ai>"` is set in `fly/api.toml` `[env]` (api is the only mail sender) and applied via deploy. `app.reqops.ai` to be added later.
-- Still open: smoke-test a password reset / verification email on staging, then decide whether to flip `requireEmailVerification` in `packages/auth` (deliberately left off so staging sign-in keeps working).
+- The self-service password-reset UI is built (PR #9: `/forgot-password` + `/reset-password` + a "Forgot password?" link on sign-in, all over Better-Auth's `requestPasswordReset`/`resetPassword`). Still open: deploy web to staging and send a live reset email to confirm delivery, then decide whether to flip `requireEmailVerification` in `packages/auth` (deliberately left off so staging sign-in keeps working).
 
 ### 2. Notion integration (next build milestone)
 See `docs/notion-integration.md`. Two tracks: (A) task sync mirroring the Asana connector (new piece: per-connection field mapping; pin `Notion-Version: 2025-09-03` for the data-sources model), and (B) agent visibility — push Activity Reports into Notion (B1, stable API today) with the External Agents API (B2) as a later, waitlisted path.
