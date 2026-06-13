@@ -19,6 +19,8 @@ primary_region = "iad"
   WEB_BASE_URL = "https://test.reqops.ai"
   # Hosted cloud: work emails only — public providers (gmail, outlook, …) can't sign up.
   AUTH_BLOCK_PUBLIC_EMAIL_DOMAINS = "true"
+  # Verified Resend sending domain (app.reqops.ai to be added later).
+  MAIL_FROM = "ReqOps <no-reply@test.reqops.ai>"
 
 [http_service]
   internal_port = 4000
