@@ -52,6 +52,8 @@ export async function runPull(
       workspaceId: row.workspaceId,
       accessToken: await freshAccessToken(db, env, row),
       cursor: await integrationService.getSyncCursor(db, integrationId, CURSOR_RESOURCE),
+      // Per-connection config (Notion uses it for dataSourceId + field map).
+      config: row.config,
     };
     const result = await adapter.pull(ctx);
 

@@ -16,6 +16,7 @@
     "@reqops/connector-asana": "workspace:^",
     "@reqops/connector-core": "workspace:^",
     "@reqops/connector-google-tasks": "workspace:^",
+    "@reqops/connector-notion": "workspace:^",
     "@reqops/core": "workspace:^",
     "@reqops/db": "workspace:*",
     "@reqops/queue": "workspace:^",

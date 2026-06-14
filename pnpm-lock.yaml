@@ -47,6 +47,9 @@ importers:
       '@reqops/connector-microsoft-todo':
         specifier: workspace:^
         version: link:../../packages/connectors/microsoft-todo
+      '@reqops/connector-notion':
+        specifier: workspace:^
+        version: link:../../packages/connectors/notion
       '@reqops/core':
         specifier: workspace:^
         version: link:../../packages/core
@@ -222,6 +225,9 @@ importers:
       '@reqops/connector-microsoft-todo':
         specifier: workspace:^
         version: link:../../packages/connectors/microsoft-todo
+      '@reqops/connector-notion':
+        specifier: workspace:^
+        version: link:../../packages/connectors/notion
       '@reqops/core':
         specifier: workspace:^
         version: link:../../packages/core
@@ -394,6 +400,19 @@ importers:
       '@reqops/connector-microsoft-graph':
         specifier: workspace:*
         version: link:../microsoft-graph
+      '@reqops/shared':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
+  packages/connectors/notion:
+    dependencies:
+      '@reqops/connector-core':
+        specifier: workspace:*
+        version: link:../core
       '@reqops/shared':
         specifier: workspace:*
         version: link:../../shared

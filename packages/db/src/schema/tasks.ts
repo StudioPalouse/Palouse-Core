@@ -30,6 +30,7 @@ export const externalSystem = pgEnum('external_system', [
   'ms_todo',
   'ms_planner',
   'asana',
+  'notion',
   'reqops',
 ]);
 

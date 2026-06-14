@@ -95,6 +95,23 @@ mapping from Notion properties → ReqOps task fields.
 - **N1** — OAuth/connect + data-source discovery + **read-only backfill**
   (Notion → ReqOps tasks) with field mapping. *Verify on staging*: connect an
   internal-token integration to a test DB, map fields, confirm tasks upsert.
+  - **Started 2026-06-14.** Done so far: `packages/connectors/notion` (client pinned to
+    `Notion-Version: 2025-09-03`, 3 req/s serial rate-limiter + `Retry-After` backoff,
+    `verifyToken` / `discoverDataSources` / `queryDataSource` paginated + incremental,
+    `pageToTask` mapper driven by a stored `NotionFieldMap`, and `notionAdapter` with
+    `pull()` + OAuth `buildAuthUrl`/`exchangeCode` for later public OAuth; `pollOnly: true`
+    until N2). `notion` registered in shared `integrationProvider`/`externalSystem` zod
+    enums + both DB `pgEnum`s; new `integrations.config` jsonb column (stores
+    `{ dataSourceId, fieldMap }`); `PullContext.config` added and wired through
+    `worker/sync.ts runPull`; adapter registered in `apps/worker` + `apps/api` connector
+    maps (`oauthConfigFor` maps made `Partial` — Notion has no OAuth client). **Migration
+    `0004_yummy_tag.sql`** (enum ADD VALUE + config column; safe in-txn on PG14). Whole repo
+    typechecks. **Still TODO for N1**: token-connect API route (`POST` pasted internal token →
+    `verifyToken` → `discoverDataSources` → store encrypted token + resolved `dataSourceId` +
+    field map; reuse `oauth_access_token_enc`), a data-source/property discovery endpoint to
+    drive the field-map UI, the web connect + field-mapping UI, `packages/testing/fake-notion.ts`
+    + adapter/mapper tests, and a staging migrate+deploy to apply `0004`.
+  - **Note:** plan §1d's audit-chain migration (was pencilled in as `0004`) becomes `0005+`.
 - **N2** — **Webhook incremental sync**: handshake, HMAC verify, re-fetch on
   `page.content_updated` (treat as batched), handle `data_source.schema_updated`.
 - **N3** — **Outbound writes** (ReqOps → Notion): `PATCH /v1/pages/{id}` on task

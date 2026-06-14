@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { uuid } from './ids.js';
 
-export const integrationProvider = z.enum(['google_tasks', 'ms_todo', 'ms_planner', 'asana']);
+export const integrationProvider = z.enum(['google_tasks', 'ms_todo', 'ms_planner', 'asana', 'notion']);
 export type IntegrationProvider = z.infer<typeof integrationProvider>;
 
 export const integrationStatus = z.enum(['active', 'degraded', 'revoked']);

@@ -423,14 +423,13 @@ react-pdf report, CSV endpoints, audit package zip, UI download buttons; `cloud/
 
 ## Next steps (as of 2026-06-13, after Phase 3 / PR #7)
 
-### Pick up here — open PRs + resume sequence (2026-06-13)
-Two PRs are open and green-pending; nothing else is in flight. Resume in this order:
-1. **Merge PR #8** (`claude/fix-otlp-ci-and-docs`) — fixes the OTLP-ingest test failures that turned `main` red after PR #7 (partial-index `ON CONFLICT` predicate + step `Date` binding), and carries these doc updates. CI is green. **`main` stays red until this merges.**
-2. **Merge PR #9** (`claude/web-password-reset`) — self-service password-reset UI (`/forgot-password`, `/reset-password`, "Forgot password?" on sign-in). Web-only, independent of #8.
-3. **Deploy web to staging**: `./scripts/fly-deploy.sh web`, then send a live reset email and confirm delivery from `test.reqops.ai` (closes the Resend §1 loop below).
-4. **Then start the Notion integration** (§2 / `docs/notion-integration.md`) — the next build milestone.
+### Pick up here — resume sequence (updated 2026-06-14)
+1. ✅ **PR #8 merged** (`claude/fix-otlp-ci-and-docs`) — OTLP-ingest test fixes; `main` green again.
+2. ✅ **PR #9 merged** (`claude/web-password-reset`) — self-service reset UI.
+3. **Deploy web to staging + verify reset email** — ✅ web redeployed 2026-06-14 (`./scripts/fly-deploy.sh web`, machines healthy, api `/health` OK). Live reset triggered for `jonathan@palouse.io` via `POST /api/auth/request-password-reset`; no Better-Auth error and no `[mail] skipping` line ⇒ send path clean (Resend send logs nothing on success). **Inbox + click-through delivery confirmation by Jonathan = last open item to fully close the Resend §1 loop.** Note: demo seed account (`demo@reqops.local`) does NOT exist on staging — `reqops seed` was never run there.
+4. **Now starting: Notion integration** (`docs/notion-integration.md`), beginning with **N1** (OAuth/connect + data-source discovery + read-only backfill with field mapping), mirroring the Asana connector vertical slice.
 
-Manual, owner Jonathan: join the Notion **External Agents** waitlist (Track B2); optionally rotate the Resend API key (shared once in chat); bump the GitHub Actions off the deprecated Node 20 runner.
+Manual, owner Jonathan: ✅ joined Notion **External Agents** waitlist (Track B2); optionally rotate the Resend API key (shared once in chat); bump the GitHub Actions off the deprecated Node 20 runner.
 
 ### 0. Verify Phase 2 + Phase 3 on staging
 Phases 2 and 3 are deployed (migration `0003` + auto-seeded catalog ran on the PR #6/#7 release; the `api` app was redeployed 2026-06-13 so the OTLP route is live). Remaining manual staging e2e (all testing happens on staging, not locally):

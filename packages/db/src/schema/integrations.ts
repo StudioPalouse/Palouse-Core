@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   customType,
   index,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -27,6 +28,7 @@ export const integrationProvider = pgEnum('integration_provider', [
   'ms_todo',
   'ms_planner',
   'asana',
+  'notion',
 ]);
 
 export const integrationStatus = pgEnum('integration_status', ['active', 'degraded', 'revoked']);
@@ -49,6 +51,9 @@ export const integrations = pgTable(
     // Per-subscription signing secret (e.g. Asana X-Hook-Secret), AES-256-GCM encrypted.
     webhookSecretEnc: bytea('webhook_secret_enc'),
     webhookExpiresAt: timestamp('webhook_expires_at', { withTimezone: true, mode: 'date' }),
+    // Provider-specific connection config. Notion stores { dataSourceId, fieldMap }
+    // here, since its sync target (a shared database) can't be auto-discovered.
+    config: jsonb('config'),
     status: integrationStatus('status').notNull().default('active'),
     lastSyncAt: timestamp('last_sync_at', { withTimezone: true, mode: 'date' }),
     createdAt: ts('created_at'),

@@ -39,6 +39,12 @@ export interface PullContext {
   accessToken: string;
   /** Provider-specific incremental cursor (e.g. RFC3339 updatedMin). */
   cursor?: string;
+  /**
+   * Per-connection config stored on the integration row (provider-specific).
+   * Notion uses it to carry the resolved data-source id + property field map,
+   * since it can't auto-discover what to sync the way Asana/Google can.
+   */
+  config?: unknown;
 }
 
 export interface PullResult {
