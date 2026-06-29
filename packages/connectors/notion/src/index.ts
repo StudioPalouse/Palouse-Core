@@ -6,7 +6,7 @@ import {
   type PullContext,
   type PullResult,
   type RefreshedTokens,
-} from '@reqops/connector-core';
+} from '@palouse/connector-core';
 
 export const PROVIDER = 'notion' as const;
 
@@ -18,7 +18,7 @@ export const NOTION_VERSION = '2025-09-03';
 const AUTH_URL = 'https://api.notion.com/v1/oauth/authorize';
 const TOKEN_URL = 'https://api.notion.com/v1/oauth/token';
 // Overridable so tests/local smoke runs can target a fake Notion server.
-const API = process.env.REQOPS_NOTION_API_BASE ?? 'https://api.notion.com/v1';
+const API = process.env.PALOUSE_NOTION_API_BASE ?? 'https://api.notion.com/v1';
 
 // Notion allows ~3 requests/second/connection with bursts; 429/529 carry
 // Retry-After (seconds). We serialize requests with a minimum spacing and
@@ -29,7 +29,7 @@ const MAX_RETRIES = 5;
 // ---------------------------------------------------------------------------
 // Field mapping — the piece with no Asana equivalent. Notion task databases are
 // user-defined, so "Status"/"Due"/etc. are conventions, not guaranteed fields.
-// Each connection stores how its data-source properties map onto ReqOps fields.
+// Each connection stores how its data-source properties map onto Palouse fields.
 // ---------------------------------------------------------------------------
 export interface NotionFieldMap {
   /** Title-type property to use. Omit → the data source's `title` property. */
@@ -178,7 +178,7 @@ function findTitleProp(props: Record<string, NotionPropertyValue>, preferred?: s
   return Object.keys(props).find((k) => props[k]?.type === 'title');
 }
 
-/** Maps a Notion page onto a ReqOps task using the connection's field map. */
+/** Maps a Notion page onto a Palouse task using the connection's field map. */
 export function pageToTask(page: NotionPage, fieldMap: NotionFieldMap = {}): NormalizedExternalTask {
   const props = page.properties ?? {};
 

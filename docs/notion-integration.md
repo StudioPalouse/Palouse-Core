@@ -1,8 +1,8 @@
-# ReqOps — Notion Integration Plan
+# Palouse — Notion Integration Plan
 
 Status: **planned** (next integration after M5 Phase 3 / OTLP). Two tracks, built in
 order: **(A) task sync** (like the existing Asana connector) and **(B) agent
-visibility** (surface ReqOps agent activity into Notion). Companion to
+visibility** (surface Palouse agent activity into Notion). Companion to
 `docs/architecture.md` and `docs/agent-tasks-and-auditability.md`.
 
 This plan is grounded in a review of the live Notion developer docs (June 2026).
@@ -72,7 +72,7 @@ The two facts that shape everything:
 Mirror `packages/connectors/asana`. The one genuinely new piece vs Asana is
 **field mapping**: Notion task databases are user-defined, so "Status", "Assignee",
 "Due date" are conventions, not guaranteed fields. Each connection needs a stored
-mapping from Notion properties → ReqOps task fields.
+mapping from Notion properties → Palouse task fields.
 
 ### Files (mirroring the Asana connector)
 - `packages/connectors/notion/src/index.ts` — API client: OAuth token exchange,
@@ -93,7 +93,7 @@ mapping from Notion properties → ReqOps task fields.
 
 ### Phasing
 - **N1** — OAuth/connect + data-source discovery + **read-only backfill**
-  (Notion → ReqOps tasks) with field mapping. *Verify on staging*: connect an
+  (Notion → Palouse tasks) with field mapping. *Verify on staging*: connect an
   internal-token integration to a test DB, map fields, confirm tasks upsert.
   - **Started 2026-06-14.** Done so far: `packages/connectors/notion` (client pinned to
     `Notion-Version: 2025-09-03`, 3 req/s serial rate-limiter + `Retry-After` backoff,
@@ -114,14 +114,14 @@ mapping from Notion properties → ReqOps task fields.
   - **Note:** plan §1d's audit-chain migration (was pencilled in as `0004`) becomes `0005+`.
 - **N2** — **Webhook incremental sync**: handshake, HMAC verify, re-fetch on
   `page.content_updated` (treat as batched), handle `data_source.schema_updated`.
-- **N3** — **Outbound writes** (ReqOps → Notion): `PATCH /v1/pages/{id}` on task
+- **N3** — **Outbound writes** (Palouse → Notion): `PATCH /v1/pages/{id}` on task
   change; create under `data_source_id`.
 
 ---
 
 ## Track B — Notion as an agent-visibility destination
 
-Goal: put ReqOps agent activity where business users already are. Two options,
+Goal: put Palouse agent activity where business users already are. Two options,
 escalating in ambition and in API maturity.
 
 ### B1 — Push Activity Reports to Notion (build on stable API)
@@ -139,7 +139,7 @@ under a configured "Agent Activity" data source or append to an existing page.
 - Available today, OSS-friendly, no waitlist. **This is the v1 of Track B.**
 
 ### B2 — External Agents API (alpha; join waitlist now)
-Register ReqOps agents as Notion **External Agents** so they appear natively —
+Register Palouse agents as Notion **External Agents** so they appear natively —
 assignable from Notion, progress tracked, chat-able. This is the strategic endgame
 ("Notion as the AI layer") but it is **private beta / waitlisted** and the surface is
 not yet stable. Action: **join the External Agents waitlist now**, and design B1's

@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
   Textarea,
-} from '@reqops/ui';
+} from '@palouse/ui';
 import { api, ApiError } from '@/lib/api';
 import { PRIORITY_LABELS } from '@/lib/task-meta';
 
@@ -66,7 +66,7 @@ export function NewTaskDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New task</DialogTitle>
-          <DialogDescription>Create a native ReqOps task in this workspace.</DialogDescription>
+          <DialogDescription>Create a native Palouse task in this workspace.</DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <div className="grid gap-2">

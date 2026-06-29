@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
-import { validation } from '@reqops/shared';
-import { usageService } from '@reqops/core';
-import { loadEnv } from '@reqops/config';
-import { auditEvents, getDb } from '@reqops/db';
+import { validation } from '@palouse/shared';
+import { usageService } from '@palouse/core';
+import { loadEnv } from '@palouse/config';
+import { auditEvents, getDb } from '@palouse/db';
 import { requireAgentKey, type AgentKeyVars } from '../middleware/agent-key.js';
 
 type OtlpPayload = Parameters<typeof usageService.ingestOtlp>[2];
@@ -12,7 +12,7 @@ type OtlpPayload = Parameters<typeof usageService.ingestOtlp>[2];
  * /v1/otlp/v1/traces — an instrumented agent only needs:
  *   OTEL_EXPORTER_OTLP_ENDPOINT=https://<api>/v1/otlp
  *   OTEL_EXPORTER_OTLP_PROTOCOL=http/json
- *   OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer reqops_agk_...
+ *   OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer palouse_agk_...
  * v1 accepts OTLP/JSON only; protobuf is rejected with a hint (docs §4).
  */
 export const otlpRoutes = new Hono<AgentKeyVars>();
@@ -60,7 +60,7 @@ otlpRoutes.post('/v1/traces', async (c) => {
   });
 
   // OTLP ExportTraceServiceResponse: an empty partialSuccess means full success;
-  // uncorrelated spans are surfaced as rejects. `reqops` carries our own counts.
+  // uncorrelated spans are surfaced as rejects. `palouse` carries our own counts.
   const rejectedSpans = result.uncorrelatedSpans;
   const partialSuccess =
     rejectedSpans > 0
@@ -69,5 +69,5 @@ otlpRoutes.post('/v1/traces', async (c) => {
           errorMessage: `${rejectedSpans} span(s) could not be correlated to an active handoff for this agent`,
         }
       : {};
-  return c.json({ partialSuccess, reqops: result }, 200);
+  return c.json({ partialSuccess, palouse: result }, 200);
 });

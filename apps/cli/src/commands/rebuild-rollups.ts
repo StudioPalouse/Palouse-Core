@@ -1,7 +1,7 @@
 import { Command } from 'commander';
-import { loadEnv } from '@reqops/config';
-import { closeDb, getDb } from '@reqops/db';
-import { usageService } from '@reqops/core';
+import { loadEnv } from '@palouse/config';
+import { closeDb, getDb } from '@palouse/db';
+import { usageService } from '@palouse/core';
 
 export function rebuildRollupsCommand(): Command {
   return new Command('rebuild-rollups')

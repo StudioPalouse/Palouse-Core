@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
-import { integrationService, workspaces } from '@reqops/core';
-import { loadEnv } from '@reqops/config';
-import { getDb } from '@reqops/db';
-import { validation } from '@reqops/shared';
-import { enqueuePull, removePolling } from '@reqops/queue';
+import { integrationService, workspaces } from '@palouse/core';
+import { loadEnv } from '@palouse/config';
+import { getDb } from '@palouse/db';
+import { validation } from '@palouse/shared';
+import { enqueuePull, removePolling } from '@palouse/queue';
 import { getSyncQueue } from '../queue.js';
 import { requireSession, type SessionVars } from '../middleware/session.js';
 

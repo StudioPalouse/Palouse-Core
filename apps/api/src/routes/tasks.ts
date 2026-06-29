@@ -6,11 +6,11 @@ import {
   updateTaskInput,
   userActor,
   validation,
-} from '@reqops/shared';
-import { taskService, workspaces } from '@reqops/core';
-import { loadEnv } from '@reqops/config';
-import { getDb } from '@reqops/db';
-import { enqueuePush } from '@reqops/queue';
+} from '@palouse/shared';
+import { taskService, workspaces } from '@palouse/core';
+import { loadEnv } from '@palouse/config';
+import { getDb } from '@palouse/db';
+import { enqueuePush } from '@palouse/queue';
 import { getSyncQueue } from '../queue.js';
 import { requireSession, type SessionVars } from '../middleware/session.js';
 

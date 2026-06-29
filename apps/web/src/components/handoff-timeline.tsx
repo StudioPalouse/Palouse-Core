@@ -1,7 +1,7 @@
 'use client';
 
-import type { HandoffEvent, HandoffStep } from '@reqops/shared';
-import { cn } from '@reqops/ui';
+import type { HandoffEvent, HandoffStep } from '@palouse/shared';
+import { cn } from '@palouse/ui';
 import { EVENT_LABELS, formatDateTime } from '@/lib/handoff-meta';
 
 function eventDetail(event: HandoffEvent): string | null {

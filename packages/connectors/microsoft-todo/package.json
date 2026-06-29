@@ -1,5 +1,5 @@
 {
-  "name": "@reqops/connector-microsoft-todo",
+  "name": "@palouse/connector-microsoft-todo",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -14,9 +14,9 @@
     "test": "echo 'TODO: vitest'"
   },
   "dependencies": {
-    "@reqops/connector-core": "workspace:*",
-    "@reqops/shared": "workspace:*",
-    "@reqops/connector-microsoft-graph": "workspace:*"
+    "@palouse/connector-core": "workspace:*",
+    "@palouse/shared": "workspace:*",
+    "@palouse/connector-microsoft-graph": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.6.0"

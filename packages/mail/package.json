@@ -1,5 +1,5 @@
 {
-  "name": "@reqops/mail",
+  "name": "@palouse/mail",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -14,7 +14,7 @@
     "test": "echo 'TODO: vitest'"
   },
   "dependencies": {
-    "@reqops/config": "workspace:*",
+    "@palouse/config": "workspace:*",
     "resend": "^6.0.0"
   },
   "devDependencies": {

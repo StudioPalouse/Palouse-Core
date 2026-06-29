@@ -1,4 +1,4 @@
-# ReqOps
+# Palouse
 
 **Team task aggregation + agentic handoff.** Aggregate work from Google Tasks,
 Microsoft To Do / Planner, and Asana into one inbox, then hand individual tasks
@@ -13,7 +13,7 @@ small set of BSL-licensed cloud features on top of the same code.
 > end-to-end. Microsoft To Do + Planner share a Graph client: OAuth, pull,
 > outbound push, Graph change notifications (To Do) with subscription
 > auto-renewal, and polling fallback. Cloud staging runs at
-> <https://test.reqops.ai> (see [`docs/deployment.md`](./docs/deployment.md)).
+> <https://test.palouse.io> (see [`docs/deployment.md`](./docs/deployment.md)).
 > See [`docs/architecture.md`](./docs/architecture.md) for the complete plan.
 
 ## Quick start (dev)
@@ -23,14 +23,14 @@ Prereqs: Node 22+, pnpm 10+, Docker (or local Postgres 16 + Redis 7).
 ```bash
 pnpm install
 docker compose -f docker-compose.dev.yml up -d   # postgres + redis only
-pnpm reqops init                                  # writes .env with random secrets
+pnpm palouse init                                  # writes .env with random secrets
 pnpm db:migrate
-pnpm reqops seed                                  # optional: demo user + workspace + tasks
+pnpm palouse seed                                  # optional: demo user + workspace + tasks
 pnpm dev
 ```
 
 Open <http://localhost:3000> and sign in with the seeded account
-(`demo@reqops.local` / `reqops-demo-password`), or sign up fresh.
+(`demo@palouse.local` / `palouse-demo-password`), or sign up fresh.
 The API serves <http://localhost:4000> (`/health`, `/v1/*`, Better-Auth under `/api/auth`).
 
 No Docker? Point `DATABASE_URL` / `REDIS_URL` in `.env` at any local Postgres 16
@@ -46,10 +46,10 @@ redirect URI `http://localhost:3000/oauth/<provider>/callback`
 (the web origin — API traffic rides the Next rewrite proxy).
 Google Tasks is polled every 60s. Asana subscribes a webhook when
 `API_BASE_URL` is publicly reachable and otherwise falls back to 5-minute
-polling. Editing a synced task in ReqOps pushes the change back to the source
+polling. Editing a synced task in Palouse pushes the change back to the source
 system. For connector development without real credentials,
-`@reqops/testing` ships a fake Asana server and the adapters honor
-`REQOPS_ASANA_API_BASE` / `REQOPS_GOOGLE_TASKS_API_BASE` overrides.
+`@palouse/testing` ships a fake Asana server and the adapters honor
+`PALOUSE_ASANA_API_BASE` / `PALOUSE_GOOGLE_TASKS_API_BASE` overrides.
 
 ### UI
 
@@ -69,8 +69,8 @@ Brings up `postgres`, `redis`, `minio`, `api`, `web`, `worker`, `mcp`.
 ## Cloud staging
 
 Every push to `main` deploys to the Fly.io staging environment
-(`reqops-staging-*` apps, Fly Postgres, Upstash Redis) and smoke-tests
-<https://reqops-staging-api.fly.dev/health>. See
+(`palouse-staging-*` apps, Fly Postgres, Upstash Redis) and smoke-tests
+<https://palouse-staging-api.fly.dev/health>. See
 [`docs/deployment.md`](./docs/deployment.md) for setup, manual deploys
 (`./scripts/fly-deploy.sh`), and the day-to-day cloud testing workflow.
 

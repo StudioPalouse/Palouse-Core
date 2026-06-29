@@ -1,11 +1,11 @@
-import type { ConnectorAdapter, OAuthClientConfig } from '@reqops/connector-core';
-import { googleTasksAdapter } from '@reqops/connector-google-tasks';
-import { asanaAdapter } from '@reqops/connector-asana';
-import { microsoftTodoAdapter } from '@reqops/connector-microsoft-todo';
-import { microsoftPlannerAdapter } from '@reqops/connector-microsoft-planner';
-import { notionAdapter } from '@reqops/connector-notion';
-import type { Env } from '@reqops/config';
-import type { IntegrationProvider } from '@reqops/shared';
+import type { ConnectorAdapter, OAuthClientConfig } from '@palouse/connector-core';
+import { googleTasksAdapter } from '@palouse/connector-google-tasks';
+import { asanaAdapter } from '@palouse/connector-asana';
+import { microsoftTodoAdapter } from '@palouse/connector-microsoft-todo';
+import { microsoftPlannerAdapter } from '@palouse/connector-microsoft-planner';
+import { notionAdapter } from '@palouse/connector-notion';
+import type { Env } from '@palouse/config';
+import type { IntegrationProvider } from '@palouse/shared';
 
 const ADAPTERS: Partial<Record<IntegrationProvider, ConnectorAdapter>> = {
   google_tasks: googleTasksAdapter,

@@ -7,12 +7,12 @@ import {
   type OAuthTokenSet,
   type RefreshedTokens,
   type WebhookSubscription,
-} from '@reqops/connector-core';
+} from '@palouse/connector-core';
 
 const AUTH_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize';
 const TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
 // Overridable so tests/local smoke runs can target a fake server.
-export const GRAPH_API = process.env.REQOPS_MS_GRAPH_API_BASE ?? 'https://graph.microsoft.com/v1.0';
+export const GRAPH_API = process.env.PALOUSE_MS_GRAPH_API_BASE ?? 'https://graph.microsoft.com/v1.0';
 
 // Tasks.ReadWrite covers both To Do tasks and Planner tasks (delegated).
 export const MS_SCOPES = ['offline_access', 'openid', 'email', 'profile', 'Tasks.ReadWrite'];

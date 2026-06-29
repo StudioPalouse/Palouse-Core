@@ -19,7 +19,7 @@ if grep -qE '<[A-Z_]+>' <<<"$SECRETS"; then
   exit 1
 fi
 
-for app in reqops-staging-api reqops-staging-worker reqops-staging-mcp; do
+for app in palouse-staging-api palouse-staging-worker palouse-staging-mcp; do
   echo "==> $app"
   fly secrets import --app "$app" <<<"$SECRETS"
 done

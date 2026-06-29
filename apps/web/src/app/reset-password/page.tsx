@@ -12,7 +12,7 @@ import {
   CardTitle,
   Input,
   Label,
-} from '@reqops/ui';
+} from '@palouse/ui';
 import { authClient } from '@/lib/auth-client';
 
 const MIN_PASSWORD_LENGTH = 8;

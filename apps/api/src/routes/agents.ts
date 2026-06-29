@@ -4,10 +4,10 @@ import {
   createAgentKeyInput,
   listAgentsQuery,
   validation,
-} from '@reqops/shared';
-import { agentService, workspaces } from '@reqops/core';
-import { loadEnv } from '@reqops/config';
-import { getDb } from '@reqops/db';
+} from '@palouse/shared';
+import { agentService, workspaces } from '@palouse/core';
+import { loadEnv } from '@palouse/config';
+import { getDb } from '@palouse/db';
 import { requireSession, type SessionVars } from '../middleware/session.js';
 
 export const agentRoutes = new Hono<SessionVars>();

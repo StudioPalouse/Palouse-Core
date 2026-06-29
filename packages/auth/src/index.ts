@@ -1,9 +1,9 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError } from 'better-auth/api';
-import { loadEnv } from '@reqops/config';
-import { getDb } from '@reqops/db';
-import { renderBasicEmail, sendEmail } from '@reqops/mail';
+import { loadEnv } from '@palouse/config';
+import { getDb } from '@palouse/db';
+import { renderBasicEmail, sendEmail } from '@palouse/mail';
 import { BLOCKED_EMAIL_MESSAGE, isEmailDomainBlocked, policyFromEnv } from './email-policy.js';
 
 function build() {
@@ -40,16 +40,16 @@ function build() {
     advanced: { database: { generateId: false } },
     emailAndPassword: {
       enabled: true,
-      // Mail is best-effort: with no RESEND_API_KEY @reqops/mail logs and
+      // Mail is best-effort: with no RESEND_API_KEY @palouse/mail logs and
       // no-ops, so password auth keeps working on bare self-hosted installs.
       sendResetPassword: async ({ user, url }) => {
         await sendEmail({
           to: user.email,
-          subject: 'Reset your ReqOps password',
+          subject: 'Reset your Palouse password',
           html: renderBasicEmail({
             heading: 'Reset your password',
             bodyLines: [
-              'Someone (hopefully you) asked to reset the password for this ReqOps account.',
+              'Someone (hopefully you) asked to reset the password for this Palouse account.',
               'If you didn’t ask, you can ignore this email.',
             ],
             ctaLabel: 'Reset password',
@@ -65,10 +65,10 @@ function build() {
       sendVerificationEmail: async ({ user, url }) => {
         await sendEmail({
           to: user.email,
-          subject: 'Verify your ReqOps email',
+          subject: 'Verify your Palouse email',
           html: renderBasicEmail({
             heading: 'Verify your email',
-            bodyLines: [`Confirm that ${user.email} belongs to you to finish setting up ReqOps.`],
+            bodyLines: [`Confirm that ${user.email} belongs to you to finish setting up Palouse.`],
             ctaLabel: 'Verify email',
             ctaUrl: url,
           }),

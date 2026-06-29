@@ -1,4 +1,4 @@
-import type { ExternalSystem, Task } from '@reqops/shared';
+import type { ExternalSystem, Task } from '@palouse/shared';
 
 /** Shape that every external task gets normalized into before upsert. */
 export interface NormalizedExternalTask {

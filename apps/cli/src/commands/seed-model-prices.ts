@@ -1,6 +1,6 @@
 import { Command } from 'commander';
-import { loadEnv } from '@reqops/config';
-import { CATALOG_VERSION, closeDb, getDb, seedModelPrices } from '@reqops/db';
+import { loadEnv } from '@palouse/config';
+import { CATALOG_VERSION, closeDb, getDb, seedModelPrices } from '@palouse/db';
 
 export function seedModelPricesCommand(): Command {
   return new Command('seed-model-prices')

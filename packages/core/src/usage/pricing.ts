@@ -1,6 +1,6 @@
 import { and, desc, eq, gt, isNull, lte, or, sql } from 'drizzle-orm';
-import { modelPrices, workspaceModelPrices, type Database, type PriceSnapshot } from '@reqops/db';
-import type { UsageReport } from '@reqops/shared';
+import { modelPrices, workspaceModelPrices, type Database, type PriceSnapshot } from '@palouse/db';
+import type { UsageReport } from '@palouse/shared';
 
 export interface ResolvedPrice {
   priceSource: 'workspace_override' | 'catalog';

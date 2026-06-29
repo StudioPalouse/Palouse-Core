@@ -1,12 +1,12 @@
-# ReqOps — Agent Tasks (M5 Runtime) + Agent Visibility & Auditability
+# Palouse — Agent Tasks (M5 Runtime) + Agent Visibility & Auditability
 
 Implementation plan. Status: **Phases 1–3 complete** (Phase 3 = OTLP ingest, PR #7) — Phase 1: migration `0002`, handoff state machine, agents service + keys, reaper worker, REST `agents.ts`/`handoffs.ts`, CLI `create-agent`/`create-agent-key`, MCP server (stdio + streamable HTTP, all 9 §6 tools + 3 resources, per-call agent-key auth + audit), and the basic web UI (handoff panel in the task sheet, review queue at `/reviews`). Phase 2: migration `0003` (steps/generations/prices/rollups), pricing + usage services, narrative module, seeded Anthropic price catalog (auto-seeded by `migrate`), MCP `log_step`/`report_usage` + `usage` on lifecycle tools, usage REST (`/v1/usage/summary`, `/v1/model-prices*`), expanded `/v1/handoffs/:id` (steps + generations + summary + narrative), CLI `seed-model-prices`/`rebuild-rollups`, and an early slice of the §7 explainability UI (Activity Report page at `/handoffs/[id]`, steps + cost in the handoff panel). Phase 3: OTLP ingest — pure mapper, `ingestOtlp` with agent/workspace-scoped correlation + span dedupe, agent-key middleware, `/v1/otlp/v1/traces` route (JSON only), and the double-counting rule in `getHandoffUsage`/`rebuildRollups`. Phases 4–6 remain. Companion to `docs/architecture.md` (§5 handoff lifecycle, §6 MCP design, §9 queues).
 
 ## Context
 
-ReqOps already has the *schema* for agent handoffs (M5: `agents`, `agent_api_keys`, `agent_handoffs`, `handoff_events`) but the runtime is stubbed — no state machine service, no MCP tools, no UI. Separately, customers need **agent visibility & auditability**: business users and their auditors must be able to see, in plain English, how an agent acted on a task, which models it used, how many tokens it consumed, and what it cost — and export that as an auditor-ready artifact.
+Palouse already has the *schema* for agent handoffs (M5: `agents`, `agent_api_keys`, `agent_handoffs`, `handoff_events`) but the runtime is stubbed — no state machine service, no MCP tools, no UI. Separately, customers need **agent visibility & auditability**: business users and their auditors must be able to see, in plain English, how an agent acted on a task, which models it used, how many tokens it consumed, and what it cost — and export that as an auditor-ready artifact.
 
-The constraint that shapes everything: **ReqOps is MCP-first; agents run outside ReqOps**. We never see their LLM calls directly, so usage data must be captured via (a) agent self-reporting through MCP tools and (b) an optional OpenTelemetry (OTLP) ingest endpoint for instrumented agents. We borrow data-model best practices from Langfuse (trace → generation hierarchy, model price catalog), OpenTelemetry GenAI semantic conventions (attribute names), and append-only/hash-chained audit log patterns — but the UX is deliberately non-technical: narratives, not trace waterfalls.
+The constraint that shapes everything: **Palouse is MCP-first; agents run outside Palouse**. We never see their LLM calls directly, so usage data must be captured via (a) agent self-reporting through MCP tools and (b) an optional OpenTelemetry (OTLP) ingest endpoint for instrumented agents. We borrow data-model best practices from Langfuse (trace → generation hierarchy, model price catalog), OpenTelemetry GenAI semantic conventions (attribute names), and append-only/hash-chained audit log patterns — but the UX is deliberately non-technical: narratives, not trace waterfalls.
 
 ### Locked decisions (user-confirmed 2026-06-10)
 
@@ -21,7 +21,7 @@ The constraint that shapes everything: **ReqOps is MCP-first; agents run outside
 
 ### 1a. Run/step/generation hierarchy — flattened, two new child tables
 
-Langfuse uses recursive trace → observation → generation. ReqOps does not need recursion: **`agent_handoffs` IS the trace**. Two flat children keep queries trivial and map directly to the plain-English timeline:
+Langfuse uses recursive trace → observation → generation. Palouse does not need recursion: **`agent_handoffs` IS the trace**. Two flat children keep queries trivial and map directly to the plain-English timeline:
 
 ```
 agent_handoffs (exists)
@@ -105,7 +105,7 @@ export const workspaceModelPrices = pgTable('workspace_model_prices', {
 });
 ```
 
-**Seed data** (`packages/db/src/seed/model-prices.ts`, applied by `reqops seed-model-prices` and `reqops init`). Anthropic per-1M-token USD (cache read = 0.1× input; cache write 5m = 1.25× input):
+**Seed data** (`packages/db/src/seed/model-prices.ts`, applied by `palouse seed-model-prices` and `palouse init`). Anthropic per-1M-token USD (cache read = 0.1× input; cache write 5m = 1.25× input):
 
 | provider | model | input | output | cache read | cache write |
 |---|---|---|---|---|---|
@@ -130,7 +130,7 @@ export const usageRollupsDaily = pgTable('usage_rollups_daily', {
 }, (t) => ({ rollupUq: uniqueIndex(...).on(t.workspaceId, t.agentId, t.model, t.day) }));
 ```
 
-**Compute strategy: incremental upsert at ingest**, in the same transaction as the `llm_generations` insert (`INSERT ... ON CONFLICT (workspace_id, agent_id, model, day) DO UPDATE SET ... + EXCLUDED...`). Ingest volume is modest (one row per LLM call, not per token); dashboards are always fresh with zero scheduler complexity. Escape hatch: `reqops rebuild-rollups` truncates and re-aggregates from `llm_generations`.
+**Compute strategy: incremental upsert at ingest**, in the same transaction as the `llm_generations` insert (`INSERT ... ON CONFLICT (workspace_id, agent_id, model, day) DO UPDATE SET ... + EXCLUDED...`). Ingest volume is modest (one row per LLM call, not per token); dashboards are always fresh with zero scheduler complexity. Escape hatch: `palouse rebuild-rollups` truncates and re-aggregates from `llm_generations`.
 
 ### 1d. Hash chain — columns on `audit_events`, per-workspace scope, advisory-lock serialization
 
@@ -140,7 +140,7 @@ New columns:
 
 ```ts
 seq: bigint('seq', { mode: 'number' }),   // per-workspace monotonic, 1-based
-prevHash: text('prev_hash'),              // hex sha256; genesis: sha256('reqops:' + workspaceId)
+prevHash: text('prev_hash'),              // hex sha256; genesis: sha256('palouse:' + workspaceId)
 hash: text('hash'),
 // uniqueIndex('audit_events_workspace_seq_uq').on(t.workspaceId, t.seq)
 ```
@@ -152,7 +152,7 @@ export async function appendAuditEvent(db, evt: AuditEventInput): Promise<void> 
   await db.transaction(async (tx) => {
     // Per-workspace serialization across all processes sharing this Postgres.
     // xact lock auto-releases at COMMIT/ROLLBACK — no single-writer queue needed.
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('reqops_audit'), hashtext(${evt.workspaceId}))`);
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('palouse_audit'), hashtext(${evt.workspaceId}))`);
     const [tip] = await tx.execute(sql`
       SELECT seq, hash FROM audit_events
       WHERE workspace_id = ${evt.workspaceId} AND seq IS NOT NULL
@@ -171,7 +171,7 @@ export async function appendAuditEvent(db, evt: AuditEventInput): Promise<void> 
 }
 ```
 
-`verifyChain` re-walks `ORDER BY seq` recomputing hashes. Canonicalization is versioned (`v:1`). Pre-chain rows are backfilled in `seq`/`at` order by `reqops backfill-audit-chain` (TypeScript — one canonicalization implementation), auto-invoked at the end of `reqops migrate`.
+`verifyChain` re-walks `ORDER BY seq` recomputing hashes. Canonicalization is versioned (`v:1`). Pre-chain rows are backfilled in `seq`/`at` order by `palouse backfill-audit-chain` (TypeScript — one canonicalization implementation), auto-invoked at the end of `palouse migrate`.
 
 ### 1e. `agent_handoffs` additions
 
@@ -188,7 +188,7 @@ Follow the existing pattern: function-style services taking `db: Database` first
 
 ### 2a. `packages/core/src/handoffs/state-machine.ts`
 
-Every transition is a single atomic `UPDATE ... WHERE <expected state> RETURNING`; 0 rows → typed `conflict()` error from `@reqops/shared`.
+Every transition is a single atomic `UPDATE ... WHERE <expected state> RETURNING`; 0 rows → typed `conflict()` error from `@palouse/shared`.
 
 **Atomic claim** (the load-bearing query):
 
@@ -221,7 +221,7 @@ Other transitions (each appends `handoff_events` + chained `audit_events`, `acto
 ### 2b. `packages/core/src/agents/service.ts`
 
 - `createAgent`, `listAgents` (with activity/cost summary joined from rollups), `getAgent`.
-- `createApiKey(db, agentId, scopes)` → `reqops_agk_<8-char prefix>_<32-byte secret>`; Argon2id hash via `@node-rs/argon2`; plaintext returned exactly once.
+- `createApiKey(db, agentId, scopes)` → `palouse_agk_<8-char prefix>_<32-byte secret>`; Argon2id hash via `@node-rs/argon2`; plaintext returned exactly once.
 - `verifyApiKey(db, rawKey)` → prefix lookup, argon2 verify, revocation check, throttled `last_used_at` touch. In-memory LRU (5 min TTL) so MCP/OTLP calls don't pay argon2 per request.
 - Scopes: `tasks:read`, `tasks:write`, `handoffs:claim`, `handoffs:complete`, **`usage:write` (new)**.
 
@@ -287,11 +287,11 @@ const usageInput = z.object({
 Philosophy: an agent that only calls `claim_task → heartbeat → complete_task` still works and still gets a coarse activity report from `handoff_events`; all usage reporting is additive. Tool descriptions tell agents *when* to call ("Call report_usage after each LLM API call, passing the usage block from the provider's response").
 
 Files:
-- `apps/mcp/src/server.ts` — `McpServer` (`@modelcontextprotocol/sdk`), registers tools from `@reqops/mcp-sdk`, delegates to `@reqops/core` in-process.
-- `apps/mcp/src/index.ts` — replaces placeholder: stdio transport (`--stdio` / `REQOPS_MCP_TRANSPORT=stdio`) or streamable HTTP on port 7777.
-- `apps/mcp/src/auth.ts` — stdio: key from `REQOPS_API_KEY` env; HTTP: `Authorization: Bearer reqops_agk_...` per request. Every tool call → `appendAuditEvent` (`actorType: 'agent'`).
-- `apps/mcp/src/resources.ts` — the three `reqops://` resources from §6.
-- `apps/mcp/package.json` — add `@reqops/core`, `@reqops/db` workspace deps.
+- `apps/mcp/src/server.ts` — `McpServer` (`@modelcontextprotocol/sdk`), registers tools from `@palouse/mcp-sdk`, delegates to `@palouse/core` in-process.
+- `apps/mcp/src/index.ts` — replaces placeholder: stdio transport (`--stdio` / `PALOUSE_MCP_TRANSPORT=stdio`) or streamable HTTP on port 7777.
+- `apps/mcp/src/auth.ts` — stdio: key from `PALOUSE_API_KEY` env; HTTP: `Authorization: Bearer palouse_agk_...` per request. Every tool call → `appendAuditEvent` (`actorType: 'agent'`).
+- `apps/mcp/src/resources.ts` — the three `palouse://` resources from §6.
+- `apps/mcp/package.json` — add `@palouse/core`, `@palouse/db` workspace deps.
 
 ---
 
@@ -301,14 +301,14 @@ Files:
 
 - `POST /v1/otlp/v1/traces` — standard OTLP/HTTP path, so agents just set
   `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4000/v1/otlp` and
-  `OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer reqops_agk_...`.
+  `OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer palouse_agk_...`.
 - **Auth**: agent API key via new middleware `apps/api/src/middleware/agent-key.ts`, scope `usage:write`.
 - **v1 = OTLP JSON only**; protobuf → `415` with hint to set `OTEL_EXPORTER_OTLP_PROTOCOL=http/json` (supported by OpenLLMetry, Langfuse SDK, OTel JS/Python). No protobuf toolchain in v1.
 - **Mapping** (`packages/core/src/usage/otlp.ts`, per OTel GenAI semconv):
   - Span = **generation** iff it has `gen_ai.usage.input_tokens` / `output_tokens` (or legacy `prompt_tokens`/`completion_tokens`). model = `gen_ai.response.model` ?? `gen_ai.request.model`; provider = `gen_ai.system` / `gen_ai.provider.name`; cache tokens from `gen_ai.usage.cache_read_input_tokens` / `cache_creation_input_tokens`; `occurredAt` = span end; store trace/span ids.
-  - Span = **step** iff it carries `reqops.step.title`, or is a trace root with a non-genai name (title = span name).
+  - Span = **step** iff it carries `palouse.step.title`, or is a trace root with a non-genai name (title = span name).
   - Everything else (HTTP/DB/internal spans) **ignored** — no full trace storage in v1.
-  - **Correlation**, first match wins: attr `reqops.handoff_id` → attr `reqops.claim_token` → fallback: agent's single currently-claimed handoff if exactly one active. Uncorrelatable spans counted in the response body, not stored.
+  - **Correlation**, first match wins: attr `palouse.handoff_id` → attr `palouse.claim_token` → fallback: agent's single currently-claimed handoff if exactly one active. Uncorrelatable spans counted in the response body, not stored.
   - **Dedupe**: partial unique `(handoff_id, otel_span_id)`; re-exported batches no-op via `ON CONFLICT DO NOTHING`.
 - **Double-counting rule**: summary queries exclude `source='mcp'` rows for any handoff that also has `source='otlp'` rows (OTLP strictly more granular). Documented in tool descriptions: "if your agent exports OTel traces, you do not need report_usage."
 
@@ -378,7 +378,7 @@ Endpoints (`apps/api/src/routes/exports.ts`):
 - `GET /v1/usage/export.csv?workspaceId&from&to` — rollups
 - `GET /v1/audit/package?workspaceId&from&to` — **audit package** zip (`archiver`): `audit-events.jsonl` (chained rows incl. seq/prev_hash/hash) · `usage.csv` · `verification.json` (fresh chain walk + catalog version) · `README.txt` documenting the hash recipe so an auditor can independently re-verify.
 
-**Verification CLI**: `apps/cli/src/commands/verify-audit.ts` → `reqops verify-audit --workspace <slug>`; runs `verifyChain` from core, non-zero exit on break. Same function backs `GET /v1/audit/verify`.
+**Verification CLI**: `apps/cli/src/commands/verify-audit.ts` → `palouse verify-audit --workspace <slug>`; runs `verifyChain` from core, non-zero exit on break. Same function backs `GET /v1/audit/verify`.
 
 **OSS vs cloud**: everything above is OSS (Apache). `cloud/audit-export` (BSL): scheduled/continuous export to customer S3/Datadog (`audit.export_batch` job), retention policies, org-wide cross-workspace packages. `cloud/mcp-gateway` later fronts OTLP with per-tenant rate limits. Nothing in OSS imports from `cloud/*`.
 
@@ -401,7 +401,7 @@ Migration `0002`; handoffs state-machine + agents service; handoff queue + worke
 ### Phase 2 — Usage ledger + cost engine ✅ (PR #6, 2026-06-12)
 Migration `0003`; pricing + usage services; seed catalog; MCP `log_step`/`report_usage` + `usage` on lifecycle tools; usage REST.
 **Verify**: unit tests for price resolution (override beats catalog; effective dating; pattern match; unknown → null) and cost math vs hand-computed values. Integration: `report_usage` → generation row with correct snapshot + rollup increment; `rebuild-rollups` reproduces identical totals.
-**Done as specified, plus**: narrative module (`packages/core/src/handoffs/narrative.ts`, pulled forward from Phase 4 with snapshot tests); an early slice of the §7 UI (Activity Report at `/handoffs/[id]`, steps + cost in the handoff panel — so explainability is user-visible from day one); catalog auto-seed at the end of `migrate`; `@reqops/mail` (Resend) wired into Better-Auth reset/verification (adjacent to this milestone, not part of the §10 plan). Deviation: only Anthropic models are seeded — OpenAI/Google/Mistral wait until their pricing pages are verified (§1b note); unknown models surface as "Unpriced".
+**Done as specified, plus**: narrative module (`packages/core/src/handoffs/narrative.ts`, pulled forward from Phase 4 with snapshot tests); an early slice of the §7 UI (Activity Report at `/handoffs/[id]`, steps + cost in the handoff panel — so explainability is user-visible from day one); catalog auto-seed at the end of `migrate`; `@palouse/mail` (Resend) wired into Better-Auth reset/verification (adjacent to this milestone, not part of the §10 plan). Deviation: only Anthropic models are seeded — OpenAI/Google/Mistral wait until their pricing pages are verified (§1b note); unknown models surface as "Unpriced".
 
 ### Phase 3 — OTLP ingest ✅ (PR #7, 2026-06-13)
 Pure mapper (`packages/core/src/usage/otlp.ts`, OTel GenAI semconv + legacy token attr names), `ingestOtlp` in the usage service (correlation: handoff_id → claim_token → single-active-handoff fallback, all scoped to the authenticated agent+workspace), span dedupe via the `0003` partial unique index `(handoff_id, otel_span_id)` with rollups incremented only on actual insert, agent-key middleware (`apps/api/src/middleware/agent-key.ts`, scope `usage:write`), and the route `apps/api/src/routes/otlp.ts` mounted at `/v1/otlp` (full path `/v1/otlp/v1/traces`; OTLP/JSON only, protobuf → 415). Double-counting rule (§4) lands in `getHandoffUsage` (drops MCP rows when OTLP rows exist) and `rebuildRollups` (same exclusion in re-aggregation); the incremental ingest path can't do per-handoff exclusion, so an agent wrongly reporting via both paths double-counts in live rollups until a rebuild — documented in code.
@@ -426,19 +426,19 @@ react-pdf report, CSV endpoints, audit package zip, UI download buttons; `cloud/
 ### Pick up here — resume sequence (updated 2026-06-14)
 1. ✅ **PR #8 merged** (`claude/fix-otlp-ci-and-docs`) — OTLP-ingest test fixes; `main` green again.
 2. ✅ **PR #9 merged** (`claude/web-password-reset`) — self-service reset UI.
-3. **Deploy web to staging + verify reset email** — ✅ web redeployed 2026-06-14 (`./scripts/fly-deploy.sh web`, machines healthy, api `/health` OK). Live reset triggered for `jonathan@palouse.io` via `POST /api/auth/request-password-reset`; no Better-Auth error and no `[mail] skipping` line ⇒ send path clean (Resend send logs nothing on success). **Inbox + click-through delivery confirmation by Jonathan = last open item to fully close the Resend §1 loop.** Note: demo seed account (`demo@reqops.local`) does NOT exist on staging — `reqops seed` was never run there.
+3. **Deploy web to staging + verify reset email** — ✅ web redeployed 2026-06-14 (`./scripts/fly-deploy.sh web`, machines healthy, api `/health` OK). Live reset triggered for `jonathan@palouse.io` via `POST /api/auth/request-password-reset`; no Better-Auth error and no `[mail] skipping` line ⇒ send path clean (Resend send logs nothing on success). **Inbox + click-through delivery confirmation by Jonathan = last open item to fully close the Resend §1 loop.** Note: demo seed account (`demo@palouse.local`) does NOT exist on staging — `palouse seed` was never run there.
 4. **Now starting: Notion integration** (`docs/notion-integration.md`), beginning with **N1** (OAuth/connect + data-source discovery + read-only backfill with field mapping), mirroring the Asana connector vertical slice.
 
 Manual, owner Jonathan: ✅ joined Notion **External Agents** waitlist (Track B2); optionally rotate the Resend API key (shared once in chat); bump the GitHub Actions off the deprecated Node 20 runner.
 
 ### 0. Verify Phase 2 + Phase 3 on staging
 Phases 2 and 3 are deployed (migration `0003` + auto-seeded catalog ran on the PR #6/#7 release; the `api` app was redeployed 2026-06-13 so the OTLP route is live). Remaining manual staging e2e (all testing happens on staging, not locally):
-- **Usage (Phase 2)**: hand off a task → agent calls `log_step` + `report_usage` (and a final `usage` on `complete_task`) → Activity Report at `/handoffs/[id]` shows narrative, steps, priced generation table → cross-check `GET /v1/usage/summary` → `reqops rebuild-rollups` leaves totals unchanged.
-- **OTLP (Phase 3)**: point an instrumented script at `POST /v1/otlp/v1/traces` with `OTEL_EXPORTER_OTLP_PROTOCOL=http/json` + `Authorization: Bearer reqops_agk_…` (scope `usage:write`) against a claimed handoff → confirm `source='otlp'` generations appear, re-POST dedupes, and MCP rows drop from the summary once OTLP rows exist.
+- **Usage (Phase 2)**: hand off a task → agent calls `log_step` + `report_usage` (and a final `usage` on `complete_task`) → Activity Report at `/handoffs/[id]` shows narrative, steps, priced generation table → cross-check `GET /v1/usage/summary` → `palouse rebuild-rollups` leaves totals unchanged.
+- **OTLP (Phase 3)**: point an instrumented script at `POST /v1/otlp/v1/traces` with `OTEL_EXPORTER_OTLP_PROTOCOL=http/json` + `Authorization: Bearer palouse_agk_…` (scope `usage:write`) against a claimed handoff → confirm `source='otlp'` generations appear, re-POST dedupes, and MCP rows drop from the summary once OTLP rows exist.
 
 ### 1. Resend setup ✅ (2026-06-13)
 - `RESEND_API_KEY` is in `.env.staging` (gitignored) and pushed to the staging apps via `./scripts/fly-secrets.sh`.
-- `test.reqops.ai` is the verified sending domain; `MAIL_FROM = "ReqOps <no-reply@test.reqops.ai>"` is set in `fly/api.toml` `[env]` (api is the only mail sender) and applied via deploy. `app.reqops.ai` to be added later.
+- `test.palouse.io` is the verified sending domain; `MAIL_FROM = "Palouse <no-reply@test.palouse.io>"` is set in `fly/api.toml` `[env]` (api is the only mail sender) and applied via deploy. `app.palouse.io` to be added later.
 - The self-service password-reset UI is built (PR #9: `/forgot-password` + `/reset-password` + a "Forgot password?" link on sign-in, all over Better-Auth's `requestPasswordReset`/`resetPassword`). Still open: deploy web to staging and send a live reset email to confirm delivery, then decide whether to flip `requireEmailVerification` in `packages/auth` (deliberately left off so staging sign-in keeps working).
 
 ### 2. Notion integration (next build milestone)
@@ -461,7 +461,7 @@ Unchanged from §10. Note for Phase 6: the PDF/CSV must reuse `narrateHandoff` a
 1. `packages/core/src/handoffs/state-machine.ts` — atomic claim/heartbeat/complete/review/reap; the heart of M5
 2. `packages/db/src/schema/usage.ts` (new) + extensions to `schema/handoffs.ts`, `schema/audit.ts`
 3. `packages/core/src/usage/pricing.ts` — price resolution + cost snapshot (the reproducibility contract)
-4. `apps/mcp/src/server.ts` — MCP tool registration over `@reqops/core`, replacing the placeholder
+4. `apps/mcp/src/server.ts` — MCP tool registration over `@palouse/core`, replacing the placeholder
 5. `packages/core/src/audit/chain.ts` — hash-chained `appendAuditEvent` + `verifyChain`, funnel for all audit writes
 
 ## Patterns to mirror (existing code)

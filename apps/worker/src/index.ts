@@ -1,8 +1,8 @@
 import { Worker } from 'bullmq';
 import { eq } from 'drizzle-orm';
 import pino from 'pino';
-import { loadEnv } from '@reqops/config';
-import { getDb, integrations } from '@reqops/db';
+import { loadEnv } from '@palouse/config';
+import { getDb, integrations } from '@palouse/db';
 import {
   createHandoffQueue,
   createRedisConnection,
@@ -21,13 +21,13 @@ import {
   type SyncProcessWebhookJob,
   type SyncPullJob,
   type SyncPushJob,
-} from '@reqops/queue';
+} from '@palouse/queue';
 import { adapterFor, POLL_INTERVAL_MS } from './adapters.js';
 import { runNotifyAgent, runReapExpired } from './handoffs.js';
 import { runProcessWebhook, runPull, runPush, runRenewSubscriptions } from './sync.js';
 
 const env = loadEnv();
-const logger = pino({ level: env.LOG_LEVEL, base: { service: 'reqops-worker' } });
+const logger = pino({ level: env.LOG_LEVEL, base: { service: 'palouse-worker' } });
 const db = getDb(env.DATABASE_URL);
 const connection = createRedisConnection(env.REDIS_URL);
 const syncQueue = createSyncQueue(connection);
@@ -132,7 +132,7 @@ const reconcileTimer = setInterval(
   5 * 60_000,
 );
 
-logger.info('ReqOps worker ready — sync queue consuming');
+logger.info('Palouse worker ready — sync queue consuming');
 
 const shutdown = async (signal: string) => {
   logger.info({ signal }, 'Shutting down');

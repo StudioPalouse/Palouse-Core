@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
-import { auditEvents, taskSources, tasks, type Database } from '@reqops/db';
-import type { NormalizedExternalTask } from '@reqops/connector-core';
+import { auditEvents, taskSources, tasks, type Database } from '@palouse/db';
+import type { NormalizedExternalTask } from '@palouse/connector-core';
 
 export function idempotencyKeyFor(
   system: string,
@@ -20,7 +20,7 @@ export interface UpsertResult {
  * Idempotent external-task upsert keyed on task_sources(external_system,
  * external_id, integration_id). Conflict policy per docs/architecture.md §4:
  * the external system wins for the fields it owns (title, status, due,
- * description); ReqOps-only fields are left untouched.
+ * description); Palouse-only fields are left untouched.
  */
 export async function upsertExternalTask(
   db: Database,

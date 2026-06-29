@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { Button, cn } from '@reqops/ui';
+import { Button, cn } from '@palouse/ui';
 import { signOut, useSession } from '@/lib/auth-client';
 
 const NAV = [
@@ -22,7 +22,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="border-b">
         <div className="mx-auto flex h-12 w-full max-w-5xl items-center gap-6 px-4">
           <Link href="/inbox" className="text-sm font-semibold tracking-tight">
-            ReqOps
+            Palouse
           </Link>
           <nav className="flex items-center gap-1">
             {NAV.map((item) => (

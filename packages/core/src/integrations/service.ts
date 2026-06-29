@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
-import { integrations, syncCursors, type Database } from '@reqops/db';
-import { notFound, type Integration, type IntegrationProvider } from '@reqops/shared';
-import { decryptSecret, encryptSecret, type OAuthTokenSet } from '@reqops/connector-core';
+import { integrations, syncCursors, type Database } from '@palouse/db';
+import { notFound, type Integration, type IntegrationProvider } from '@palouse/shared';
+import { decryptSecret, encryptSecret, type OAuthTokenSet } from '@palouse/connector-core';
 
 export type IntegrationRow = typeof integrations.$inferSelect;
 

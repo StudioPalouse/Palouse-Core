@@ -6,7 +6,7 @@ import {
   modelPrices,
   workspaceModelPrices,
   type Database,
-} from '@reqops/db';
+} from '@palouse/db';
 import {
   conflict,
   type HandoffStep,
@@ -17,7 +17,7 @@ import {
   type UsageSummaryQuery,
   type UsageSummaryRow,
   type UsageSource,
-} from '@reqops/shared';
+} from '@palouse/shared';
 import { computeCostUsd, resolvePrice } from './pricing.js';
 import {
   mapOtlpTraces,

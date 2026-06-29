@@ -1,7 +1,7 @@
 'use client';
 
-import type { HandoffUsageSummary } from '@reqops/shared';
-import { Badge, Card, CardContent } from '@reqops/ui';
+import type { HandoffUsageSummary } from '@palouse/shared';
+import { Badge, Card, CardContent } from '@palouse/ui';
 import { formatTokens, formatUsd } from '@/lib/handoff-meta';
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {

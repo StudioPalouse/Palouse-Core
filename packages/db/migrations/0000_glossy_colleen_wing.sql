@@ -1,7 +1,7 @@
 CREATE TYPE "public"."member_role" AS ENUM('owner', 'admin', 'member', 'viewer');--> statement-breakpoint
 CREATE TYPE "public"."assignee_type" AS ENUM('user', 'agent');--> statement-breakpoint
-CREATE TYPE "public"."external_system" AS ENUM('google_tasks', 'ms_todo', 'ms_planner', 'asana', 'reqops');--> statement-breakpoint
-CREATE TYPE "public"."source_of_truth" AS ENUM('reqops', 'external');--> statement-breakpoint
+CREATE TYPE "public"."external_system" AS ENUM('google_tasks', 'ms_todo', 'ms_planner', 'asana', 'palouse');--> statement-breakpoint
+CREATE TYPE "public"."source_of_truth" AS ENUM('palouse', 'external');--> statement-breakpoint
 CREATE TYPE "public"."task_status" AS ENUM('open', 'in_progress', 'blocked', 'done', 'archived');--> statement-breakpoint
 CREATE TYPE "public"."agent_kind" AS ENUM('mcp_generic', 'paperclip', 'claude_code', 'custom');--> statement-breakpoint
 CREATE TYPE "public"."handoff_state" AS ENUM('queued', 'claimed', 'in_progress', 'needs_review', 'completed', 'failed', 'cancelled');--> statement-breakpoint
@@ -127,7 +127,7 @@ CREATE TABLE "tasks" (
 	"due_at" timestamp with time zone,
 	"assignee_user_id" uuid,
 	"parent_task_id" uuid,
-	"source_of_truth" "source_of_truth" DEFAULT 'reqops' NOT NULL,
+	"source_of_truth" "source_of_truth" DEFAULT 'palouse' NOT NULL,
 	"external_canonical_id" text,
 	"last_synced_at" timestamp with time zone,
 	"etag" text,

@@ -1,9 +1,9 @@
 import { and, eq, isNotNull, ne } from 'drizzle-orm';
 import type { Logger } from 'pino';
-import { integrations, taskSources, tasks, webhookDeliveries, type Database } from '@reqops/db';
-import type { Env } from '@reqops/config';
-import { integrationService, upsertExternalTask } from '@reqops/core';
-import type { PullContext } from '@reqops/connector-core';
+import { integrations, taskSources, tasks, webhookDeliveries, type Database } from '@palouse/db';
+import type { Env } from '@palouse/config';
+import { integrationService, upsertExternalTask } from '@palouse/core';
+import type { PullContext } from '@palouse/connector-core';
 import { adapterFor, oauthConfigFor } from './adapters.js';
 
 const CURSOR_RESOURCE = 'tasks';
@@ -17,19 +17,19 @@ async function freshAccessToken(
 ): Promise<string> {
   const expiresSoon =
     row.oauthExpiresAt != null && row.oauthExpiresAt.getTime() < Date.now() + TOKEN_REFRESH_SLACK_MS;
-  if (!expiresSoon) return integrationService.decryptAccessToken(row, env.REQOPS_ENCRYPTION_KEY);
+  if (!expiresSoon) return integrationService.decryptAccessToken(row, env.PALOUSE_ENCRYPTION_KEY);
 
   const adapter = adapterFor(row.provider);
-  const refreshToken = integrationService.decryptRefreshToken(row, env.REQOPS_ENCRYPTION_KEY);
+  const refreshToken = integrationService.decryptRefreshToken(row, env.PALOUSE_ENCRYPTION_KEY);
   if (!adapter.refreshTokens || !refreshToken) {
     // No refresh path — use what we have and let the provider reject it if stale.
-    return integrationService.decryptAccessToken(row, env.REQOPS_ENCRYPTION_KEY);
+    return integrationService.decryptAccessToken(row, env.PALOUSE_ENCRYPTION_KEY);
   }
   const refreshed = await adapter.refreshTokens({
     config: oauthConfigFor(env, row.provider),
     refreshToken,
   });
-  await integrationService.saveRefreshedTokens(db, env.REQOPS_ENCRYPTION_KEY, row.id, refreshed);
+  await integrationService.saveRefreshedTokens(db, env.PALOUSE_ENCRYPTION_KEY, row.id, refreshed);
   return refreshed.accessToken;
 }
 
@@ -92,7 +92,7 @@ export async function runProcessWebhook(
     .where(eq(webhookDeliveries.id, deliveryId));
 }
 
-/** Pushes ReqOps-side task changes back to every linked external system. */
+/** Pushes Palouse-side task changes back to every linked external system. */
 export async function runPush(
   db: Database,
   env: Env,

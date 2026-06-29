@@ -1,4 +1,4 @@
-import type { HandoffState } from '@reqops/shared';
+import type { HandoffState } from '@palouse/shared';
 
 // Business-friendly copy: "handoff" renders as "Agent task" and states avoid
 // state-machine jargon.

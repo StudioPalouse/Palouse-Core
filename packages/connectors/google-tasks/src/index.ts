@@ -7,14 +7,14 @@ import {
   type PullResult,
   type PushPayload,
   type RefreshedTokens,
-} from '@reqops/connector-core';
+} from '@palouse/connector-core';
 
 export const PROVIDER = 'google_tasks' as const;
 
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 // Overridable so tests/local smoke runs can target a fake server.
-const API = process.env.REQOPS_GOOGLE_TASKS_API_BASE ?? 'https://tasks.googleapis.com/tasks/v1';
+const API = process.env.PALOUSE_GOOGLE_TASKS_API_BASE ?? 'https://tasks.googleapis.com/tasks/v1';
 const SCOPES = ['https://www.googleapis.com/auth/tasks', 'openid', 'email'];
 
 interface GoogleTaskList {

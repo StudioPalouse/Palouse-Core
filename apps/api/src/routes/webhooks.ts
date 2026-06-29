@@ -1,9 +1,9 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { Hono } from 'hono';
-import { loadEnv } from '@reqops/config';
-import { getDb, webhookDeliveries } from '@reqops/db';
-import { integrationService } from '@reqops/core';
-import { enqueueWebhook } from '@reqops/queue';
+import { loadEnv } from '@palouse/config';
+import { getDb, webhookDeliveries } from '@palouse/db';
+import { integrationService } from '@palouse/core';
+import { enqueueWebhook } from '@palouse/queue';
 import { getSyncQueue } from '../queue.js';
 import { logger } from '../logger.js';
 
@@ -32,7 +32,7 @@ webhookRoutes.post('/asana/:integrationId', async (c) => {
   if (hookSecret) {
     await integrationService.setWebhookSecret(
       db,
-      env.REQOPS_ENCRYPTION_KEY,
+      env.PALOUSE_ENCRYPTION_KEY,
       integrationId,
       hookSecret,
     );
@@ -43,7 +43,7 @@ webhookRoutes.post('/asana/:integrationId', async (c) => {
 
   const rawBody = await c.req.text();
   const signature = c.req.header('x-hook-signature');
-  const secret = integrationService.decryptWebhookSecret(integration, env.REQOPS_ENCRYPTION_KEY);
+  const secret = integrationService.decryptWebhookSecret(integration, env.PALOUSE_ENCRYPTION_KEY);
   if (!signature || !secret) return c.json({ error: 'missing signature or handshake' }, 401);
 
   const expected = createHmac('sha256', secret).update(rawBody).digest('hex');

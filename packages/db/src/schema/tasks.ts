@@ -23,7 +23,7 @@ export const taskStatus = pgEnum('task_status', [
   'archived',
 ]);
 
-export const sourceOfTruth = pgEnum('source_of_truth', ['reqops', 'external']);
+export const sourceOfTruth = pgEnum('source_of_truth', ['palouse', 'external']);
 
 export const externalSystem = pgEnum('external_system', [
   'google_tasks',
@@ -31,7 +31,7 @@ export const externalSystem = pgEnum('external_system', [
   'ms_planner',
   'asana',
   'notion',
-  'reqops',
+  'palouse',
 ]);
 
 export const tasks = pgTable(
@@ -48,7 +48,7 @@ export const tasks = pgTable(
     dueAt: timestamp('due_at', { withTimezone: true, mode: 'date' }),
     assigneeUserId: uuid('assignee_user_id').references(() => users.id, { onDelete: 'set null' }),
     parentTaskId: uuid('parent_task_id').references((): any => tasks.id, { onDelete: 'set null' }),
-    sourceOfTruth: sourceOfTruth('source_of_truth').notNull().default('reqops'),
+    sourceOfTruth: sourceOfTruth('source_of_truth').notNull().default('palouse'),
     externalCanonicalId: text('external_canonical_id'),
     lastSyncedAt: timestamp('last_synced_at', { withTimezone: true, mode: 'date' }),
     etag: text('etag'),

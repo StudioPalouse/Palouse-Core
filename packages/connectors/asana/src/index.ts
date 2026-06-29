@@ -8,14 +8,14 @@ import {
   type PushPayload,
   type RefreshedTokens,
   type WebhookSubscription,
-} from '@reqops/connector-core';
+} from '@palouse/connector-core';
 
 export const PROVIDER = 'asana' as const;
 
 const AUTH_URL = 'https://app.asana.com/-/oauth_authorize';
 const TOKEN_URL = 'https://app.asana.com/-/oauth_token';
 // Overridable so tests/local smoke runs can target a fake Asana server.
-const API = process.env.REQOPS_ASANA_API_BASE ?? 'https://app.asana.com/api/1.0';
+const API = process.env.PALOUSE_ASANA_API_BASE ?? 'https://app.asana.com/api/1.0';
 const OPT_FIELDS = 'name,notes,completed,due_on,due_at,modified_at,permalink_url';
 
 interface AsanaTask {

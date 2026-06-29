@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
-import { loadEnv } from '@reqops/config';
-import { getDb } from '@reqops/db';
+import { loadEnv } from '@palouse/config';
+import { getDb } from '@palouse/db';
 import { sql } from 'drizzle-orm';
 
 export const health = new Hono();

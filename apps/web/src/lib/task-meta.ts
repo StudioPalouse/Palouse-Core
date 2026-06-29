@@ -1,4 +1,4 @@
-import type { TaskStatus } from '@reqops/shared';
+import type { TaskStatus } from '@palouse/shared';
 
 export const STATUS_LABELS: Record<TaskStatus, string> = {
   open: 'Open',

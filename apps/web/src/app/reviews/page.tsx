@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { HandoffListItem, Workspace } from '@reqops/shared';
-import { Badge, Button, Skeleton, Textarea } from '@reqops/ui';
+import type { HandoffListItem, Workspace } from '@palouse/shared';
+import { Badge, Button, Skeleton, Textarea } from '@palouse/ui';
 import { AppShell } from '@/components/app-shell';
 import { api, ApiError } from '@/lib/api';
 import { formatDateTime } from '@/lib/handoff-meta';

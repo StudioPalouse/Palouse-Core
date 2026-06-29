@@ -4,14 +4,14 @@ import {
   organizations,
   workspaces,
   type Database,
-} from '@reqops/db';
+} from '@palouse/db';
 import {
   conflict,
   forbidden,
   type CreateWorkspaceInput,
   type MemberRole,
   type Workspace,
-} from '@reqops/shared';
+} from '@palouse/shared';
 
 function toDto(
   ws: typeof workspaces.$inferSelect,

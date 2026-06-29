@@ -1,5 +1,5 @@
 {
-  "name": "@reqops/connector-asana",
+  "name": "@palouse/connector-asana",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,8 +12,8 @@
     "test": "echo 'TODO: vitest'"
   },
   "dependencies": {
-    "@reqops/connector-core": "workspace:*",
-    "@reqops/shared": "workspace:*"
+    "@palouse/connector-core": "workspace:*",
+    "@palouse/shared": "workspace:*"
   },
   "devDependencies": { "typescript": "^5.6.0" }
 }

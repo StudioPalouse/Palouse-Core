@@ -1,5 +1,5 @@
 {
-  "name": "@reqops/agent-adapter-paperclip",
+  "name": "@palouse/agent-adapter-paperclip",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,8 +12,8 @@
     "test": "echo 'TODO: vitest'"
   },
   "dependencies": {
-    "@reqops/agent-adapter-core": "workspace:*",
-    "@reqops/shared": "workspace:*"
+    "@palouse/agent-adapter-core": "workspace:*",
+    "@palouse/shared": "workspace:*"
   },
   "devDependencies": { "typescript": "^5.6.0" }
 }

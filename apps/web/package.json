@@ -1,5 +1,5 @@
 {
-  "name": "@reqops/web",
+  "name": "@palouse/web",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,8 +12,8 @@
     "test": "echo 'TODO: vitest'"
   },
   "dependencies": {
-    "@reqops/shared": "workspace:*",
-    "@reqops/ui": "workspace:^",
+    "@palouse/shared": "workspace:*",
+    "@palouse/ui": "workspace:^",
     "better-auth": "^1.1.0",
     "next": "^15.0.0",
     "react": "^19.0.0",

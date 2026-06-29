@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Handoff, HandoffStep, HandoffUsageSummary } from '@reqops/shared';
+import type { Handoff, HandoffStep, HandoffUsageSummary } from '@palouse/shared';
 import { narrateHandoff, prettyModel } from './narrative.js';
 
 const baseHandoff: Handoff = {

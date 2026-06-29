@@ -1,7 +1,7 @@
 import type { Logger } from 'pino';
-import type { Database } from '@reqops/db';
-import { handoffService } from '@reqops/core';
-import type { HandoffNotifyJob } from '@reqops/queue';
+import type { Database } from '@palouse/db';
+import { handoffService } from '@palouse/core';
+import type { HandoffNotifyJob } from '@palouse/queue';
 
 export async function runReapExpired(db: Database, logger: Logger): Promise<void> {
   const { requeued, failed, cancelled } = await handoffService.reapExpired(db);

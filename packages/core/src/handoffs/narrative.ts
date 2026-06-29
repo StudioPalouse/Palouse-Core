@@ -4,7 +4,7 @@ import type {
   HandoffNarrative,
   HandoffStep,
   HandoffUsageSummary,
-} from '@reqops/shared';
+} from '@palouse/shared';
 
 /**
  * Plain-English rendering of a handoff. Lives in core so the web UI, PDF

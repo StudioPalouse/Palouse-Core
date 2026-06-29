@@ -1,5 +1,5 @@
-import { loadEnv } from '@reqops/config';
-import { createRedisConnection, createSyncQueue, type SyncQueue } from '@reqops/queue';
+import { loadEnv } from '@palouse/config';
+import { createRedisConnection, createSyncQueue, type SyncQueue } from '@palouse/queue';
 
 let cached: SyncQueue | undefined;
 

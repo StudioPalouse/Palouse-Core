@@ -1,8 +1,8 @@
 {
-  "name": "reqops",
+  "name": "palouse",
   "version": "0.0.0",
   "private": true,
-  "description": "ReqOps \u2014 team task aggregation + agentic handoff platform",
+  "description": "Palouse \u2014 team task aggregation + agentic handoff platform",
   "license": "Apache-2.0",
   "packageManager": "pnpm@10.0.0",
   "engines": {
@@ -15,10 +15,10 @@
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean && rm -rf node_modules",
-    "db:migrate": "pnpm --filter @reqops/db migrate",
-    "db:generate": "pnpm --filter @reqops/db generate",
-    "reqops": "pnpm --filter @reqops/cli dev",
-    "db:seed": "pnpm --filter @reqops/cli dev seed"
+    "db:migrate": "pnpm --filter @palouse/db migrate",
+    "db:generate": "pnpm --filter @palouse/db generate",
+    "palouse": "pnpm --filter @palouse/cli dev",
+    "db:seed": "pnpm --filter @palouse/cli dev seed"
   },
   "devDependencies": {
     "turbo": "^2.3.0",

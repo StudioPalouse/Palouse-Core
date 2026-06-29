@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Task, TaskStatus, Workspace } from '@reqops/shared';
+import type { Task, TaskStatus, Workspace } from '@palouse/shared';
 import {
   Badge,
   Input,
@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
-} from '@reqops/ui';
+} from '@palouse/ui';
 import { AppShell } from '@/components/app-shell';
 import { NewTaskDialog } from '@/components/new-task-dialog';
 import { TaskDetailSheet } from '@/components/task-detail-sheet';

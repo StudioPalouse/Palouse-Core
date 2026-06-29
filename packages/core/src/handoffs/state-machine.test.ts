@@ -13,7 +13,7 @@ import {
   users,
   workspaces,
   type Database,
-} from '@reqops/db';
+} from '@palouse/db';
 import { claimNext, createHandoff, heartbeat, reapExpired } from './state-machine.js';
 
 const MIGRATIONS_DIR = fileURLToPath(new URL('../../../db/migrations', import.meta.url));

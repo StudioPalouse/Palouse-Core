@@ -17,8 +17,8 @@ import {
   workspaceModelPrices,
   workspaces,
   type Database,
-} from '@reqops/db';
-import type { UsageReport } from '@reqops/shared';
+} from '@palouse/db';
+import type { UsageReport } from '@palouse/shared';
 import { claimNext, complete, createHandoff } from '../handoffs/state-machine.js';
 import { computeCostUsd, resolvePrice } from './pricing.js';
 import {

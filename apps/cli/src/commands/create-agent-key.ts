@@ -1,9 +1,9 @@
 import { Command } from 'commander';
 import { and, eq, or } from 'drizzle-orm';
-import { loadEnv } from '@reqops/config';
-import { agents, closeDb, getDb } from '@reqops/db';
-import { agentService } from '@reqops/core';
-import { agentKeyScope, ALL_AGENT_KEY_SCOPES, uuid as uuidSchema } from '@reqops/shared';
+import { loadEnv } from '@palouse/config';
+import { agents, closeDb, getDb } from '@palouse/db';
+import { agentService } from '@palouse/core';
+import { agentKeyScope, ALL_AGENT_KEY_SCOPES, uuid as uuidSchema } from '@palouse/shared';
 import { resolveWorkspaceAndActor } from './create-agent.js';
 
 export function createAgentKeyCommand(): Command {
@@ -53,10 +53,10 @@ export function createAgentKeyCommand(): Command {
             JSON.stringify(
               {
                 mcpServers: {
-                  reqops: {
-                    command: 'reqops-mcp',
+                  palouse: {
+                    command: 'palouse-mcp',
                     args: ['--stdio'],
-                    env: { REQOPS_API_KEY: plaintext },
+                    env: { PALOUSE_API_KEY: plaintext },
                   },
                 },
               },

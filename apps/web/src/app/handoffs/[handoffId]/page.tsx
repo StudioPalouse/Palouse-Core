@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { isTerminal } from '@reqops/shared';
-import { Badge, Button, Separator, Skeleton, Textarea } from '@reqops/ui';
+import { isTerminal } from '@palouse/shared';
+import { Badge, Button, Separator, Skeleton, Textarea } from '@palouse/ui';
 import { AppShell } from '@/components/app-shell';
 import { HandoffTimeline } from '@/components/handoff-timeline';
 import { UsageSummaryCards } from '@/components/usage-summary-cards';
@@ -194,7 +194,7 @@ export default function ActivityReportPage() {
                   </table>
                 </div>
                 <p className="text-muted-foreground text-xs">
-                  Costs are computed by ReqOps from its model price catalog at the moment of
+                  Costs are computed by Palouse from its model price catalog at the moment of
                   ingest and stay reproducible — each row stores the exact rates used.
                 </p>
               </div>

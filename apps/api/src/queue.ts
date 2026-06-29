@@ -1,12 +1,12 @@
 import type { Queue } from 'bullmq';
-import { loadEnv } from '@reqops/config';
+import { loadEnv } from '@palouse/config';
 import {
   createHandoffQueue,
   createRedisConnection,
   createSyncQueue,
   type HandoffJobData,
   type SyncJobData,
-} from '@reqops/queue';
+} from '@palouse/queue';
 
 let cached: Queue<SyncJobData> | undefined;
 let cachedHandoff: Queue<HandoffJobData> | undefined;

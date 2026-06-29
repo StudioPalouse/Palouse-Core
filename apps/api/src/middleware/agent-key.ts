@@ -1,8 +1,8 @@
 import { createMiddleware } from 'hono/factory';
-import { unauthorized, type AgentKeyScope } from '@reqops/shared';
-import { agentService } from '@reqops/core';
-import { loadEnv } from '@reqops/config';
-import { getDb } from '@reqops/db';
+import { unauthorized, type AgentKeyScope } from '@palouse/shared';
+import { agentService } from '@palouse/core';
+import { loadEnv } from '@palouse/config';
+import { getDb } from '@palouse/db';
 
 export type AgentKeyVars = {
   Variables: {
@@ -11,7 +11,7 @@ export type AgentKeyVars = {
 };
 
 /**
- * Authenticates an agent API key from `Authorization: Bearer reqops_agk_...`
+ * Authenticates an agent API key from `Authorization: Bearer palouse_agk_...`
  * and enforces a scope, mirroring the MCP server's per-request auth. Used by
  * machine-facing endpoints (OTLP ingest) where there is no browser session.
  */

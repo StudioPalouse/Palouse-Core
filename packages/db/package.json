@@ -1,5 +1,5 @@
 {
-  "name": "@reqops/db",
+  "name": "@palouse/db",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -17,7 +17,7 @@
     "migrate": "tsx src/migrate.ts"
   },
   "dependencies": {
-    "@reqops/config": "workspace:*",
+    "@palouse/config": "workspace:*",
     "drizzle-orm": "^0.36.0",
     "postgres": "^3.4.0"
   },

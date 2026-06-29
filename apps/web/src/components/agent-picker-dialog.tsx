@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
-import type { Agent } from '@reqops/shared';
+import type { Agent } from '@palouse/shared';
 import {
   Button,
   Dialog,
@@ -16,7 +16,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@reqops/ui';
+} from '@palouse/ui';
 import { api, ApiError } from '@/lib/api';
 
 export function AgentPickerDialog({
@@ -75,9 +75,9 @@ export function AgentPickerDialog({
         {agents !== null && agents.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             No agents in this workspace yet. Create one with{' '}
-            <code className="bg-muted rounded px-1 py-0.5 text-xs">reqops create-agent</code>, mint
+            <code className="bg-muted rounded px-1 py-0.5 text-xs">palouse create-agent</code>, mint
             a key with{' '}
-            <code className="bg-muted rounded px-1 py-0.5 text-xs">reqops create-agent-key</code>,
+            <code className="bg-muted rounded px-1 py-0.5 text-xs">palouse create-agent-key</code>,
             then come back.
           </p>
         ) : (

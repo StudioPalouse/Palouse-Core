@@ -1,5 +1,5 @@
 import { and, desc, eq, ilike, sql, type SQL } from 'drizzle-orm';
-import { auditEvents, taskComments, taskSources, tasks, type Database } from '@reqops/db';
+import { auditEvents, taskComments, taskSources, tasks, type Database } from '@palouse/db';
 import {
   notFound,
   userActor,
@@ -11,7 +11,7 @@ import {
   type TaskComment,
   type TaskSource,
   type UpdateTaskInput,
-} from '@reqops/shared';
+} from '@palouse/shared';
 
 function toDto(row: typeof tasks.$inferSelect): Task {
   return {

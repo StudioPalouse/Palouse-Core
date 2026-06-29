@@ -5,7 +5,7 @@ import type {
   PullResult,
   PushPayload,
   WebhookSubscription,
-} from '@reqops/connector-core';
+} from '@palouse/connector-core';
 import {
   graphCreateSubscription,
   graphDateToIso,
@@ -16,8 +16,8 @@ import {
   msExchangeCode,
   msRefreshTokens,
   type GraphDateTimeTimeZone,
-} from '@reqops/connector-microsoft-graph';
-import type { TaskStatus } from '@reqops/shared';
+} from '@palouse/connector-microsoft-graph';
+import type { TaskStatus } from '@palouse/shared';
 
 export const PROVIDER = 'ms_todo' as const;
 

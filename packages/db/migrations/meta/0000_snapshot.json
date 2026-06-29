@@ -993,7 +993,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'reqops'"
+          "default": "'palouse'"
         },
         "external_canonical_id": {
           "name": "external_canonical_id",
@@ -2124,14 +2124,14 @@
         "ms_todo",
         "ms_planner",
         "asana",
-        "reqops"
+        "palouse"
       ]
     },
     "public.source_of_truth": {
       "name": "source_of_truth",
       "schema": "public",
       "values": [
-        "reqops",
+        "palouse",
         "external"
       ]
     },

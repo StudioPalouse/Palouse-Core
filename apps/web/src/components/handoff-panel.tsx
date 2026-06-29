@@ -8,8 +8,8 @@ import {
   type HandoffListItem,
   type HandoffStep,
   type HandoffUsageSummary,
-} from '@reqops/shared';
-import { Badge, Button, Textarea } from '@reqops/ui';
+} from '@palouse/shared';
+import { Badge, Button, Textarea } from '@palouse/ui';
 import { api } from '@/lib/api';
 import {
   formatDateTime,

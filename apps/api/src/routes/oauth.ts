@@ -1,10 +1,10 @@
 import { Hono } from 'hono';
-import { createOAuthState, verifyOAuthState } from '@reqops/connector-core';
-import { integrationService, workspaces } from '@reqops/core';
-import { loadEnv } from '@reqops/config';
-import { getDb } from '@reqops/db';
-import { integrationProvider, validation } from '@reqops/shared';
-import { enqueuePull } from '@reqops/queue';
+import { createOAuthState, verifyOAuthState } from '@palouse/connector-core';
+import { integrationService, workspaces } from '@palouse/core';
+import { loadEnv } from '@palouse/config';
+import { getDb } from '@palouse/db';
+import { integrationProvider, validation } from '@palouse/shared';
+import { enqueuePull } from '@palouse/queue';
 import { adapterFor, oauthConfigFor } from '../connectors.js';
 import { getSyncQueue } from '../queue.js';
 import { requireSession, type SessionVars } from '../middleware/session.js';
@@ -65,7 +65,7 @@ oauthRoutes.get('/:provider/callback', async (c) => {
     const db = getDb(env.DATABASE_URL);
     const integration = await integrationService.createIntegration(
       db,
-      env.REQOPS_ENCRYPTION_KEY,
+      env.PALOUSE_ENCRYPTION_KEY,
       payload.workspaceId,
       provider,
       tokens,
