@@ -105,11 +105,12 @@ Namecheap (host field is just `test` / `_acme-challenge.test`):
 
 | Type  | Host                   | Value                                  |
 |-------|------------------------|----------------------------------------|
-| A     | `test`                 | `66.241.125.213`                       |
-| AAAA  | `test`                 | `2a09:8280:1::126:2677:0`              |
-| CNAME | `_acme-challenge.test` | `test.palouse.io.ondnrge.flydns.net`    |
+| A     | `test`                 | `66.241.124.106`                       |
+| AAAA  | `test`                 | `2a09:8280:1::139:5a65:0`              |
 
-(Alternative to A+AAAA: `CNAME test -> ondnrge.palouse-staging-web.fly.dev`.)
+Fly validates this cert over HTTP-01, so no `_acme-challenge` CNAME is required —
+just the A/AAAA records above. (Alternative to A+AAAA:
+`CNAME test -> palouse-staging-web.fly.dev`.)
 
 After the cert verifies (`fly certs check test.palouse.io`):
 1. Public origin in `fly/api.toml`, `fly/worker.toml`, `fly/mcp.toml`
