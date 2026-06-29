@@ -8,8 +8,10 @@ Productivity suite) and moves all hosted infrastructure from the `reqops`
 - Staging domain: `test.palouse.io` (`www.palouse.io` reserved for prod).
 - Full rename, including wire-level identifiers (DB role/name, agent-key prefix,
   encryption-key env var, OTLP attribute keys, `ReqOpsError`).
-- Postgres moves from legacy Fly Postgres → **Fly Managed Postgres (MPG)**,
-  matching the SpecBoard pattern.
+- Postgres: stays on **legacy self-managed Fly Postgres** (single node,
+  ~$2–3/mo). MPG was evaluated and provisioned, but its cheapest tier
+  ("development" = Basic) is **$38/mo** — ~12× the legacy cost and against the
+  minimal-staging-spend rule — so we reverted. (Prod can revisit MPG later.)
 - Fly org slug: `palouse`.
 
 **Guiding principle:** Phases 1–4 build the new Palouse stack *alongside* the
@@ -65,16 +67,18 @@ imports resolve.
 6. **Verify:** `grep -ri reqops` returns only intentional past-tense history
    notes. Then `pnpm install && pnpm -r typecheck && pnpm -r build && pnpm -r test`.
 
-## Phase 2 — Provision the Palouse org (new, parallel)
+## Phase 2 — Provision the Palouse org (new, parallel) — DONE
 `scripts/fly-provision.sh` with `FLY_ORG=palouse`:
-- Create apps `palouse-staging-{api,web,worker,mcp}`.
-- **MPG:** `fly mpg create --name palouse-staging-db --org palouse --region iad
-  --plan basic`; attach to api/worker/mcp (injects `DATABASE_URL`). MPG manages
-  credentials — use its connection string rather than hand-creating a role.
-- Upstash Redis `palouse-staging-redis` (**eviction disabled**).
-- Fresh `BETTER_AUTH_SECRET` + `PALOUSE_ENCRYPTION_KEY`; push via `fly-secrets.sh`.
-- `fly tokens create org -o palouse` → stage new `FLY_API_TOKEN` (don't swap the
-  GitHub secret until Phase 5).
+- Create apps `palouse-staging-{api,web,worker,mcp}`. ✓
+- **Legacy Fly Postgres:** `fly postgres create --name palouse-staging-db
+  --org palouse --region iad --initial-cluster-size 1 --vm-size shared-cpu-1x
+  --volume-size 1`; then create `palouse_app` role + `palouse` db (palouse_app
+  owns `public`), and set `DATABASE_URL` (private `.flycast`, `sslmode=disable`)
+  on api/worker/mcp via `fly-secrets.sh`. ✓
+  (MPG was provisioned then destroyed — see cost note above.)
+- Upstash Redis `palouse-staging-redis` (**eviction disabled**). ✓
+- Fresh `BETTER_AUTH_SECRET` + `PALOUSE_ENCRYPTION_KEY` pushed via `fly-secrets.sh`. ✓
+- Deploy token deferred to Phase 5 (don't swap GitHub `FLY_API_TOKEN` until cutover).
 
 ## Phase 3 — Database
 **Default: start fresh** (staging data disposable; avoids the encryption-key
