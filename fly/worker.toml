@@ -9,9 +9,9 @@ primary_region = "iad"
   LOG_LEVEL = "info"
   # Public base URLs route through the web origin's rewrite proxy (the worker
   # uses API_BASE_URL when registering webhook targets with providers).
-  API_BASE_URL = "https://test.palouse.io"
-  BETTER_AUTH_URL = "https://test.palouse.io"
-  WEB_BASE_URL = "https://test.palouse.io"
+  API_BASE_URL = "https://test.palouse.ai"
+  BETTER_AUTH_URL = "https://test.palouse.ai"
+  WEB_BASE_URL = "https://test.palouse.ai"
 
 [[vm]]
   size = "shared-cpu-1x"

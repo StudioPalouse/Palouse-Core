@@ -95,34 +95,34 @@ Consequences:
 
 ## Custom domains
 
-Domain plan: **staging lives on `test.palouse.io`**; **`www.palouse.io` is
-reserved for production** and gets wired up when the prod environment exists.
-DNS is hosted at Namecheap.
+Domain split: the **app lives on `palouse.ai`** (`test.palouse.ai` staging,
+`app.palouse.ai` prod); `palouse.io` is the corporate domain (M365 mail) and is
+not used for app hosting. `palouse.ai` DNS is on **Namecheap** (host field is
+relative to `palouse.ai`).
 
-Staging setup (cert already added via
-`fly certs add test.palouse.io --app palouse-staging-web`); DNS records at
-Namecheap (host field is just `test` / `_acme-challenge.test`):
+Staging setup (cert added via
+`fly certs add test.palouse.ai --app palouse-staging-web`); one record at
+Namecheap:
 
-| Type  | Host                   | Value                                  |
-|-------|------------------------|----------------------------------------|
-| A     | `test`                 | `66.241.124.106`                       |
-| AAAA  | `test`                 | `2a09:8280:1::139:5a65:0`              |
+| Type  | Host   | Value                          |
+|-------|--------|--------------------------------|
+| CNAME | `test` | `palouse-staging-web.fly.dev`  |
 
-Fly validates this cert over HTTP-01, so no `_acme-challenge` CNAME is required —
-just the A/AAAA records above. (Alternative to A+AAAA:
-`CNAME test -> palouse-staging-web.fly.dev`.)
+A CNAME (not A/AAAA) keeps it off the shared Fly IP and survives IP changes; Fly
+validates the cert over HTTP-01 through it. (Alternative: `A test → 66.241.124.106`,
+IPv4 only.)
 
-After the cert verifies (`fly certs check test.palouse.io`):
+After the cert verifies (`fly certs check test.palouse.ai`):
 1. Public origin in `fly/api.toml`, `fly/worker.toml`, `fly/mcp.toml`
-   (`API_BASE_URL` / `BETTER_AUTH_URL` / `WEB_BASE_URL`) → `https://test.palouse.io`.
+   (`API_BASE_URL` / `BETTER_AUTH_URL` / `WEB_BASE_URL`) → `https://test.palouse.ai`.
 2. Redeploy: `./scripts/fly-deploy.sh api worker mcp web`.
 3. Connector OAuth app redirect URIs →
-   `https://test.palouse.io/oauth/<provider>/callback`.
+   `https://test.palouse.ai/oauth/<provider>/callback`.
 
 The API needs no certificate of its own: public traffic enters through the web
 origin's rewrite proxy, and `palouse-staging-api.fly.dev` remains for direct
 machine-to-machine use. Production later repeats the same steps with
-`www.palouse.io` against the `palouse-prod-web` app.
+`app.palouse.ai` against the `palouse-prod-web` app.
 
 ## Costs & scaling notes
 

@@ -438,7 +438,7 @@ Phases 2 and 3 are deployed (migration `0003` + auto-seeded catalog ran on the P
 
 ### 1. Resend setup ✅ (2026-06-13)
 - `RESEND_API_KEY` is in `.env.staging` (gitignored) and pushed to the staging apps via `./scripts/fly-secrets.sh`.
-- `test.palouse.io` is the verified sending domain; `MAIL_FROM = "Palouse <no-reply@test.palouse.io>"` is set in `fly/api.toml` `[env]` (api is the only mail sender) and applied via deploy. `app.palouse.io` to be added later.
+- `test.palouse.ai` is the verified sending domain; `MAIL_FROM = "Palouse <no-reply@mail.palouse.ai>"` is set in `fly/api.toml` `[env]` (api is the only mail sender) and applied via deploy. `app.palouse.ai` to be added later.
 - The self-service password-reset UI is built (PR #9: `/forgot-password` + `/reset-password` + a "Forgot password?" link on sign-in, all over Better-Auth's `requestPasswordReset`/`resetPassword`). Still open: deploy web to staging and send a live reset email to confirm delivery, then decide whether to flip `requireEmailVerification` in `packages/auth` (deliberately left off so staging sign-in keeps working).
 
 ### 2. Notion integration (next build milestone)

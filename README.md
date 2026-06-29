@@ -13,7 +13,7 @@ small set of BSL-licensed cloud features on top of the same code.
 > end-to-end. Microsoft To Do + Planner share a Graph client: OAuth, pull,
 > outbound push, Graph change notifications (To Do) with subscription
 > auto-renewal, and polling fallback. Cloud staging runs at
-> <https://test.palouse.io> (see [`docs/deployment.md`](./docs/deployment.md)).
+> <https://test.palouse.ai> (see [`docs/deployment.md`](./docs/deployment.md)).
 > See [`docs/architecture.md`](./docs/architecture.md) for the complete plan.
 
 ## Quick start (dev)

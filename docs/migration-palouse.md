@@ -5,7 +5,7 @@ Productivity suite) and moves all hosted infrastructure from the `reqops`
 (Entorhi) Fly.io organization to the new `palouse` organization.
 
 **Locked decisions**
-- Staging domain: `test.palouse.io` (`www.palouse.io` reserved for prod).
+- Staging domain: `test.palouse.ai` (`app.palouse.ai` reserved for prod).
 - Full rename, including wire-level identifiers (DB role/name, agent-key prefix,
   encryption-key env var, OTLP attribute keys, `ReqOpsError`).
 - Postgres: stays on **legacy self-managed Fly Postgres** (single node,
@@ -25,15 +25,18 @@ cutover (Phase 5) is verified. Decommission (Phase 7) is last.
 > `fly apps list`; you own its role creation, HA, backups, and upgrades.
 > SpecBoard uses **Fly Managed Postgres (MPG)** (`specboard-db`, plan `basic`),
 > a managed cluster that appears only in `fly mpg list` — not in the app list —
-> so it looks like "no standalone DB resource." This migration switches ReqOps
-> onto MPG to match.
+> so it looks like "no standalone DB resource." We evaluated MPG for Palouse but
+> reverted to legacy Fly Postgres on cost (see locked decisions above).
 
 ---
 
 ## ⚠️ Prerequisites
-- `palouse.io` DNS is managed at Namecheap and under our control.
-- Resend: `palouse.io` added and verified as a sending domain before mail works
-  on the new origin.
+- **Domain split:** the app lives on **`palouse.ai`** (`test.palouse.ai` staging,
+  `app.palouse.ai` prod); `palouse.io` stays the corporate domain (M365 mailboxes).
+- `palouse.ai` DNS is on **Namecheap** (unrestricted), separate from `palouse.io`'s
+  M365-managed DNS. App/cert/mail records go on `palouse.ai`; `palouse.io` is untouched.
+- Resend: **`mail.palouse.ai`** added and verified as the sending subdomain before
+  transactional mail works.
 
 ---
 
@@ -51,8 +54,8 @@ imports resolve.
    `palouse-staging-*`: `fly/*.toml`, `scripts/fly-*.sh`,
    `.github/workflows/deploy-staging.yml`, `docs/deployment.md`, `.env*.example`.
    Includes `*.fly.dev`, `.internal`/`.flycast` hosts, `REQOPS_API_URL`.
-4. **Domains** `test.reqops.ai` → `test.palouse.io`, `MAIL_FROM`
-   (`no-reply@test.palouse.io`), demo/fixture domains.
+4. **Domains** `test.reqops.ai` → `test.palouse.ai`, `MAIL_FROM`
+   (`no-reply@mail.palouse.ai`), demo/fixture domains.
 5. **Wire-level identifiers:**
    - DB role `reqops_app` → `palouse_app`, DB name `reqops` → `palouse`
      (`packages/db` schema/migrations/`drizzle.config.ts`, env examples).
@@ -80,30 +83,33 @@ imports resolve.
 - Fresh `BETTER_AUTH_SECRET` + `PALOUSE_ENCRYPTION_KEY` pushed via `fly-secrets.sh`. ✓
 - Deploy token deferred to Phase 5 (don't swap GitHub `FLY_API_TOKEN` until cutover).
 
-## Phase 3 — Database
-**Default: start fresh** (staging data disposable; avoids the encryption-key
-problem). API `release_command` runs Drizzle migrations and builds the schema in
-MPG on first deploy. Consequence: **re-authorize all connectors** post-cutover
-(their encrypted tokens don't carry over).
-*Alternative if data is needed:* `pg_dump` → restore into MPG **and keep the old
-encryption key value** so tokens still decrypt.
+## Phase 3 — Database — DONE (fresh start)
+Started fresh (staging data disposable; avoids the encryption-key problem). The
+API `release_command` ran Drizzle migrations on first deploy (Phase 4): 24 tables,
+`source_of_truth` enum = `palouse`. Consequence: **re-authorize all connectors**
+post-cutover (their encrypted tokens don't carry over).
 
-## Phase 4 — Deploy to Palouse
-`./scripts/fly-deploy.sh api` (runs migrations), then `web worker mcp`.
-Smoke-test `*.fly.dev/health` + `/health/ready`. Public DNS not yet moved.
+## Phase 4 — Deploy to Palouse — DONE
+api/web/worker deployed (`./scripts/fly-deploy.sh`); all healthy on `*.fly.dev`
+(api /health + /health/ready 200, web 200, web→api proxy 401, worker consuming
+Redis). mcp excluded until M5. Public DNS not yet moved.
 
-## Phase 5 — DNS cutover (Namecheap — manual)
-1. `fly certs add test.palouse.io --app palouse-staging-web`; read values from
-   `fly certs show`.
-2. Namecheap on **palouse.io**: `A test → <IP>`, `AAAA test → <v6>`,
-   `CNAME _acme-challenge.test → <flydns target>`.
-3. `fly certs check test.palouse.io` until Issued; redeploy if needed.
-4. Connector OAuth redirect URIs → `https://test.palouse.io/oauth/<provider>/callback`.
-5. Swap GitHub `FLY_API_TOKEN` to the palouse org token.
+## Phase 5 — DNS cutover + mail (Namecheap `palouse.ai` — manual)
+App DNS is on `palouse.ai` at Namecheap (NOT `palouse.io`/M365).
+1. `fly certs add test.palouse.ai --app palouse-staging-web` (done).
+2. Namecheap **palouse.ai** Advanced DNS: `CNAME  test → palouse-staging-web.fly.dev`.
+3. `fly certs check test.palouse.ai` until Issued; redeploy api/worker (new base URLs).
+4. Mail: add Resend domain **`mail.palouse.ai`**, add its records to `palouse.ai`
+   (MX `send.mail` → feedback-smtp.<region>.amazonses.com; TXT SPF `send.mail`;
+   TXT DKIM `resend._domainkey.mail`; TXT DMARC `_dmarc.mail`). Set `RESEND_API_KEY`
+   secret; `MAIL_FROM = "Palouse <no-reply@mail.palouse.ai>"` (already in api.toml).
+5. Connector OAuth redirect URIs → `https://test.palouse.ai/oauth/<provider>/callback`.
+6. Swap GitHub `FLY_API_TOKEN` to the palouse org token.
 
 ## Phase 6 — Verify
-End-to-end on `test.palouse.io`: sign-in, create task/handoff, re-auth a
-connector, mint a `palouse_agk_` key + MCP call, confirm mail from palouse.io.
+End-to-end on `test.palouse.ai`: sign-in, create task/handoff, re-auth a
+connector, mint a `palouse_agk_` key + MCP call, confirm transactional mail
+delivers from `no-reply@mail.palouse.ai`.
 
 ## Phase 7 — Decommission ReqOps / Entorhi (after a verification window)
 Destroy `reqops-staging-*` apps + `reqops-staging-db` + `reqops-staging-redis`;

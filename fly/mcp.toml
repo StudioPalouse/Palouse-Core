@@ -21,9 +21,9 @@ primary_region = "iad"
   MCP_HTTP_PORT = "7777"
   PALOUSE_API_URL = "https://palouse-staging-api.fly.dev"
   # Required by the shared env loader; public base URLs are the web origin.
-  API_BASE_URL = "https://test.palouse.io"
-  BETTER_AUTH_URL = "https://test.palouse.io"
-  WEB_BASE_URL = "https://test.palouse.io"
+  API_BASE_URL = "https://test.palouse.ai"
+  BETTER_AUTH_URL = "https://test.palouse.ai"
+  WEB_BASE_URL = "https://test.palouse.ai"
 
 [[vm]]
   size = "shared-cpu-1x"
