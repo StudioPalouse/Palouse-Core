@@ -248,12 +248,55 @@ password-reset email (confirm delivery from `no-reply@mail.palouse.ai`), mint a
 behaves per §1.2.
 
 ### P11 — Operations: backups, monitoring, rollback
-- **Backups:** confirm `--enable-backups` bucket is receiving WAL; document a restore
-  drill. (Self-managed PG — backups are your responsibility.)
-- **Monitoring:** wire prod logs/metrics + alerting on `/health/ready` and machine health.
-- **Rollback:** `fly releases --app palouse-prod-api` → `fly deploy --image <prev>` or
-  `fly machine update`. For a bad migration, roll forward with a fix (don't cancel
-  mid-migration; deploys queue by design).
+
+#### Backups (DONE, verified 2026-06-30)
+Continuous WAL archiving to Tigris is live on `palouse-prod-db`.
+- Bucket `palouse-prod-db-postgres`; `archive_command = barman-cloud-wal-archive`.
+- Config (`fly postgres backup config show -a palouse-prod-db`): RecoveryWindow **7d**
+  (point-in-time restore horizon), FullBackupFrequency 24h, ArchiveTimeout 60s,
+  MinimumRedundancy 3.
+- First base backup: `20260630T000607` (DONE). List with
+  `fly postgres backup list -a palouse-prod-db`.
+- **Gotcha for re-provisioning:** `fly postgres create --enable-backups` silently
+  no-ops the backup setup, AND both it and `fly postgres backup enable` re-prompt the
+  Tigris ToS as a bubbletea TUI with no `--yes` (piped input is rejected). To automate:
+  drive with `expect` over a PTY and answer the cursor-position query
+  (match `\033[6n`, reply `\033[24;80R`), then send `y`; finish with
+  `fly secrets deploy -a palouse-prod-db` to restart and activate WAL archiving.
+
+**Restore drill** (restores into a NEW cluster; never overwrites prod in place):
+```bash
+# Point-in-time to a timestamp within the 7d window:
+fly postgres backup restore palouse-prod-db-restore --restore-target-time 2026-06-30T12:00:00Z
+# ...or to a specific base backup id:
+fly postgres backup restore palouse-prod-db-restore --restore-target-name 20260630T000607
+# Then verify data in the new cluster, repoint DATABASE_URL on api/worker/mcp to the
+# restored cluster's .flycast addr, and `fly secrets deploy` each. Do a dry run quarterly.
+```
+
+#### Monitoring
+- **Already active:** Fly machine health checks on api (`GET /health` every 15s) auto-restart
+  unhealthy machines. Worker is a headless consumer (no HTTP check) — watch via logs/queue.
+- **Metrics:** Fly ships Prometheus metrics to Grafana at https://fly-metrics.net
+  (per-app CPU/mem/check status). No alert rules exist yet.
+- **Active alerting: DEFERRED TO GA** (decided 2026-06-30). For alpha, rely on Fly's
+  auto-restart of unhealthy api machines + manual checks. When wiring it up at GA, pick:
+  - External uptime monitor (recommended): hit `https://app.palouse.ai/` and
+    `https://palouse-prod-api.fly.dev/health/ready` on a 1-min interval with email/SMS
+    alerts (UptimeRobot/Better Stack free tier). Catches full-stack outages Fly checks miss.
+  - Grafana alert rules on fly-metrics.net (machine down, check failing, mem pressure)
+    routed to email/Slack.
+- App emits OTLP traces/usage (`palouse.*`) — wire to an OTLP backend at GA, not required for alpha.
+
+#### Rollback
+- **App (api/web/worker):** `fly releases --app palouse-prod-<svc>` to find the last good
+  version, then `fly deploy --image <registry.fly.io/...:deployment-...> --app palouse-prod-<svc>`
+  (image refs are in `fly releases -j`). Or re-run the prior green tag's deploy.
+- **Bad migration:** do NOT cancel mid-migration (deploys queue by design). Roll FORWARD
+  with a corrective migration + new tag. If data is corrupted, use the restore drill above
+  to a pre-incident timestamp.
+- **Release tags:** prod deploys are tag-gated (`v*`). To redeploy a known-good build, push
+  a new patch tag on that commit; to ship a fix, tag a new version.
 
 ---
 
@@ -270,9 +313,14 @@ behaves per §1.2.
 
 ---
 
-## 5. Open items to resolve with Jonathan
-- [ ] §1.1 DB durability (default: single-node + backups)
-- [ ] §1.2 `AUTH_BLOCK_PUBLIC_EMAIL_DOMAINS` for public alpha (true vs false)
-- [ ] §1.3 mail split (prod `mail.palouse.ai` + staging `mail-staging.palouse.ai`?)
-- [ ] §1.4 billing / cloud BUSL features on for alpha? (default: core-only, free alpha)
-- [ ] §1.5 web warm (min 1) vs cost (min 0)
+## 5. Decisions (resolved 2026-06-30)
+- [x] §1.1 DB durability → **single-node + backups** (WAL to Tigris, 7d recovery window)
+- [x] §1.2 `AUTH_BLOCK_PUBLIC_EMAIL_DOMAINS` → **true** (work domains only)
+- [x] §1.3 mail → **prod + staging share `mail.palouse.ai`** for alpha (split deferred)
+- [x] §1.4 billing / cloud BUSL → **core-only, free alpha**
+- [x] §1.5 web warm vs cost → **min 0 (cold)** to save cost at alpha
+
+## 6. Execution status (as of 2026-06-30)
+**Prod is LIVE at https://app.palouse.ai** (release `v0.1.0-alpha.1`). P1–P9 + P11 backups
+DONE & verified; deploy-prod.yml tag pipeline validated. Remaining: P10 browser smoke
+(user-driven) and P11 monitoring/alerting setup (needs an uptime-monitor choice; see P11).
