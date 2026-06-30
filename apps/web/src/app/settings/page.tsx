@@ -12,6 +12,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  cn,
 } from '@palouse/ui';
 import { AppShell } from '@/components/app-shell';
 import { NewAgentDialog } from '@/components/new-agent-dialog';
@@ -37,7 +38,7 @@ function formatTime(iso: string | null): string {
   });
 }
 
-function IntegrationsCard({ workspace }: { workspace: Workspace }) {
+function TaskSourcesPanel({ workspace }: { workspace: Workspace }) {
   const searchParams = useSearchParams();
   const [integrations, setIntegrations] = useState<Integration[] | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -62,75 +63,68 @@ function IntegrationsCard({ workspace }: { workspace: Workspace }) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Task sources</CardTitle>
-        <CardDescription>
-          Connect the external systems your team uses for human tasks. Google Tasks is polled
-          every 60s; Asana uses webhooks when reachable, with a 5-minute polling fallback.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {connected && (
-          <p className="rounded-md border px-3 py-2 text-sm">
-            Connected {PROVIDER_LABELS[connected] ?? connected}. First sync is queued.
-          </p>
-        )}
-        {error && (
-          <p className="text-destructive rounded-md border px-3 py-2 text-sm">
-            Connection failed ({error}). Check the provider OAuth env vars and try again.
-          </p>
-        )}
-        {notice && <p className="text-muted-foreground text-sm">{notice}</p>}
+    <div className="flex flex-col gap-4">
+      <p className="text-muted-foreground text-sm">
+        Connect the external systems your team uses for human tasks. Google Tasks is polled every
+        60s; Asana uses webhooks when reachable, with a 5-minute polling fallback.
+      </p>
+      {connected && (
+        <p className="rounded-md border px-3 py-2 text-sm">
+          Connected {PROVIDER_LABELS[connected] ?? connected}. First sync is queued.
+        </p>
+      )}
+      {error && (
+        <p className="text-destructive rounded-md border px-3 py-2 text-sm">
+          Connection failed ({error}). Check the provider OAuth env vars and try again.
+        </p>
+      )}
+      {notice && <p className="text-muted-foreground text-sm">{notice}</p>}
 
-        {integrations !== null && integrations.length > 0 && (
-          <ul className="divide-y rounded-md border">
-            {integrations.map((it) => (
-              <li key={it.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
-                <span className="text-sm font-medium">
-                  {PROVIDER_LABELS[it.provider] ?? it.provider}
-                </span>
-                <span className="text-muted-foreground text-xs">{it.accountLabel}</span>
-                <Badge
-                  variant={
-                    it.status === 'active'
-                      ? 'secondary'
-                      : it.status === 'degraded'
-                        ? 'destructive'
-                        : 'outline'
-                  }
-                >
-                  {it.status}
-                </Badge>
-                <span className="text-muted-foreground ml-auto text-xs">
-                  last sync: {formatTime(it.lastSyncAt)}
-                </span>
-                <Button variant="outline" size="sm" onClick={() => void syncNow(it.id)}>
-                  Sync now
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => void disconnect(it.id)}>
-                  Disconnect
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <div className="flex flex-wrap gap-2">
-          {CONNECTABLE.map((provider) => (
-            <Button key={provider} variant="outline" size="sm" asChild>
-              <a href={oauthStartUrl(provider, workspace.id)}>
-                Connect {PROVIDER_LABELS[provider]}
-              </a>
-            </Button>
+      {integrations !== null && integrations.length > 0 && (
+        <ul className="divide-y rounded-md border">
+          {integrations.map((it) => (
+            <li key={it.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
+              <span className="text-sm font-medium">
+                {PROVIDER_LABELS[it.provider] ?? it.provider}
+              </span>
+              <span className="text-muted-foreground text-xs">{it.accountLabel}</span>
+              <Badge
+                variant={
+                  it.status === 'active'
+                    ? 'secondary'
+                    : it.status === 'degraded'
+                      ? 'destructive'
+                      : 'outline'
+                }
+              >
+                {it.status}
+              </Badge>
+              <span className="text-muted-foreground ml-auto text-xs">
+                last sync: {formatTime(it.lastSyncAt)}
+              </span>
+              <Button variant="outline" size="sm" onClick={() => void syncNow(it.id)}>
+                Sync now
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => void disconnect(it.id)}>
+                Disconnect
+              </Button>
+            </li>
           ))}
-        </div>
-      </CardContent>
-    </Card>
+        </ul>
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        {CONNECTABLE.map((provider) => (
+          <Button key={provider} variant="outline" size="sm" asChild>
+            <a href={oauthStartUrl(provider, workspace.id)}>Connect {PROVIDER_LABELS[provider]}</a>
+          </Button>
+        ))}
+      </div>
+    </div>
   );
 }
 
-function AgentConnectionsCard({ workspace }: { workspace: Workspace }) {
+function AgentConnectionsPanel({ workspace }: { workspace: Workspace }) {
   const router = useRouter();
   const [agents, setAgents] = useState<Agent[] | null>(null);
 
@@ -141,42 +135,81 @@ function AgentConnectionsCard({ workspace }: { workspace: Workspace }) {
   useEffect(refresh, [refresh]);
 
   return (
+    <div className="flex flex-col gap-4">
+      <p className="text-muted-foreground text-sm">
+        Agents connect over MCP using an API key. Register an agent, mint a key, then add it to the
+        agent&apos;s MCP config (for example Claude Code or Claude Desktop).
+      </p>
+      {agents !== null && agents.length > 0 && (
+        <ul className="divide-y rounded-md border">
+          {agents.map((agent) => (
+            <li key={agent.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
+              <span className="text-sm font-medium">{agent.name}</span>
+              <Badge variant="outline">{AGENT_KIND_LABELS[agent.kind]}</Badge>
+              <Link
+                href={{ pathname: `/agents/${agent.id}` }}
+                className="text-muted-foreground hover:text-foreground ml-auto text-xs underline underline-offset-2"
+              >
+                Manage keys
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      {agents !== null && agents.length === 0 && (
+        <p className="text-muted-foreground text-sm">
+          No agents yet. Create one to connect Claude Code, Paperclip, or a custom MCP agent.
+        </p>
+      )}
+      <div>
+        <NewAgentDialog
+          workspaceId={workspace.id}
+          onCreated={(agent) => router.push(`/agents/${agent.id}`)}
+        />
+      </div>
+    </div>
+  );
+}
+
+const CONNECTION_TABS = [
+  { key: 'human', label: 'Task sources' },
+  { key: 'agent', label: 'Agent connections' },
+] as const;
+
+function ConnectionsCard({ workspace }: { workspace: Workspace }) {
+  const [tab, setTab] = useState<'human' | 'agent'>('human');
+  return (
     <Card>
       <CardHeader>
-        <CardTitle>Agent connections</CardTitle>
+        <CardTitle>Connections</CardTitle>
         <CardDescription>
-          Agents connect over MCP using an API key. Register an agent, mint a key, then add it to
-          the agent&apos;s MCP config (for example Claude Code or Claude Desktop).
+          Connect the human task sources your team uses and the agents that work alongside them.
         </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {agents !== null && agents.length > 0 && (
-          <ul className="divide-y rounded-md border">
-            {agents.map((agent) => (
-              <li key={agent.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
-                <span className="text-sm font-medium">{agent.name}</span>
-                <Badge variant="outline">{AGENT_KIND_LABELS[agent.kind]}</Badge>
-                <Link
-                  href={{ pathname: `/agents/${agent.id}` }}
-                  className="text-muted-foreground hover:text-foreground ml-auto text-xs underline underline-offset-2"
-                >
-                  Manage keys
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-        {agents !== null && agents.length === 0 && (
-          <p className="text-muted-foreground text-sm">
-            No agents yet. Create one to connect Claude Code, Paperclip, or a custom MCP agent.
-          </p>
-        )}
-        <div>
-          <NewAgentDialog
-            workspaceId={workspace.id}
-            onCreated={(agent) => router.push(`/agents/${agent.id}`)}
-          />
+        <div className="mt-2 flex items-center gap-1 border-b">
+          {CONNECTION_TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTab(t.key)}
+              aria-current={tab === t.key ? 'page' : undefined}
+              className={cn(
+                '-mb-px border-b-2 px-3 py-2 text-sm transition-colors',
+                tab === t.key
+                  ? 'border-foreground text-foreground font-medium'
+                  : 'text-muted-foreground hover:text-foreground border-transparent',
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
+      </CardHeader>
+      <CardContent>
+        {tab === 'human' ? (
+          <TaskSourcesPanel workspace={workspace} />
+        ) : (
+          <AgentConnectionsPanel workspace={workspace} />
+        )}
       </CardContent>
     </Card>
   );
@@ -212,8 +245,7 @@ function SettingsContent() {
           </ul>
         </CardContent>
       </Card>
-      {workspace && <IntegrationsCard workspace={workspace} />}
-      {workspace && <AgentConnectionsCard workspace={workspace} />}
+      {workspace && <ConnectionsCard workspace={workspace} />}
       <Card>
         <CardHeader>
           <CardTitle>Capabilities</CardTitle>
