@@ -27,17 +27,17 @@ export function UsageSummaryCards({
   return (
     <div className="flex flex-col gap-2">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Duration" value={durationLabel ?? '—'} />
+        <Stat label="Duration" value={durationLabel ?? '–'} />
         <Stat
           label="Models used"
-          value={summary.models.length === 0 ? '—' : String(summary.models.length)}
+          value={summary.models.length === 0 ? '–' : String(summary.models.length)}
           hint={summary.models.join(', ') || undefined}
         />
         <Stat
           label="Tokens"
           value={
             summary.generationCount === 0
-              ? '—'
+              ? '–'
               : `${formatTokens(summary.inputTokens)} in / ${formatTokens(summary.outputTokens)} out`
           }
           hint={
@@ -48,7 +48,7 @@ export function UsageSummaryCards({
         />
         <Stat
           label="Cost"
-          value={summary.costUsd === null ? (summary.generationCount === 0 ? '—' : 'Unpriced') : formatUsd(summary.costUsd)}
+          value={summary.costUsd === null ? (summary.generationCount === 0 ? '–' : 'Unpriced') : formatUsd(summary.costUsd)}
           hint={`${summary.generationCount} LLM call${summary.generationCount === 1 ? '' : 's'}`}
         />
       </div>

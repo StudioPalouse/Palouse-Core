@@ -37,7 +37,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   const env = loadEnv();
   if (!env.RESEND_API_KEY) {
     console.warn(
-      `[mail] RESEND_API_KEY not set — skipping email "${input.subject}" to ${
+      `[mail] RESEND_API_KEY not set, skipping email "${input.subject}" to ${
         Array.isArray(input.to) ? input.to.join(', ') : input.to
       }`,
     );

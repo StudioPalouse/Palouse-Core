@@ -46,7 +46,7 @@ export function createAgentKeyCommand(): Command {
             { scopes },
           );
 
-          console.log(`API key for ${agent.name} (key id ${key.id}) — shown once, store it now:`);
+          console.log(`API key for ${agent.name} (key id ${key.id}). Shown once, store it now:`);
           console.log(`\n  ${plaintext}\n`);
           console.log('MCP config snippet (Claude Code / Claude Desktop):');
           console.log(

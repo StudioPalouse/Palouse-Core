@@ -35,7 +35,7 @@ export const ACTIVE_HANDOFF_STATES: HandoffState[] = [
 export const EVENT_LABELS: Record<string, string> = {
   queued: 'Handed off to agent',
   claimed: 'Agent picked it up',
-  requeued: 'Agent went quiet — queued for another attempt',
+  requeued: 'Agent went quiet, queued for another attempt',
   review_requested: 'Agent asked for your review',
   reviewed: 'Reviewed',
   completed: 'Agent finished',
@@ -54,7 +54,7 @@ export function formatUsd(n: number): string {
 }
 
 export function formatDateTime(iso: string | null): string {
-  if (!iso) return '—';
+  if (!iso) return '–';
   return new Date(iso).toLocaleString(undefined, {
     month: 'short',
     day: 'numeric',

@@ -33,7 +33,7 @@ export function oauthConfigFor(env: Env, provider: IntegrationProvider): OAuthCl
   const [clientId, clientSecret] = pair[provider] ?? [];
   if (!clientId || !clientSecret) {
     throw validation(
-      `OAuth client for ${provider} is not configured — set the *_OAUTH_CLIENT_ID/SECRET env vars`,
+      `OAuth client for ${provider} is not configured. Set the *_OAUTH_CLIENT_ID/SECRET env vars`,
     );
   }
   return { clientId, clientSecret };

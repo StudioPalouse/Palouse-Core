@@ -33,7 +33,7 @@ export function doctorCommand(): Command {
       }
 
       for (const c of checks) {
-        console.log(`${c.ok ? 'OK  ' : 'FAIL'}  ${c.name}${c.detail ? `  — ${c.detail}` : ''}`);
+        console.log(`${c.ok ? 'OK  ' : 'FAIL'}  ${c.name}${c.detail ? `: ${c.detail}` : ''}`);
       }
 
       await closeDb();

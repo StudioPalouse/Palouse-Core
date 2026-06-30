@@ -92,7 +92,7 @@ oauthRoutes.get('/:provider/callback', async (c) => {
       } catch (err) {
         logger.warn(
           { provider, integrationId: integration.id, err: (err as Error).message },
-          'Webhook subscription failed — falling back to polling',
+          'Webhook subscription failed, falling back to polling',
         );
       }
     }

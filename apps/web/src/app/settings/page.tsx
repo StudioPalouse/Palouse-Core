@@ -50,7 +50,7 @@ function IntegrationsCard({ workspace }: { workspace: Workspace }) {
 
   async function syncNow(id: string) {
     await api.syncIntegration(workspace.id, id);
-    setNotice('Sync queued — tasks appear in the inbox as the worker pulls them.');
+    setNotice('Sync queued. Tasks appear in the inbox as the worker pulls them.');
   }
 
   async function disconnect(id: string) {

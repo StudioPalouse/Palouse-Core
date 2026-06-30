@@ -1,0 +1,18 @@
+# Palouse Worker (BullMQ) — production (public alpha)
+# Deploy from repo root: flyctl deploy . --config fly/worker.prod.toml --dockerfile apps/worker/Dockerfile --remote-only
+# No [http_service]: headless queue consumer, machine runs continuously.
+app = "palouse-prod-worker"
+primary_region = "iad"
+
+[env]
+  NODE_ENV = "production"
+  LOG_LEVEL = "info"
+  # Public base URLs route through the web origin's rewrite proxy (the worker
+  # uses API_BASE_URL when registering webhook targets with providers).
+  API_BASE_URL = "https://app.palouse.ai"
+  BETTER_AUTH_URL = "https://app.palouse.ai"
+  WEB_BASE_URL = "https://app.palouse.ai"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

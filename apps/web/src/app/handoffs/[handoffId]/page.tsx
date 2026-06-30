@@ -186,7 +186,7 @@ export default function ActivityReportPage() {
                               ? 'Workspace rate'
                               : g.priceSource === 'catalog'
                                 ? `Catalog ${g.priceSnapshot?.catalogVersion ?? ''}`
-                                : '—'}
+                                : '–'}
                           </td>
                         </tr>
                       ))}
@@ -195,7 +195,7 @@ export default function ActivityReportPage() {
                 </div>
                 <p className="text-muted-foreground text-xs">
                   Costs are computed by Palouse from its model price catalog at the moment of
-                  ingest and stay reproducible — each row stores the exact rates used.
+                  ingest and stay reproducible. Each row stores the exact rates used.
                 </p>
               </div>
             </>

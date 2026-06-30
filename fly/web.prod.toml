@@ -1,0 +1,26 @@
+# Palouse Web (Next.js) — production (public alpha)
+# Deploy from repo root: flyctl deploy . --config fly/web.prod.toml --dockerfile apps/web/Dockerfile --remote-only
+app = "palouse-prod-web"
+primary_region = "iad"
+
+[build.args]
+  # Empty = same-origin: the browser talks only to the web origin and the Next
+  # rewrite proxy forwards API paths over Fly private networking.
+  NEXT_PUBLIC_API_URL = ""
+  API_PROXY_TARGET = "http://palouse-prod-api.internal:4000"
+
+[env]
+  NODE_ENV = "production"
+  API_PROXY_TARGET = "http://palouse-prod-api.internal:4000"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # Cold start accepted for alpha (§1.5) to save cost; set to 1 to warm at GA.
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

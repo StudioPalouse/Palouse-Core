@@ -19,6 +19,6 @@ export const PRIORITY_LABELS: Record<number, string> = {
 };
 
 export function formatDate(iso: string | null): string {
-  if (!iso) return '—';
+  if (!iso) return '–';
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
