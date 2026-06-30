@@ -4,6 +4,12 @@ Stand up a **production** environment in the `palouse` Fly.io org so public alph
 customers can use the hosted app at **`app.palouse.ai`**. Prod runs parallel to
 the existing staging stack and shares nothing with it (own DB, Redis, secrets).
 
+> ✅ **EXECUTED — production is LIVE at <https://app.palouse.ai> (release `v0.1.2`).**
+> P1–P9 and P11 backups are done and verified; all §1 decisions are resolved (see
+> §5) and §6 carries the execution status. The phase steps below are kept as the
+> build record and for rebuild / disaster-recovery. The "Current state" section
+> immediately below describes the PRE-execution starting point, not today's state.
+
 > **This is an execution runbook written for a fresh agent/session.** It is
 > self-contained: read the "Current state" section, confirm the open decisions
 > in §1, then execute §3 phases P1→P11 in order. Commands mirror the staging

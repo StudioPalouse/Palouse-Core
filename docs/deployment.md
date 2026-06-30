@@ -1,4 +1,4 @@
-# Deployment — Fly.io staging
+# Deployment — Fly.io (staging + production)
 
 The staging environment is where everything gets tested from M4 onward — cloud
 first, local second. One Fly app per compose service (architecture §8), with
@@ -145,9 +145,41 @@ History: staging originally ran on a free-tier Supabase Postgres (project
 `reqops-staging`, from the app's former name); it was consolidated onto Fly in June 2026 so the whole
 environment lives in one provider, and the Supabase project was paused.
 
-## Production (later)
+## Production (live — public alpha)
 
-Production gets its own `fly/*.prod.toml` set, its own Postgres (a properly
-sized Fly Postgres cluster, or Neon per architecture §8), its own Redis, and a tag- or
-release-triggered workflow. Nothing in the staging setup assumes it is the only
-environment — app names, URLs, and secrets are all per-environment.
+Production runs in parallel to staging in the same `palouse` org, sharing
+nothing with it (own DB, Redis, secrets). It is **live at
+<https://app.palouse.ai>** (current release `v0.1.2`). Full build/runbook:
+[`docs/production-setup.md`](./production-setup.md).
+
+| Piece | Name / URL |
+|---|---|
+| API | `palouse-prod-api` → <https://palouse-prod-api.fly.dev> (1 warm machine) |
+| Web | `palouse-prod-web` → `app.palouse.ai` (auto-stops to zero; cold start at alpha) |
+| Worker | `palouse-prod-worker` (always-on) |
+| MCP | `palouse-prod-mcp` (0 machines until M5) |
+| Postgres | `palouse-prod-db` (single node, **WAL backups to Tigris**, 7-day PITR window) |
+| Redis | `palouse-prod-redis` (Upstash, eviction disabled) |
+
+Config is `fly/*.prod.toml` (mirrors the staging tomls; api has 1 GB RAM, base
+URLs point at `https://app.palouse.ai`). The cert was added with
+`fly certs add app.palouse.ai --app palouse-prod-web` + a Namecheap CNAME
+`app → palouse-prod-web.fly.dev`.
+
+**Prod deploys are gated on version tags**, separate from staging's deploy-on-push:
+`.github/workflows/deploy-prod.yml` runs on tags matching `v*` (and manual
+`workflow_dispatch`), using the `*.prod.toml` configs and the
+`FLY_API_TOKEN_PROD` repo secret. Same job shape as staging (api+migrations →
+web/worker → smoke). To ship:
+
+```bash
+git tag -a v0.1.3 -m "…" && git push origin v0.1.3   # triggers deploy-prod.yml
+```
+
+Operations (backup restore drill, rollback, monitoring) are documented in
+`docs/production-setup.md` §P11. Active uptime alerting is deferred to GA; Fly
+auto-restarts unhealthy api machines and metrics are at <https://fly-metrics.net>.
+
+> **Hosted auth policy:** email verification is required before sign-in (gated on
+> `RESEND_API_KEY` being set, so bare self-host installs aren't affected). Mail is
+> sent via Resend from `no-reply@mail.palouse.ai`.

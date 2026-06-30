@@ -8,12 +8,13 @@ behalf of a human and report back.
 Open core: full product is Apache-2.0 and self-hostable. Hosted SaaS layers a
 small set of BSL-licensed cloud features on top of the same code.
 
-> Status: v0.0 — M4 (Microsoft connectors) built, pending live-tenant testing.
-> M2 (tasks core + unified inbox) and M3 (Google Tasks + Asana sync) work
-> end-to-end. Microsoft To Do + Planner share a Graph client: OAuth, pull,
-> outbound push, Graph change notifications (To Do) with subscription
-> auto-renewal, and polling fallback. Cloud staging runs at
-> <https://test.palouse.ai> (see [`docs/deployment.md`](./docs/deployment.md)).
+> Status: **public alpha live at <https://app.palouse.ai>** (release `v0.1.2`).
+> M4 (Microsoft connectors) built, pending live-tenant testing. M2 (tasks core +
+> unified inbox) and M3 (Google Tasks + Asana sync) work end-to-end. Microsoft
+> To Do + Planner share a Graph client: OAuth, pull, outbound push, Graph change
+> notifications (To Do) with subscription auto-renewal, and polling fallback.
+> Cloud staging runs at <https://test.palouse.ai>; production at
+> <https://app.palouse.ai> (see [`docs/deployment.md`](./docs/deployment.md)).
 > See [`docs/architecture.md`](./docs/architecture.md) for the complete plan.
 
 ## Quick start (dev)
@@ -66,13 +67,18 @@ docker compose up -d
 
 Brings up `postgres`, `redis`, `minio`, `api`, `web`, `worker`, `mcp`.
 
-## Cloud staging
+## Cloud (staging + production)
 
-Every push to `main` deploys to the Fly.io staging environment
+Every push to `main` deploys to the Fly.io **staging** environment
 (`palouse-staging-*` apps, Fly Postgres, Upstash Redis) and smoke-tests
-<https://palouse-staging-api.fly.dev/health>. See
-[`docs/deployment.md`](./docs/deployment.md) for setup, manual deploys
-(`./scripts/fly-deploy.sh`), and the day-to-day cloud testing workflow.
+<https://palouse-staging-api.fly.dev/health>.
+
+**Production** (`palouse-prod-*`, live at <https://app.palouse.ai>) is separate
+and deploys only on version tags (`v*`) via `deploy-prod.yml`. See
+[`docs/deployment.md`](./docs/deployment.md) for both environments, manual
+deploys (`./scripts/fly-deploy.sh`), the tag-release flow, and the day-to-day
+cloud testing workflow; [`docs/production-setup.md`](./docs/production-setup.md)
+is the full production build + operations runbook.
 
 ## Repository layout
 
