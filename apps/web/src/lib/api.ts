@@ -1,5 +1,8 @@
 import type {
   Agent,
+  AgentApiKey,
+  AgentKind,
+  AgentKeyScope,
   CreateTaskInput,
   Handoff,
   HandoffEvent,
@@ -41,6 +44,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const err = body?.error ?? {};
     throw new ApiError(res.status, err.code ?? 'INTERNAL', err.message ?? res.statusText);
   }
+  // 204 No Content (e.g. key revoke) has no body to parse.
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
@@ -83,6 +88,31 @@ export const api = {
 
   listAgents: (workspaceId: string) =>
     request<{ agents: Agent[] }>(`/v1/agents?workspaceId=${workspaceId}`),
+
+  createAgent: (
+    workspaceId: string,
+    input: { name: string; kind: AgentKind; metadata?: Record<string, unknown> },
+  ) =>
+    request<{ agent: Agent }>('/v1/agents', {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId, ...input }),
+    }),
+
+  getAgent: (workspaceId: string, agentId: string) =>
+    request<{ agent: Agent; keys: AgentApiKey[] }>(
+      `/v1/agents/${agentId}?workspaceId=${workspaceId}`,
+    ),
+
+  createAgentKey: (workspaceId: string, agentId: string, input: { scopes: AgentKeyScope[] }) =>
+    request<{ key: AgentApiKey; plaintext: string }>(`/v1/agents/${agentId}/keys`, {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId, ...input }),
+    }),
+
+  revokeAgentKey: (workspaceId: string, agentId: string, keyId: string) =>
+    request<void>(`/v1/agents/${agentId}/keys/${keyId}?workspaceId=${workspaceId}`, {
+      method: 'DELETE',
+    }),
 
   createHandoff: (
     workspaceId: string,

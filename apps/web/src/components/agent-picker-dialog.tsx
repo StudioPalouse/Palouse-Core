@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import type { Agent } from '@palouse/shared';
 import {
   Button,
@@ -74,11 +75,11 @@ export function AgentPickerDialog({
         </DialogHeader>
         {agents !== null && agents.length === 0 ? (
           <p className="text-muted-foreground text-sm">
-            No agents in this workspace yet. Create one with{' '}
-            <code className="bg-muted rounded px-1 py-0.5 text-xs">palouse create-agent</code>, mint
-            a key with{' '}
-            <code className="bg-muted rounded px-1 py-0.5 text-xs">palouse create-agent-key</code>,
-            then come back.
+            No agents in this workspace yet. Head to{' '}
+            <Link href="/agents" className="text-foreground underline underline-offset-2">
+              Agents
+            </Link>{' '}
+            to create one and mint a key, then come back.
           </p>
         ) : (
           <form onSubmit={onSubmit} className="flex flex-col gap-4">

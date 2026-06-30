@@ -7,6 +7,7 @@ import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { useTheme } from 'next-themes';
 import {
   BookOpen,
+  Bot,
   KanbanSquare,
   LayoutDashboard,
   ListChecks,
@@ -51,6 +52,7 @@ const NAV: NavItem[] = [
   { href: '/tasks', label: 'Tasks', icon: ListChecks, match: ['/reviews'] },
   { href: '/decisions', label: 'Decisions', icon: Scale },
   { href: '/context', label: 'Context', icon: BookOpen },
+  { href: '/agents', label: 'Agents', icon: Bot },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
