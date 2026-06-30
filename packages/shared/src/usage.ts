@@ -93,6 +93,7 @@ export type HandoffNarrative = z.infer<typeof handoffNarrativeSchema>;
 
 export const usageSummaryQuery = z.object({
   workspaceId: uuid,
+  agentId: uuid.optional(),
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
   groupBy: z.enum(['agent', 'model', 'day']).default('day'),

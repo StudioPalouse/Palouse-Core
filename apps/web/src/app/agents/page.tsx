@@ -7,6 +7,7 @@ import type { Agent, Workspace } from '@palouse/shared';
 import { Badge, Skeleton } from '@palouse/ui';
 import { ChevronRight } from 'lucide-react';
 import { AppShell } from '@/components/app-shell';
+import { AgentsTabs } from '@/components/agents-tabs';
 import { NewAgentDialog } from '@/components/new-agent-dialog';
 import { api, ApiError } from '@/lib/api';
 import { AGENT_KIND_LABELS } from '@/lib/agent-meta';
@@ -83,6 +84,8 @@ export default function AgentsPage() {
             )}
           </div>
         </div>
+
+        <AgentsTabs />
 
         <div className="rounded-lg border">
           {rows === null ? (

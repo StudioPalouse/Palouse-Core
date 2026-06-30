@@ -8,6 +8,7 @@ import { Badge, Button, Card, CardContent, Skeleton } from '@palouse/ui';
 import { ChevronLeft } from 'lucide-react';
 import { AppShell } from '@/components/app-shell';
 import { AgentKeyDialog } from '@/components/agent-key-dialog';
+import { MiniSpark } from '@/components/spend-charts';
 import { api, ApiError } from '@/lib/api';
 import { AGENT_KIND_LABELS, SCOPE_LABELS } from '@/lib/agent-meta';
 import { HANDOFF_STATE_LABELS, formatDateTime, formatTokens, formatUsd } from '@/lib/handoff-meta';
@@ -31,6 +32,7 @@ export default function AgentDetailPage() {
   const [agent, setAgent] = useState<Agent | null>(null);
   const [keys, setKeys] = useState<AgentApiKey[] | null>(null);
   const [usage, setUsage] = useState<UsageSummaryRow | null>(null);
+  const [spark, setSpark] = useState<{ date: string; cost: number }[] | null>(null);
   const [handoffs, setHandoffs] = useState<HandoffListItem[] | null>(null);
 
   useEffect(() => {
@@ -67,6 +69,12 @@ export default function AgentDetailPage() {
     api
       .getUsageSummary(id, { from: monthStart, groupBy: 'agent' })
       .then(({ rows }) => setUsage(rows.find((r) => r.key === agentId) ?? null));
+
+    const sparkFrom = new Date();
+    sparkFrom.setDate(sparkFrom.getDate() - 30);
+    api
+      .getUsageSummary(id, { agentId, from: sparkFrom.toISOString(), groupBy: 'day' })
+      .then(({ rows }) => setSpark(rows.map((r) => ({ date: r.key.slice(5), cost: r.costUsd }))));
 
     api
       .listHandoffs(id, { agentId })
@@ -113,6 +121,17 @@ export default function AgentDetailPage() {
             value={`${formatTokens(usage?.inputTokens ?? 0)} / ${formatTokens(usage?.outputTokens ?? 0)}`}
           />
         </div>
+
+        {spark && spark.length > 0 && (
+          <Card className="gap-2 py-4">
+            <CardContent className="px-4">
+              <div className="text-muted-foreground mb-1 text-xs font-medium">
+                Spend, last 30 days
+              </div>
+              <MiniSpark data={spark} />
+            </CardContent>
+          </Card>
+        )}
 
         {/* API keys */}
         <section className="flex flex-col gap-3">

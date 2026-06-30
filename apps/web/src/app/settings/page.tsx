@@ -1,8 +1,9 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import type { Integration, Workspace } from '@palouse/shared';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import type { Agent, Integration, Workspace } from '@palouse/shared';
 import {
   Badge,
   Button,
@@ -13,7 +14,9 @@ import {
   CardTitle,
 } from '@palouse/ui';
 import { AppShell } from '@/components/app-shell';
+import { NewAgentDialog } from '@/components/new-agent-dialog';
 import { api, oauthStartUrl } from '@/lib/api';
+import { AGENT_KIND_LABELS } from '@/lib/agent-meta';
 
 const PROVIDER_LABELS: Record<string, string> = {
   google_tasks: 'Google Tasks',
@@ -61,10 +64,10 @@ function IntegrationsCard({ workspace }: { workspace: Workspace }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Integrations</CardTitle>
+        <CardTitle>Task sources</CardTitle>
         <CardDescription>
-          Connect external task systems. Google Tasks is polled every 60s; Asana uses webhooks
-          when reachable, with a 5-minute polling fallback.
+          Connect the external systems your team uses for human tasks. Google Tasks is polled
+          every 60s; Asana uses webhooks when reachable, with a 5-minute polling fallback.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -127,6 +130,58 @@ function IntegrationsCard({ workspace }: { workspace: Workspace }) {
   );
 }
 
+function AgentConnectionsCard({ workspace }: { workspace: Workspace }) {
+  const router = useRouter();
+  const [agents, setAgents] = useState<Agent[] | null>(null);
+
+  const refresh = useCallback(() => {
+    api.listAgents(workspace.id).then(({ agents }) => setAgents(agents));
+  }, [workspace.id]);
+
+  useEffect(refresh, [refresh]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Agent connections</CardTitle>
+        <CardDescription>
+          Agents connect over MCP using an API key. Register an agent, mint a key, then add it to
+          the agent&apos;s MCP config (for example Claude Code or Claude Desktop).
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {agents !== null && agents.length > 0 && (
+          <ul className="divide-y rounded-md border">
+            {agents.map((agent) => (
+              <li key={agent.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
+                <span className="text-sm font-medium">{agent.name}</span>
+                <Badge variant="outline">{AGENT_KIND_LABELS[agent.kind]}</Badge>
+                <Link
+                  href={{ pathname: `/agents/${agent.id}` }}
+                  className="text-muted-foreground hover:text-foreground ml-auto text-xs underline underline-offset-2"
+                >
+                  Manage keys
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        {agents !== null && agents.length === 0 && (
+          <p className="text-muted-foreground text-sm">
+            No agents yet. Create one to connect Claude Code, Paperclip, or a custom MCP agent.
+          </p>
+        )}
+        <div>
+          <NewAgentDialog
+            workspaceId={workspace.id}
+            onCreated={(agent) => router.push(`/agents/${agent.id}`)}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function SettingsContent() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
 
@@ -158,6 +213,7 @@ function SettingsContent() {
         </CardContent>
       </Card>
       {workspace && <IntegrationsCard workspace={workspace} />}
+      {workspace && <AgentConnectionsCard workspace={workspace} />}
       <Card>
         <CardHeader>
           <CardTitle>Capabilities</CardTitle>

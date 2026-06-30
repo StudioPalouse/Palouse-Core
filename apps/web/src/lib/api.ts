@@ -146,7 +146,7 @@ export const api = {
 
   getUsageSummary: (
     workspaceId: string,
-    params?: { from?: string; to?: string; groupBy?: 'agent' | 'model' | 'day' },
+    params?: { agentId?: string; from?: string; to?: string; groupBy?: 'agent' | 'model' | 'day' },
   ) => {
     const qs = new URLSearchParams({ workspaceId, ...params });
     return request<{ rows: UsageSummaryRow[]; totalCostUsd: number }>(`/v1/usage/summary?${qs}`);

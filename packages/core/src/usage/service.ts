@@ -346,6 +346,7 @@ export async function getWorkspaceSpend(
   query: UsageSummaryQuery,
 ): Promise<{ rows: UsageSummaryRow[]; totalCostUsd: number }> {
   const conditions = [sql`r.workspace_id = ${query.workspaceId}`];
+  if (query.agentId) conditions.push(sql`r.agent_id = ${query.agentId}`);
   if (query.from) conditions.push(sql`r.day >= ${query.from.toISOString().slice(0, 10)}`);
   if (query.to) conditions.push(sql`r.day <= ${query.to.toISOString().slice(0, 10)}`);
   const where = sql.join(conditions, sql` AND `);
