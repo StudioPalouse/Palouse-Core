@@ -11,7 +11,7 @@ import {
   CardTitle,
   Input,
   Label,
-} from '@reqops/ui';
+} from '@palouse/ui';
 import { authClient } from '@/lib/auth-client';
 
 export default function ForgotPasswordPage() {

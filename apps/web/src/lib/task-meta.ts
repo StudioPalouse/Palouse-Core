@@ -1,4 +1,4 @@
-import type { TaskStatus } from '@reqops/shared';
+import type { TaskStatus } from '@palouse/shared';
 
 export const STATUS_LABELS: Record<TaskStatus, string> = {
   open: 'Open',
@@ -19,6 +19,6 @@ export const PRIORITY_LABELS: Record<number, string> = {
 };
 
 export function formatDate(iso: string | null): string {
-  if (!iso) return '—';
+  if (!iso) return '–';
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }

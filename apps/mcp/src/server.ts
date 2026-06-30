@@ -1,11 +1,11 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { TOOL_DESCRIPTIONS, TOOL_INPUTS, type ToolName } from '@reqops/mcp-sdk';
-import { agentService, handoffService, taskService, usageService } from '@reqops/core';
-import type { Database } from '@reqops/db';
-import { enqueuePush } from '@reqops/queue';
-import { agentActor, ReqOpsError, type AgentKeyScope } from '@reqops/shared';
+import { TOOL_DESCRIPTIONS, TOOL_INPUTS, type ToolName } from '@palouse/mcp-sdk';
+import { agentService, handoffService, taskService, usageService } from '@palouse/core';
+import type { Database } from '@palouse/db';
+import { enqueuePush } from '@palouse/queue';
+import { agentActor, PalouseError, type AgentKeyScope } from '@palouse/shared';
 import { auditToolCall, type VerifiedAgentKey } from './auth.js';
 import { getSyncQueue } from './queue.js';
 import { registerResources } from './resources.js';
@@ -28,11 +28,11 @@ type ToolArgs<N extends ToolName> = z.objectOutputType<(typeof TOOL_INPUTS)[N], 
 
 /**
  * One McpServer per verified agent key. The server is a thin shell: every
- * tool checks the key's scope, delegates to @reqops/core in-process, and
+ * tool checks the key's scope, delegates to @palouse/core in-process, and
  * appends an audit_events row (actor_type='agent').
  */
 export function buildServer(db: Database, key: VerifiedAgentKey): McpServer {
-  const server = new McpServer({ name: 'reqops', version: '0.1.0' });
+  const server = new McpServer({ name: 'palouse', version: '0.1.0' });
 
   function register<N extends ToolName>(name: N, handler: (args: ToolArgs<N>) => Promise<unknown>) {
     const callback = async (args: ToolArgs<N>): Promise<CallToolResult> => {
@@ -42,7 +42,7 @@ export function buildServer(db: Database, key: VerifiedAgentKey): McpServer {
         await auditToolCall(db, key, name, args as Record<string, unknown>);
         return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
       } catch (err) {
-        if (err instanceof ReqOpsError) {
+        if (err instanceof PalouseError) {
           return {
             content: [{ type: 'text', text: `${err.code}: ${err.message}` }],
             isError: true,

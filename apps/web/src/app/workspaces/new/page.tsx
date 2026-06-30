@@ -11,7 +11,7 @@ import {
   CardTitle,
   Input,
   Label,
-} from '@reqops/ui';
+} from '@palouse/ui';
 import { api, ApiError } from '@/lib/api';
 
 function slugify(name: string): string {

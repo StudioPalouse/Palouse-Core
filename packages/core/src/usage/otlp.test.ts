@@ -108,7 +108,7 @@ describe('mapOtlpTraces — generations', () => {
 });
 
 describe('mapOtlpTraces — steps & ignored spans', () => {
-  it('treats a span with reqops.step.title as a step (status from error code)', () => {
+  it('treats a span with palouse.step.title as a step (status from error code)', () => {
     const payload = trace([
       {
         spanId: 'step-1',
@@ -116,7 +116,7 @@ describe('mapOtlpTraces — steps & ignored spans', () => {
         endTimeUnixNano: END_NANO,
         startTimeUnixNano: END_NANO,
         status: { code: 2 }, // ERROR
-        attributes: [str('reqops.step.title', 'Drafted the report')],
+        attributes: [str('palouse.step.title', 'Drafted the report')],
       },
     ]);
     const { steps, generations } = mapOtlpTraces(payload);
@@ -157,8 +157,8 @@ describe('mapOtlpTraces — correlation hints', () => {
         endTimeUnixNano: END_NANO,
         attributes: [
           int('gen_ai.usage.input_tokens', 1),
-          str('reqops.handoff_id', 'handoff-xyz'),
-          str('reqops.claim_token', 'tok-123'),
+          str('palouse.handoff_id', 'handoff-xyz'),
+          str('palouse.claim_token', 'tok-123'),
         ],
       },
     ]);
@@ -171,7 +171,7 @@ describe('mapOtlpTraces — correlation hints', () => {
   it('falls back to resource-level correlation attributes', () => {
     const payload = trace(
       [{ spanId: 's', endTimeUnixNano: END_NANO, attributes: [int('gen_ai.usage.input_tokens', 1)] }],
-      [str('reqops.handoff_id', 'res-handoff')],
+      [str('palouse.handoff_id', 'res-handoff')],
     );
     expect(mapOtlpTraces(payload).generations[0]).toMatchObject({ handoffId: 'res-handoff', claimToken: null });
   });

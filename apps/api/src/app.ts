@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { ReqOpsError } from '@reqops/shared';
-import { getAuth } from '@reqops/auth';
-import { loadEnv } from '@reqops/config';
+import { PalouseError } from '@palouse/shared';
+import { getAuth } from '@palouse/auth';
+import { loadEnv } from '@palouse/config';
 import { agentRoutes } from './routes/agents.js';
 import { handoffRoutes } from './routes/handoffs.js';
 import { health } from './routes/health.js';
@@ -28,7 +28,7 @@ export function buildApp() {
   );
 
   app.onError((err, c) => {
-    if (err instanceof ReqOpsError) {
+    if (err instanceof PalouseError) {
       return c.json({ error: { code: err.code, message: err.message } }, err.status as 400);
     }
     logger.error({ err }, 'Unhandled error');
@@ -41,7 +41,7 @@ export function buildApp() {
   const auth = getAuth();
   app.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(c.req.raw));
 
-  app.get('/v1', (c) => c.json({ name: 'reqops', version: '0.0.0' }));
+  app.get('/v1', (c) => c.json({ name: 'palouse', version: '0.0.0' }));
   app.route('/v1/workspaces', workspaceRoutes);
   app.route('/v1/tasks', taskRoutes);
   app.route('/v1/agents', agentRoutes);

@@ -5,7 +5,7 @@ export function migrateCommand(): Command {
   return new Command('migrate')
     .description('Run pending database migrations')
     .action(() => {
-      const result = spawnSync('pnpm', ['--filter', '@reqops/db', 'migrate'], {
+      const result = spawnSync('pnpm', ['--filter', '@palouse/db', 'migrate'], {
         stdio: 'inherit',
       });
       process.exit(result.status ?? 1);

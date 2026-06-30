@@ -1,7 +1,7 @@
-# ReqOps Worker (BullMQ) — staging
+# Palouse Worker (BullMQ) — staging
 # Deploy from repo root: flyctl deploy . --config fly/worker.toml --dockerfile apps/worker/Dockerfile --remote-only
 # No [http_service]: headless queue consumer, machine runs continuously.
-app = "reqops-staging-worker"
+app = "palouse-staging-worker"
 primary_region = "iad"
 
 [env]
@@ -9,9 +9,9 @@ primary_region = "iad"
   LOG_LEVEL = "info"
   # Public base URLs route through the web origin's rewrite proxy (the worker
   # uses API_BASE_URL when registering webhook targets with providers).
-  API_BASE_URL = "https://test.reqops.ai"
-  BETTER_AUTH_URL = "https://test.reqops.ai"
-  WEB_BASE_URL = "https://test.reqops.ai"
+  API_BASE_URL = "https://test.palouse.ai"
+  BETTER_AUTH_URL = "https://test.palouse.ai"
+  WEB_BASE_URL = "https://test.palouse.ai"
 
 [[vm]]
   size = "shared-cpu-1x"

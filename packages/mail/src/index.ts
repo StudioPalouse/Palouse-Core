@@ -1,5 +1,5 @@
 import { Resend } from 'resend';
-import { loadEnv } from '@reqops/config';
+import { loadEnv } from '@palouse/config';
 
 /**
  * Transactional mail via Resend — the project's single mail-send path.
@@ -37,7 +37,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   const env = loadEnv();
   if (!env.RESEND_API_KEY) {
     console.warn(
-      `[mail] RESEND_API_KEY not set — skipping email "${input.subject}" to ${
+      `[mail] RESEND_API_KEY not set, skipping email "${input.subject}" to ${
         Array.isArray(input.to) ? input.to.join(', ') : input.to
       }`,
     );
@@ -66,10 +66,10 @@ export function renderBasicEmail(opts: { heading: string; bodyLines: string[]; c
       ? `<p style="margin:24px 0"><a href="${opts.ctaUrl}" style="background:#111;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-size:14px">${opts.ctaLabel}</a></p>`
       : '';
   return `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#111;max-width:520px;margin:0 auto;padding:32px 16px">
-  <p style="font-weight:600;font-size:15px">ReqOps</p>
+  <p style="font-weight:600;font-size:15px">Palouse</p>
   <h1 style="font-size:18px;margin:16px 0 8px">${opts.heading}</h1>
   ${opts.bodyLines.map((l) => `<p style="font-size:14px;line-height:1.6;color:#333">${l}</p>`).join('\n  ')}
   ${cta}
-  <p style="font-size:12px;color:#888;margin-top:32px">You're receiving this because of activity in your ReqOps workspace.</p>
+  <p style="font-size:12px;color:#888;margin-top:32px">You're receiving this because of activity in your Palouse workspace.</p>
 </body></html>`;
 }

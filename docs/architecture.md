@@ -1,4 +1,4 @@
-# ReqOps — Draft Architecture & MVP Implementation Plan
+# Palouse — Draft Architecture & MVP Implementation Plan
 
 ## Context
 
@@ -19,7 +19,7 @@
 
 - **Boring, portable stack** — plain Postgres + Redis, no cloud lock-in, every component runs in a container.
 - **Same code, two SKUs** — OSS self-host = single-tenant defaults; hosted SaaS = same containers + extra `cloud/*` packages mounted in. "Every-feature-but-X" split (à la GitLab CE/EE, Sentry), not feature flags lying about availability.
-- **MCP is the agent contract** — ReqOps is the source of truth for tasks; agents are clients. No bespoke agent runtime in v1.
+- **MCP is the agent contract** — Palouse is the source of truth for tasks; agents are clients. No bespoke agent runtime in v1.
 - **Adapter pattern everywhere** — connectors, agent platforms, auth providers, object store all sit behind typed interfaces so OSS users can swap implementations.
 
 ---
@@ -27,7 +27,7 @@
 ## 2. Monorepo layout (pnpm workspaces + Turborepo)
 
 ```
-reqops/
+palouse/
 ├── package.json                       # pnpm workspace root, turbo pipeline
 ├── pnpm-workspace.yaml
 ├── turbo.json
@@ -40,7 +40,7 @@ reqops/
 │   ├── api/                           # Hono API server (HTTP + webhooks)
 │   ├── worker/                        # BullMQ worker process (sync, handoff dispatch)
 │   ├── mcp/                           # MCP server (stdio + streamable HTTP transport)
-│   └── cli/                           # `reqops` CLI — bootstrap, migrate, seed, doctor
+│   └── cli/                           # `palouse` CLI — bootstrap, migrate, seed, doctor
 │
 ├── packages/
 │   ├── db/                            # Drizzle schema, migrations, query helpers
@@ -90,11 +90,11 @@ sessions / accounts      (Better-Auth managed)
 
 tasks                    (id, workspace_id, title, description_md, status enum,
                           priority smallint, due_at, assignee_user_id null,
-                          parent_task_id null, source_of_truth enum[reqops|external],
+                          parent_task_id null, source_of_truth enum[palouse|external],
                           external_canonical_id null, last_synced_at, etag text,
                           search_tsv tsvector generated)
 task_sources             (id, task_id fk, integration_id fk,
-                          external_system enum[google_tasks|ms_todo|ms_planner|asana|reqops],
+                          external_system enum[google_tasks|ms_todo|ms_planner|asana|palouse],
                           external_id text, external_url, external_etag text,
                           external_updated_at,
                           idempotency_key text,                   -- sha256(system|integration|external_id)
@@ -132,8 +132,8 @@ audit_events             (id, workspace_id, actor_type, actor_id, action,
 
 ### Sync keys & dedup
 
-- **External → ReqOps** dedupe: `task_sources(external_system, external_id, integration_id)` UNIQUE. The `idempotency_key = sha256(system|integration_id|external_id)` is used as the BullMQ `jobId` so re-deliveries collapse.
-- **One ReqOps task ↔ N `task_sources`** — a single inbox row can mirror "the same task" across Asana + MS Planner (manual merge in v1).
+- **External → Palouse** dedupe: `task_sources(external_system, external_id, integration_id)` UNIQUE. The `idempotency_key = sha256(system|integration_id|external_id)` is used as the BullMQ `jobId` so re-deliveries collapse.
+- **One Palouse task ↔ N `task_sources`** — a single inbox row can mirror "the same task" across Asana + MS Planner (manual merge in v1).
 - **Webhook idempotency**: `webhook_deliveries(provider, sha256(raw_body))` UNIQUE.
 - **`etag` / `external_etag`**: conditional reads (Google Tasks ETags, MS Graph delta tokens).
 
@@ -166,7 +166,7 @@ External SaaS ◄──poll──── apps/worker (cron per integration) ─�
 
 ### Conflict resolution
 
-Per-task `source_of_truth` field. Default: **external system wins for fields it owns** (title, status mapping, due date); **ReqOps wins for fields only it has** (handoff state, internal comments, agent assignments). Tiebreak by comparing `external_updated_at` vs `tasks.updated_at`. Conflicts logged to `audit_events` as `task.sync_conflict`.
+Per-task `source_of_truth` field. Default: **external system wins for fields it owns** (title, status mapping, due date); **Palouse wins for fields only it has** (handoff state, internal comments, agent assignments). Tiebreak by comparing `external_updated_at` vs `tasks.updated_at`. Conflicts logged to `audit_events` as `task.sync_conflict`.
 
 Sync jobs are sharded by `integration_id` (BullMQ jobId prefix) so a single integration is processed in order. Worker scales horizontally otherwise.
 
@@ -203,18 +203,18 @@ Rules:
 
 ### Paperclip integration
 
-`packages/agent-adapters/paperclip` translates ReqOps task ↔ Paperclip issue (budget hints from `priority`/`due_at`), listens for Paperclip heartbeats via webhook, maps terminal states. Configured per workspace as another `agents` row with `kind='paperclip'` + Paperclip API base URL + key.
+`packages/agent-adapters/paperclip` translates Palouse task ↔ Paperclip issue (budget hints from `priority`/`due_at`), listens for Paperclip heartbeats via webhook, maps terminal states. Configured per workspace as another `agents` row with `kind='paperclip'` + Paperclip API base URL + key.
 
 ---
 
 ## 6. MCP server design (`apps/mcp`)
 
-Standalone process exposing both **stdio transport** (Claude Desktop, Cursor, local agents) and **streamable HTTP** (remote agents, hosted MCP gateway). Thin client of `packages/core` — in-process when colocated, HTTP to `apps/api` when separate (`REQOPS_API_URL`).
+Standalone process exposing both **stdio transport** (Claude Desktop, Cursor, local agents) and **streamable HTTP** (remote agents, hosted MCP gateway). Thin client of `packages/core` — in-process when colocated, HTTP to `apps/api` when separate (`PALOUSE_API_URL`).
 
 **Resources**
-- `reqops://workspaces/{wsId}/tasks` — list, filterable via URI params
-- `reqops://workspaces/{wsId}/tasks/{taskId}` — single task
-- `reqops://workspaces/{wsId}/handoffs/queued` — claimable queue
+- `palouse://workspaces/{wsId}/tasks` — list, filterable via URI params
+- `palouse://workspaces/{wsId}/tasks/{taskId}` — single task
+- `palouse://workspaces/{wsId}/handoffs/queued` — claimable queue
 
 **Tools**
 
@@ -230,14 +230,14 @@ Standalone process exposing both **stdio transport** (Claude Desktop, Cursor, lo
 | `complete_task` | terminal success |
 | `fail_task` | terminal failure with reason |
 
-**Auth model**: per-workspace `agents` row → 1..N `agent_api_keys`. Key format `reqops_agk_<prefix>_<secret>` (prefix indexed, secret Argon2id hashed). Scopes: `tasks:read`, `tasks:write`, `handoffs:claim`, `handoffs:complete`. Every tool call → `audit_events` with `actor_type='agent'`.
+**Auth model**: per-workspace `agents` row → 1..N `agent_api_keys`. Key format `palouse_agk_<prefix>_<secret>` (prefix indexed, secret Argon2id hashed). Scopes: `tasks:read`, `tasks:write`, `handoffs:claim`, `handoffs:complete`. Every tool call → `audit_events` with `actor_type='agent'`.
 
 ---
 
 ## 7. Open-core vs hosted split
 
 ### OSS core — Apache 2.0
-Web app, API, worker, MCP server, all 4 v1 connectors, all agent adapters, multi-workspace within one Postgres, Better-Auth (email/password + Google/GitHub/Microsoft OAuth), webhook receivers, DB audit log, local FS or S3-compatible attachments, full `reqops` CLI.
+Web app, API, worker, MCP server, all 4 v1 connectors, all agent adapters, multi-workspace within one Postgres, Better-Auth (email/password + Google/GitHub/Microsoft OAuth), webhook receivers, DB audit log, local FS or S3-compatible attachments, full `palouse` CLI.
 
 ### Hosted / Enterprise — BSL 1.1 (auto-converts to Apache 2.0 after 3 years)
 Lives entirely in `cloud/*` and simply does not exist in the OSS build:
@@ -246,14 +246,14 @@ Lives entirely in `cloud/*` and simply does not exist in the OSS build:
 - Stripe billing + plan enforcement
 - Multi-region Postgres + region pinning
 - Hosted MCP gateway (multi-tenant edge, per-tenant rate limits)
-- Managed connector OAuth apps (hosted users use ReqOps' client IDs out of the box; self-host users register their own)
+- Managed connector OAuth apps (hosted users use Palouse' client IDs out of the box; self-host users register their own)
 
 ---
 
 ## 8. Deployment topology
 
 ### OSS — `docker-compose.yml`
-`postgres` (16) · `redis` (7) · `api` · `web` · `worker` · `mcp` (exposes :7777 streamable HTTP) · `minio` (optional default object store). Single `.env`; `reqops init` writes sensible defaults and runs migrations.
+`postgres` (16) · `redis` (7) · `api` · `web` · `worker` · `mcp` (exposes :7777 streamable HTTP) · `minio` (optional default object store). Single `.env`; `palouse init` writes sensible defaults and runs migrations.
 
 ### Hosted
 - **Platform**: **Fly.io** — better region story + cheaper egress than Render; avoid AWS-native lock-in.
@@ -299,7 +299,7 @@ Repeatable jobs for polling-only providers (Google Tasks) and subscription renew
 
 ## 11. MVP execution sequence (six milestones to v0.1, ~8 weeks)
 
-**M1 — Repo skeleton & infra (1 wk)** · pnpm + Turbo init, all package dirs · `packages/db` with Drizzle + first migration (orgs/workspaces/users/memberships/sessions) · `packages/auth` wiring Better-Auth → Drizzle · `apps/api` (Hono) `/health` + Better-Auth handler · `apps/web` sign-in/up + create-workspace · `docker-compose.yml` (postgres + redis + api + web) · `reqops` CLI stub · CI: typecheck + test + build.
+**M1 — Repo skeleton & infra (1 wk)** · pnpm + Turbo init, all package dirs · `packages/db` with Drizzle + first migration (orgs/workspaces/users/memberships/sessions) · `packages/auth` wiring Better-Auth → Drizzle · `apps/api` (Hono) `/health` + Better-Auth handler · `apps/web` sign-in/up + create-workspace · `docker-compose.yml` (postgres + redis + api + web) · `palouse` CLI stub · CI: typecheck + test + build.
 
 **M2 — Tasks core + unified inbox UI (1 wk)** · Migrations for `tasks`, `task_sources`, `task_assignments`, `audit_events` · `packages/core/tasks` service · REST endpoints (`/v1/tasks/*`) with Zod + generated client · Inbox view, task detail drawer, create/edit/comment.
 
@@ -307,9 +307,9 @@ Repeatable jobs for polling-only providers (Google Tasks) and subscription renew
 
 **M4 — Microsoft connectors (1 wk)** · `microsoft-todo` + `microsoft-planner` sharing a Graph client · Subscription create + auto-renewal job · Both flow into the unified inbox.
 
-**M5 — Handoffs + MCP server (2 wks)** · Migrations for `agents`, `agent_api_keys`, `agent_handoffs`, `handoff_events` · `packages/core/handoffs` state machine + atomic claim · `apps/mcp` stdio + HTTP transports, all tools in §6 · `POST /v1/tasks/:id/handoff`, `POST /v1/handoffs/:id/review` · "Hand off to agent" button, agent picker, review queue, handoff timeline · `reqops create-agent` + `create-agent-key` emit usable key + MCP config snippet · Paperclip adapter skeleton.
+**M5 — Handoffs + MCP server (2 wks)** · Migrations for `agents`, `agent_api_keys`, `agent_handoffs`, `handoff_events` · `packages/core/handoffs` state machine + atomic claim · `apps/mcp` stdio + HTTP transports, all tools in §6 · `POST /v1/tasks/:id/handoff`, `POST /v1/handoffs/:id/review` · "Hand off to agent" button, agent picker, review queue, handoff timeline · `palouse create-agent` + `create-agent-key` emit usable key + MCP config snippet · Paperclip adapter skeleton.
 
-**M6 — Polish, docs, self-host release (1 wk)** · Final `docker-compose.yml` with mcp + minio · `reqops doctor` (connectivity + migration drift + queue depth) · README + `/docs` site (Nextra) · Tag v0.1.0, publish images to GHCR · License files: Apache 2.0 on root, BSL stub in `cloud/`.
+**M6 — Polish, docs, self-host release (1 wk)** · Final `docker-compose.yml` with mcp + minio · `palouse doctor` (connectivity + migration drift + queue depth) · README + `/docs` site (Nextra) · Tag v0.1.0, publish images to GHCR · License files: Apache 2.0 on root, BSL stub in `cloud/`.
 
 ---
 
@@ -336,8 +336,8 @@ Repeatable jobs for polling-only providers (Google Tasks) and subscription renew
 2. **Sign up**: register at `http://localhost:3000`, create workspace "Acme".
 3. **Connect Google Tasks**: OAuth into sandbox account with 3 pre-seeded tasks; appear in inbox within 90s.
 4. **Connect Asana**: OAuth, create a task in Asana, webhook arrives <5s, task appears.
-5. **Create + assign**: native ReqOps task, assign to self.
-6. **Create an agent + key**: `docker compose exec api pnpm reqops create-agent claude-local && reqops create-agent-key claude-local` — prints key + Claude Desktop config snippet.
+5. **Create + assign**: native Palouse task, assign to self.
+6. **Create an agent + key**: `docker compose exec api pnpm palouse create-agent claude-local && palouse create-agent-key claude-local` — prints key + Claude Desktop config snippet.
 7. **Hand off via UI**: click "Hand off" on a task, select `claude-local`. Handoff moves to `queued`.
 8. **Claim via MCP**: Claude Code (configured against local MCP) lists claimable tasks, claims, marks in-progress, completes with summary. Verify state walks `queued → claimed → in_progress → completed`, timeline UI renders each event, `audit_events` records every call.
 9. **Source-of-truth round-trip**: original task in Google/Asana flips to "Completed" via outbound push within 30s.

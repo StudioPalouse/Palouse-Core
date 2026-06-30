@@ -1,7 +1,7 @@
-import type { StepStatus } from '@reqops/shared';
+import type { StepStatus } from '@palouse/shared';
 
 /**
- * Pure OTLP/HTTP-JSON → ReqOps usage mapper. No DB, no clock — correlation and
+ * Pure OTLP/HTTP-JSON → Palouse usage mapper. No DB, no clock — correlation and
  * persistence happen in the service (`ingestOtlp`); this file only decodes
  * spans into generations and steps per the OpenTelemetry GenAI semantic
  * conventions (https://opentelemetry.io/docs/specs/semconv/gen-ai/).
@@ -9,7 +9,7 @@ import type { StepStatus } from '@reqops/shared';
  * It accepts the shapes real exporters emit: current `gen_ai.usage.*_tokens`,
  * the legacy `prompt_tokens`/`completion_tokens` names, and Anthropic-style
  * cache token attributes. Spans that are neither a generation nor a step
- * (HTTP, DB, internal) are ignored and counted, not stored — ReqOps keeps a
+ * (HTTP, DB, internal) are ignored and counted, not stored — Palouse keeps a
  * usage ledger, not a full trace store (docs §4).
  */
 
@@ -101,9 +101,9 @@ const ATTR = {
   cacheWriteTokens: ['gen_ai.usage.cache_creation_input_tokens'],
   model: ['gen_ai.response.model', 'gen_ai.request.model'],
   provider: ['gen_ai.system', 'gen_ai.provider.name'],
-  stepTitle: ['reqops.step.title'],
-  handoffId: ['reqops.handoff_id'],
-  claimToken: ['reqops.claim_token'],
+  stepTitle: ['palouse.step.title'],
+  handoffId: ['palouse.handoff_id'],
+  claimToken: ['palouse.claim_token'],
 } as const;
 
 function indexAttrs(kvs: OtlpKeyValue[] | undefined): Map<string, OtlpAnyValue> {
@@ -149,7 +149,7 @@ function spanStatus(span: OtlpSpan): StepStatus {
 /**
  * Decode one OTLP trace export request. A span is classified, first match wins:
  *   1. carries token usage          → generation
- *   2. carries reqops.step.title    → step
+ *   2. carries palouse.step.title    → step
  *   3. is a trace root with a name  → step (title = span name)
  *   4. otherwise                    → ignored
  */

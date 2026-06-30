@@ -1,0 +1,52 @@
+name: Deploy Production
+
+# Prod deploys are gated on version tags (cut a release → tag vX.Y.Z), separate
+# from staging's deploy-on-push-to-main. workflow_dispatch allows manual re-runs.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+# Never overlap deploys; queue instead of cancel so migrations are not interrupted.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+env:
+  FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD }}
+
+jobs:
+  deploy-api:
+    name: Deploy api (runs migrations)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy . --config fly/api.prod.toml --dockerfile apps/api/Dockerfile --remote-only --yes
+
+  deploy-services:
+    name: Deploy ${{ matrix.app }}
+    needs: deploy-api
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # mcp rejoins at M5 — placeholder scaled to 0 machines until the real
+        # MCP server ships (standing rule: minimal hosting spend until needed).
+        app: [web, worker]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy . --config fly/${{ matrix.app }}.prod.toml --dockerfile apps/${{ matrix.app }}/Dockerfile --remote-only --yes
+
+  smoke:
+    name: Production smoke test
+    needs: deploy-services
+    runs-on: ubuntu-latest
+    steps:
+      - name: API liveness
+        run: curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://palouse-prod-api.fly.dev/health
+      - name: API readiness (DB reachable)
+        run: curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://palouse-prod-api.fly.dev/health/ready
+      - name: Web responds
+        run: curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors -o /dev/null https://palouse-prod-web.fly.dev/

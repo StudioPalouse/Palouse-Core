@@ -1,12 +1,12 @@
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { RESOURCES } from '@reqops/mcp-sdk';
-import { handoffService, taskService } from '@reqops/core';
-import type { Database } from '@reqops/db';
-import { forbidden } from '@reqops/shared';
+import { RESOURCES } from '@palouse/mcp-sdk';
+import { handoffService, taskService } from '@palouse/core';
+import type { Database } from '@palouse/db';
+import { forbidden } from '@palouse/shared';
 import type { VerifiedAgentKey } from './auth.js';
 
 /**
- * The three read-only `reqops://` resources from architecture.md §6. Agent
+ * The three read-only `palouse://` resources from architecture.md §6. Agent
  * keys are workspace-bound, so any {wsId} other than the key's own is refused.
  */
 export function registerResources(server: McpServer, db: Database, key: VerifiedAgentKey): void {

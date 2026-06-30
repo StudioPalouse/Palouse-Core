@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import type { Task, TaskComment, TaskSource, TaskStatus } from '@reqops/shared';
+import type { Task, TaskComment, TaskSource, TaskStatus } from '@palouse/shared';
 import {
   Badge,
   Button,
@@ -18,7 +18,7 @@ import {
   SheetTitle,
   Skeleton,
   Textarea,
-} from '@reqops/ui';
+} from '@palouse/ui';
 import { api } from '@/lib/api';
 import { formatDate, PRIORITY_LABELS, STATUS_LABELS, STATUS_ORDER } from '@/lib/task-meta';
 import { HandoffPanel } from './handoff-panel';

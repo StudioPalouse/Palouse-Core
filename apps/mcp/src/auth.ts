@@ -1,22 +1,22 @@
-import { auditEvents, type Database } from '@reqops/db';
-import { agentService } from '@reqops/core';
-import { unauthorized } from '@reqops/shared';
+import { auditEvents, type Database } from '@palouse/db';
+import { agentService } from '@palouse/core';
+import { unauthorized } from '@palouse/shared';
 
 export type VerifiedAgentKey = agentService.VerifiedAgentKey;
 
 /**
- * stdio transport: one key for the whole process, from REQOPS_API_KEY
- * (set by the MCP config snippet `reqops create-agent-key` prints).
+ * stdio transport: one key for the whole process, from PALOUSE_API_KEY
+ * (set by the MCP config snippet `palouse create-agent-key` prints).
  */
 export async function verifyKeyFromEnv(db: Database): Promise<VerifiedAgentKey> {
-  const raw = process.env.REQOPS_API_KEY;
+  const raw = process.env.PALOUSE_API_KEY;
   if (!raw) {
-    throw unauthorized('REQOPS_API_KEY is not set — mint one with `reqops create-agent-key`');
+    throw unauthorized('PALOUSE_API_KEY is not set — mint one with `palouse create-agent-key`');
   }
   return agentService.verifyApiKey(db, raw);
 }
 
-/** HTTP transport: `Authorization: Bearer reqops_agk_...` on every request. */
+/** HTTP transport: `Authorization: Bearer palouse_agk_...` on every request. */
 export async function verifyKeyFromHeader(
   db: Database,
   authorization: string | undefined,

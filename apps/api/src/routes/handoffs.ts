@@ -4,11 +4,11 @@ import {
   listHandoffsQuery,
   reviewHandoffInput,
   validation,
-} from '@reqops/shared';
-import { handoffService, narrateHandoff, usageService, workspaces } from '@reqops/core';
-import { loadEnv } from '@reqops/config';
-import { getDb } from '@reqops/db';
-import { enqueueNotifyAgent } from '@reqops/queue';
+} from '@palouse/shared';
+import { handoffService, narrateHandoff, usageService, workspaces } from '@palouse/core';
+import { loadEnv } from '@palouse/config';
+import { getDb } from '@palouse/db';
+import { enqueueNotifyAgent } from '@palouse/queue';
 import { getHandoffQueue } from '../queue.js';
 import { requireSession, type SessionVars } from '../middleware/session.js';
 

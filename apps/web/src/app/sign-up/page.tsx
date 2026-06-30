@@ -12,7 +12,7 @@ import {
   CardTitle,
   Input,
   Label,
-} from '@reqops/ui';
+} from '@palouse/ui';
 import { signUp } from '@/lib/auth-client';
 
 export default function SignUpPage() {
@@ -41,7 +41,7 @@ export default function SignUpPage() {
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Create your account</CardTitle>
-          <CardDescription>Self-hosted ReqOps — your data stays with you.</CardDescription>
+          <CardDescription>Start understanding and growing your business.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="flex flex-col gap-4">

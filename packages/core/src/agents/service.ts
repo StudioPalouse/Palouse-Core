@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { hash as argon2Hash, verify as argon2Verify } from '@node-rs/argon2';
 import { and, desc, eq, isNull } from 'drizzle-orm';
-import { agentApiKeys, agents, auditEvents, type Database } from '@reqops/db';
+import { agentApiKeys, agents, auditEvents, type Database } from '@palouse/db';
 import {
   notFound,
   unauthorized,
@@ -10,9 +10,9 @@ import {
   type AgentKeyScope,
   type CreateAgentInput,
   type CreateAgentKeyInput,
-} from '@reqops/shared';
+} from '@palouse/shared';
 
-const KEY_PREFIX = 'reqops_agk';
+const KEY_PREFIX = 'palouse_agk';
 
 function toDto(row: typeof agents.$inferSelect): Agent {
   return {
@@ -86,7 +86,7 @@ export async function getAgent(
 }
 
 /**
- * Mints `reqops_agk_<prefix>_<secret>`; the plaintext is returned exactly once
+ * Mints `palouse_agk_<prefix>_<secret>`; the plaintext is returned exactly once
  * and only the Argon2id hash of the secret is stored.
  */
 export async function createApiKey(
@@ -159,7 +159,7 @@ export async function verifyApiKey(db: Database, rawKey: string): Promise<Verifi
   if (cached && cached.expiresAt > Date.now()) return cached.value;
 
   const parts = rawKey.split('_');
-  // reqops_agk_<prefix>_<secret>
+  // palouse_agk_<prefix>_<secret>
   if (parts.length !== 4 || `${parts[0]}_${parts[1]}` !== KEY_PREFIX) {
     throw unauthorized('Malformed agent API key');
   }

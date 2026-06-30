@@ -1,6 +1,6 @@
 import { Command } from 'commander';
-import { loadEnv } from '@reqops/config';
-import { closeDb, getDb } from '@reqops/db';
+import { loadEnv } from '@palouse/config';
+import { closeDb, getDb } from '@palouse/db';
 import { sql } from 'drizzle-orm';
 
 export function doctorCommand(): Command {
@@ -33,7 +33,7 @@ export function doctorCommand(): Command {
       }
 
       for (const c of checks) {
-        console.log(`${c.ok ? 'OK  ' : 'FAIL'}  ${c.name}${c.detail ? `  — ${c.detail}` : ''}`);
+        console.log(`${c.ok ? 'OK  ' : 'FAIL'}  ${c.name}${c.detail ? `: ${c.detail}` : ''}`);
       }
 
       await closeDb();

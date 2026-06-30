@@ -4,7 +4,7 @@ import { uuid, externalSystem } from './ids.js';
 export const taskStatus = z.enum(['open', 'in_progress', 'blocked', 'done', 'archived']);
 export type TaskStatus = z.infer<typeof taskStatus>;
 
-export const sourceOfTruth = z.enum(['reqops', 'external']);
+export const sourceOfTruth = z.enum(['palouse', 'external']);
 export type SourceOfTruth = z.infer<typeof sourceOfTruth>;
 
 export const taskSchema = z.object({

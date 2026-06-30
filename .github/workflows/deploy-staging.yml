@@ -43,8 +43,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: API liveness
-        run: curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://reqops-staging-api.fly.dev/health
+        run: curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://palouse-staging-api.fly.dev/health
       - name: API readiness (DB reachable)
-        run: curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://reqops-staging-api.fly.dev/health/ready
+        run: curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://palouse-staging-api.fly.dev/health/ready
       - name: Web responds
-        run: curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors -o /dev/null https://reqops-staging-web.fly.dev/
+        run: curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors -o /dev/null https://palouse-staging-web.fly.dev/

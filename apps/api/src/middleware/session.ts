@@ -1,6 +1,6 @@
 import { createMiddleware } from 'hono/factory';
-import { unauthorized } from '@reqops/shared';
-import { getAuth } from '@reqops/auth';
+import { unauthorized } from '@palouse/shared';
+import { getAuth } from '@palouse/auth';
 
 export type SessionVars = {
   Variables: {

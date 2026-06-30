@@ -1,10 +1,10 @@
 {
-  "name": "@reqops/cli",
+  "name": "@palouse/cli",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "bin": {
-    "reqops": "./src/index.ts"
+    "palouse": "./src/index.ts"
   },
   "scripts": {
     "dev": "tsx src/index.ts",
@@ -13,11 +13,11 @@
     "test": "echo 'TODO: vitest'"
   },
   "dependencies": {
-    "@reqops/auth": "workspace:^",
-    "@reqops/config": "workspace:*",
-    "@reqops/core": "workspace:^",
-    "@reqops/db": "workspace:*",
-    "@reqops/shared": "workspace:^",
+    "@palouse/auth": "workspace:^",
+    "@palouse/config": "workspace:*",
+    "@palouse/core": "workspace:^",
+    "@palouse/db": "workspace:*",
+    "@palouse/shared": "workspace:^",
     "commander": "^12.1.0",
     "drizzle-orm": "^0.36.0"
   },

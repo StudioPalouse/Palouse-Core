@@ -1,9 +1,9 @@
 import { Command } from 'commander';
 import { eq } from 'drizzle-orm';
-import { loadEnv } from '@reqops/config';
-import { closeDb, getDb, users, workspaces } from '@reqops/db';
-import { agentService } from '@reqops/core';
-import { agentKind } from '@reqops/shared';
+import { loadEnv } from '@palouse/config';
+import { closeDb, getDb, users, workspaces } from '@palouse/db';
+import { agentService } from '@palouse/core';
+import { agentKind } from '@palouse/shared';
 
 /**
  * Resolves --workspace as a slug. Mutations need an actor for the audit log;
@@ -50,7 +50,7 @@ export function createAgentCommand(): Command {
           metadata: {},
         });
         console.log(`Agent created: ${agent.name} (${agent.id})`);
-        console.log(`Next: reqops create-agent-key ${agent.id} --workspace ${opts.workspace}`);
+        console.log(`Next: palouse create-agent-key ${agent.id} --workspace ${opts.workspace}`);
       } finally {
         await closeDb();
       }

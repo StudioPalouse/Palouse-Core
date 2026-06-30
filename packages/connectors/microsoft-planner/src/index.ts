@@ -4,7 +4,7 @@ import type {
   PullContext,
   PullResult,
   PushPayload,
-} from '@reqops/connector-core';
+} from '@palouse/connector-core';
 import {
   graphDateToIso,
   graphGet,
@@ -13,8 +13,8 @@ import {
   msBuildAuthUrl,
   msExchangeCode,
   msRefreshTokens,
-} from '@reqops/connector-microsoft-graph';
-import type { TaskStatus } from '@reqops/shared';
+} from '@palouse/connector-microsoft-graph';
+import type { TaskStatus } from '@palouse/shared';
 
 export const PROVIDER = 'ms_planner' as const;
 

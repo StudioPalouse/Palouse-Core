@@ -12,7 +12,7 @@ import {
   CardTitle,
   Input,
   Label,
-} from '@reqops/ui';
+} from '@palouse/ui';
 import { signIn } from '@/lib/auth-client';
 
 /** Confirmation shown after a completed password reset redirects back here. */
@@ -50,7 +50,7 @@ export default function SignInPage() {
     <main className="flex min-h-svh items-center justify-center px-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>Sign in to ReqOps</CardTitle>
+          <CardTitle>Sign in to Palouse</CardTitle>
           <CardDescription>Use your email and password.</CardDescription>
         </CardHeader>
         <CardContent>

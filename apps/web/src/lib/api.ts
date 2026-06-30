@@ -17,7 +17,7 @@ import type {
   UpdateTaskInput,
   UsageSummaryRow,
   Workspace,
-} from '@reqops/shared';
+} from '@palouse/shared';
 import { API_URL } from './auth-client';
 
 class ApiError extends Error {

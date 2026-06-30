@@ -1,17 +1,17 @@
-# ReqOps Web (Next.js) — staging
+# Palouse Web (Next.js) — staging
 # Deploy from repo root: flyctl deploy . --config fly/web.toml --dockerfile apps/web/Dockerfile --remote-only
-app = "reqops-staging-web"
+app = "palouse-staging-web"
 primary_region = "iad"
 
 [build.args]
   # Empty = same-origin: the browser talks only to the web origin and the Next
   # rewrite proxy forwards API paths over Fly private networking.
   NEXT_PUBLIC_API_URL = ""
-  API_PROXY_TARGET = "http://reqops-staging-api.internal:4000"
+  API_PROXY_TARGET = "http://palouse-staging-api.internal:4000"
 
 [env]
   NODE_ENV = "production"
-  API_PROXY_TARGET = "http://reqops-staging-api.internal:4000"
+  API_PROXY_TARGET = "http://palouse-staging-api.internal:4000"
 
 [http_service]
   internal_port = 3000

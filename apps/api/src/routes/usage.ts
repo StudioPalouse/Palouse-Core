@@ -3,10 +3,10 @@ import {
   upsertWorkspacePriceInput,
   usageSummaryQuery,
   validation,
-} from '@reqops/shared';
-import { usageService, workspaces } from '@reqops/core';
-import { loadEnv } from '@reqops/config';
-import { getDb } from '@reqops/db';
+} from '@palouse/shared';
+import { usageService, workspaces } from '@palouse/core';
+import { loadEnv } from '@palouse/config';
+import { getDb } from '@palouse/db';
 import { requireSession, type SessionVars } from '../middleware/session.js';
 
 // Mounted at /v1 — covers /v1/usage/* and /v1/model-prices*.

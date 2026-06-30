@@ -3,7 +3,7 @@
 // description agents see. Keeping these here guarantees server and client
 // SDKs never drift.
 import { z } from 'zod';
-import { handoffState, taskStatus } from '@reqops/shared';
+import { handoffState, taskStatus } from '@palouse/shared';
 
 export const TOOLS = [
   'list_tasks',
@@ -21,7 +21,7 @@ export const TOOLS = [
 
 export type ToolName = (typeof TOOLS)[number];
 
-const taskId = z.string().uuid().describe('ReqOps task id (uuid)');
+const taskId = z.string().uuid().describe('Palouse task id (uuid)');
 const claimToken = z
   .string()
   .uuid()
@@ -42,7 +42,7 @@ const usageInput = z.object({
     .number()
     .nonnegative()
     .optional()
-    .describe('Your own cost estimate, if you have one. Stored separately; ReqOps computes the official cost from its price catalog.'),
+    .describe('Your own cost estimate, if you have one. Stored separately; Palouse computes the official cost from its price catalog.'),
 });
 
 const optionalUsage = usageInput
@@ -125,7 +125,7 @@ export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
   log_step:
     "Record one plain-English step of your work (e.g. 'Read the task and gathered context'). These steps become the activity report a business user and their auditor read, so call it for each meaningful unit of work. Optionally attach the usage spent on this step.",
   report_usage:
-    "Report token usage from one LLM API call — call it after each LLM call, passing the usage block from the provider's response. ReqOps prices it against its model catalog so people can see what the work cost. If your agent exports OpenTelemetry GenAI traces to ReqOps you do not need report_usage.",
+    "Report token usage from one LLM API call — call it after each LLM call, passing the usage block from the provider's response. Palouse prices it against its model catalog so people can see what the work cost. If your agent exports OpenTelemetry GenAI traces to Palouse you do not need report_usage.",
   request_review:
     'Hand your work to a human reviewer and pause: moves the handoff to needs_review with your summary.',
   complete_task:
@@ -133,11 +133,11 @@ export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
   fail_task: 'Give up on the handoff with a reason. Terminal — the claim token stops working.',
 };
 
-/** `reqops://` resource URI templates exposed by the MCP server. */
+/** `palouse://` resource URI templates exposed by the MCP server. */
 export const RESOURCES = {
-  tasks: 'reqops://workspaces/{wsId}/tasks',
-  task: 'reqops://workspaces/{wsId}/tasks/{taskId}',
-  queuedHandoffs: 'reqops://workspaces/{wsId}/handoffs/queued',
+  tasks: 'palouse://workspaces/{wsId}/tasks',
+  task: 'palouse://workspaces/{wsId}/tasks/{taskId}',
+  queuedHandoffs: 'palouse://workspaces/{wsId}/handoffs/queued',
 } as const;
 
 export { handoffState, taskStatus };

@@ -6,7 +6,7 @@ import {
   handoffEvents,
   tasks,
   type Database,
-} from '@reqops/db';
+} from '@palouse/db';
 import {
   conflict,
   notFound,
@@ -17,7 +17,7 @@ import {
   type ListHandoffsQuery,
   type ReviewHandoffInput,
   type UsageReport,
-} from '@reqops/shared';
+} from '@palouse/shared';
 import { recordGeneration } from '../usage/service.js';
 
 const MAX_REQUEUES = 3;

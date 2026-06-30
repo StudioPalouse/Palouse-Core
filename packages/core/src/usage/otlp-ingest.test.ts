@@ -16,7 +16,7 @@ import {
   users,
   workspaces,
   type Database,
-} from '@reqops/db';
+} from '@palouse/db';
 import { claimNext, createHandoff } from '../handoffs/state-machine.js';
 import { getHandoffUsage, ingestOtlp, rebuildRollups, reportUsage } from './service.js';
 import type { OtlpTracePayload } from './otlp.js';
@@ -122,7 +122,7 @@ describe('ingestOtlp', () => {
     const ctx = await seed();
     const { handoffId } = await claimedHandoff(ctx);
 
-    const result = await ingestOtlp(db, key(ctx), genTrace('span-a', { 'reqops.handoff_id': handoffId }));
+    const result = await ingestOtlp(db, key(ctx), genTrace('span-a', { 'palouse.handoff_id': handoffId }));
     expect(result).toMatchObject({ generationsIngested: 1, generationsDuplicate: 0, uncorrelatedSpans: 0 });
 
     const [gen] = await db.select().from(llmGenerations).where(eq(llmGenerations.handoffId, handoffId));
@@ -142,7 +142,7 @@ describe('ingestOtlp', () => {
   it('dedupes a re-exported span (same handoff + span id) without double-counting rollups', async () => {
     const ctx = await seed();
     const { handoffId } = await claimedHandoff(ctx);
-    const payload = genTrace('span-dupe', { 'reqops.handoff_id': handoffId });
+    const payload = genTrace('span-dupe', { 'palouse.handoff_id': handoffId });
 
     const first = await ingestOtlp(db, key(ctx), payload);
     const second = await ingestOtlp(db, key(ctx), payload);
@@ -162,7 +162,7 @@ describe('ingestOtlp', () => {
     const ctx = await seed();
     const { handoffId, claimToken } = await claimedHandoff(ctx);
 
-    const byToken = await ingestOtlp(db, key(ctx), genTrace('span-tok', { 'reqops.claim_token': claimToken }));
+    const byToken = await ingestOtlp(db, key(ctx), genTrace('span-tok', { 'palouse.claim_token': claimToken }));
     expect(byToken.generationsIngested).toBe(1);
 
     const byFallback = await ingestOtlp(db, key(ctx), genTrace('span-fallback', {}));
@@ -176,7 +176,7 @@ describe('ingestOtlp', () => {
     const ctx = await seed();
     await claimedHandoff(ctx);
     // A handoff id the agent does not own / no active claim.
-    const result = await ingestOtlp(db, key(ctx), genTrace('span-bad', { 'reqops.handoff_id': crypto.randomUUID() }));
+    const result = await ingestOtlp(db, key(ctx), genTrace('span-bad', { 'palouse.handoff_id': crypto.randomUUID() }));
     expect(result).toMatchObject({ generationsIngested: 0, uncorrelatedSpans: 1 });
   });
 
@@ -194,8 +194,8 @@ describe('ingestOtlp', () => {
                   parentSpanId: 'root',
                   endTimeUnixNano: '1700000000000000000',
                   attributes: [
-                    { key: 'reqops.step.title', value: { stringValue: 'Reviewed the brief' } },
-                    { key: 'reqops.handoff_id', value: { stringValue: handoffId } },
+                    { key: 'palouse.step.title', value: { stringValue: 'Reviewed the brief' } },
+                    { key: 'palouse.handoff_id', value: { stringValue: handoffId } },
                   ],
                 } as never,
               ],
@@ -222,7 +222,7 @@ describe('double-counting rule', () => {
 
     // Agent (wrongly) reports via BOTH paths for the same work.
     await reportUsage(db, claimToken, { model: 'claude-opus-4-8', inputTokens: 1000, outputTokens: 200 });
-    await ingestOtlp(db, key(ctx), genTrace('span-otlp', { 'reqops.handoff_id': handoffId }));
+    await ingestOtlp(db, key(ctx), genTrace('span-otlp', { 'palouse.handoff_id': handoffId }));
 
     // Ledger holds both rows...
     const all = await db.select().from(llmGenerations).where(eq(llmGenerations.handoffId, handoffId));
@@ -240,7 +240,7 @@ describe('double-counting rule', () => {
     const ctx = await seed();
     const { handoffId, claimToken } = await claimedHandoff(ctx);
     await reportUsage(db, claimToken, { model: 'claude-opus-4-8', inputTokens: 1000, outputTokens: 200 });
-    await ingestOtlp(db, key(ctx), genTrace('span-otlp-2', { 'reqops.handoff_id': handoffId }));
+    await ingestOtlp(db, key(ctx), genTrace('span-otlp-2', { 'palouse.handoff_id': handoffId }));
 
     await rebuildRollups(db, ctx.workspaceId);
     const rollups = await db

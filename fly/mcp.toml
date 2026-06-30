@@ -1,11 +1,11 @@
-# ReqOps MCP server — staging
+# Palouse MCP server — staging
 # Deploy from repo root: flyctl deploy . --config fly/mcp.toml --dockerfile apps/mcp/Dockerfile --remote-only
 #
-# Agents authenticate per request (Authorization: Bearer reqops_agk_...), so
+# Agents authenticate per request (Authorization: Bearer palouse_agk_...), so
 # the machine can stop to zero between calls. Needs DATABASE_URL + REDIS_URL
-# (and the shared loader's BETTER_AUTH_SECRET / REQOPS_ENCRYPTION_KEY) set as
+# (and the shared loader's BETTER_AUTH_SECRET / PALOUSE_ENCRYPTION_KEY) set as
 # Fly secrets, same as the api app.
-app = "reqops-staging-mcp"
+app = "palouse-staging-mcp"
 primary_region = "iad"
 
 [http_service]
@@ -19,11 +19,11 @@ primary_region = "iad"
   NODE_ENV = "production"
   LOG_LEVEL = "info"
   MCP_HTTP_PORT = "7777"
-  REQOPS_API_URL = "https://reqops-staging-api.fly.dev"
+  PALOUSE_API_URL = "https://palouse-staging-api.fly.dev"
   # Required by the shared env loader; public base URLs are the web origin.
-  API_BASE_URL = "https://test.reqops.ai"
-  BETTER_AUTH_URL = "https://test.reqops.ai"
-  WEB_BASE_URL = "https://test.reqops.ai"
+  API_BASE_URL = "https://test.palouse.ai"
+  BETTER_AUTH_URL = "https://test.palouse.ai"
+  WEB_BASE_URL = "https://test.palouse.ai"
 
 [[vm]]
   size = "shared-cpu-1x"

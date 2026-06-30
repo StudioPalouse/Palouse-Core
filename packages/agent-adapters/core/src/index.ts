@@ -1,4 +1,4 @@
-import type { Handoff, Task } from '@reqops/shared';
+import type { Handoff, Task } from '@palouse/shared';
 
 export interface AgentDispatchInput {
   task: Task;

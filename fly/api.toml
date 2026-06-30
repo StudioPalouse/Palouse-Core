@@ -1,11 +1,11 @@
-# ReqOps API — staging
+# Palouse API — staging
 # Deploy from repo root: flyctl deploy . --config fly/api.toml --dockerfile apps/api/Dockerfile --remote-only
-app = "reqops-staging-api"
+app = "palouse-staging-api"
 primary_region = "iad"
 
 [deploy]
   # Runs in a one-off machine with this app's env + secrets before new machines start.
-  release_command = "pnpm --filter @reqops/db migrate"
+  release_command = "pnpm --filter @palouse/db migrate"
 
 [env]
   NODE_ENV = "production"
@@ -14,20 +14,20 @@ primary_region = "iad"
   # Public traffic (browsers, OAuth callbacks, webhooks) enters through the web
   # origin's rewrite proxy, so the public-facing base URLs are the WEB origin.
   
-  API_BASE_URL = "https://test.reqops.ai"
-  BETTER_AUTH_URL = "https://test.reqops.ai"
-  WEB_BASE_URL = "https://test.reqops.ai"
+  API_BASE_URL = "https://test.palouse.ai"
+  BETTER_AUTH_URL = "https://test.palouse.ai"
+  WEB_BASE_URL = "https://test.palouse.ai"
   # Hosted cloud: work emails only — public providers (gmail, outlook, …) can't sign up.
   AUTH_BLOCK_PUBLIC_EMAIL_DOMAINS = "true"
-  # Verified Resend sending domain (app.reqops.ai to be added later).
-  MAIL_FROM = "ReqOps <no-reply@test.reqops.ai>"
+  # Verified Resend sending domain (app.palouse.ai to be added later).
+  MAIL_FROM = "Palouse <no-reply@mail.palouse.ai>"
 
 [http_service]
   internal_port = 4000
   force_https = true
   auto_stop_machines = "stop"
   auto_start_machines = true
-  # Keep one machine warm: the web proxy targets reqops-staging-api.internal,
+  # Keep one machine warm: the web proxy targets palouse-staging-api.internal,
   # and .internal DNS only resolves started machines (it cannot wake stopped ones).
   min_machines_running = 1
 

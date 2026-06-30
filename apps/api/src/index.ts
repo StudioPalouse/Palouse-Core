@@ -1,5 +1,5 @@
 import { serve } from '@hono/node-server';
-import { loadEnv } from '@reqops/config';
+import { loadEnv } from '@palouse/config';
 import { buildApp } from './app.js';
 import { logger } from './logger.js';
 
@@ -12,7 +12,7 @@ const server = serve(
     port: env.API_PORT,
   },
   (info) => {
-    logger.info({ port: info.port }, 'ReqOps API listening');
+    logger.info({ port: info.port }, 'Palouse API listening');
   },
 );
 

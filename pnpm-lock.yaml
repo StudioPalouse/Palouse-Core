@@ -26,40 +26,40 @@ importers:
       '@hono/node-server':
         specifier: ^1.13.0
         version: 1.19.14(hono@4.12.25)
-      '@reqops/auth':
+      '@palouse/auth':
         specifier: workspace:*
         version: link:../../packages/auth
-      '@reqops/config':
+      '@palouse/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@reqops/connector-asana':
+      '@palouse/connector-asana':
         specifier: workspace:^
         version: link:../../packages/connectors/asana
-      '@reqops/connector-core':
+      '@palouse/connector-core':
         specifier: workspace:^
         version: link:../../packages/connectors/core
-      '@reqops/connector-google-tasks':
+      '@palouse/connector-google-tasks':
         specifier: workspace:^
         version: link:../../packages/connectors/google-tasks
-      '@reqops/connector-microsoft-planner':
+      '@palouse/connector-microsoft-planner':
         specifier: workspace:^
         version: link:../../packages/connectors/microsoft-planner
-      '@reqops/connector-microsoft-todo':
+      '@palouse/connector-microsoft-todo':
         specifier: workspace:^
         version: link:../../packages/connectors/microsoft-todo
-      '@reqops/connector-notion':
+      '@palouse/connector-notion':
         specifier: workspace:^
         version: link:../../packages/connectors/notion
-      '@reqops/core':
+      '@palouse/core':
         specifier: workspace:^
         version: link:../../packages/core
-      '@reqops/db':
+      '@palouse/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@reqops/queue':
+      '@palouse/queue':
         specifier: workspace:^
         version: link:../../packages/queue
-      '@reqops/shared':
+      '@palouse/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       bullmq:
@@ -90,19 +90,19 @@ importers:
 
   apps/cli:
     dependencies:
-      '@reqops/auth':
+      '@palouse/auth':
         specifier: workspace:^
         version: link:../../packages/auth
-      '@reqops/config':
+      '@palouse/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@reqops/core':
+      '@palouse/core':
         specifier: workspace:^
         version: link:../../packages/core
-      '@reqops/db':
+      '@palouse/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@reqops/shared':
+      '@palouse/shared':
         specifier: workspace:^
         version: link:../../packages/shared
       commander:
@@ -127,22 +127,22 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.0
         version: 1.29.0(zod@3.25.76)
-      '@reqops/config':
+      '@palouse/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@reqops/core':
+      '@palouse/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@reqops/db':
+      '@palouse/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@reqops/mcp-sdk':
+      '@palouse/mcp-sdk':
         specifier: workspace:*
         version: link:../../packages/mcp-sdk
-      '@reqops/queue':
+      '@palouse/queue':
         specifier: workspace:*
         version: link:../../packages/queue
-      '@reqops/shared':
+      '@palouse/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       pino:
@@ -164,10 +164,10 @@ importers:
 
   apps/web:
     dependencies:
-      '@reqops/shared':
+      '@palouse/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@reqops/ui':
+      '@palouse/ui':
         specifier: workspace:^
         version: link:../../packages/ui
       better-auth:
@@ -207,37 +207,37 @@ importers:
 
   apps/worker:
     dependencies:
-      '@reqops/config':
+      '@palouse/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@reqops/connector-asana':
+      '@palouse/connector-asana':
         specifier: workspace:^
         version: link:../../packages/connectors/asana
-      '@reqops/connector-core':
+      '@palouse/connector-core':
         specifier: workspace:^
         version: link:../../packages/connectors/core
-      '@reqops/connector-google-tasks':
+      '@palouse/connector-google-tasks':
         specifier: workspace:^
         version: link:../../packages/connectors/google-tasks
-      '@reqops/connector-microsoft-planner':
+      '@palouse/connector-microsoft-planner':
         specifier: workspace:^
         version: link:../../packages/connectors/microsoft-planner
-      '@reqops/connector-microsoft-todo':
+      '@palouse/connector-microsoft-todo':
         specifier: workspace:^
         version: link:../../packages/connectors/microsoft-todo
-      '@reqops/connector-notion':
+      '@palouse/connector-notion':
         specifier: workspace:^
         version: link:../../packages/connectors/notion
-      '@reqops/core':
+      '@palouse/core':
         specifier: workspace:^
         version: link:../../packages/core
-      '@reqops/db':
+      '@palouse/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@reqops/queue':
+      '@palouse/queue':
         specifier: workspace:^
         version: link:../../packages/queue
-      '@reqops/shared':
+      '@palouse/shared':
         specifier: workspace:^
         version: link:../../packages/shared
       bullmq:
@@ -265,7 +265,7 @@ importers:
 
   packages/agent-adapters/core:
     dependencies:
-      '@reqops/shared':
+      '@palouse/shared':
         specifier: workspace:*
         version: link:../../shared
     devDependencies:
@@ -275,10 +275,10 @@ importers:
 
   packages/agent-adapters/paperclip:
     dependencies:
-      '@reqops/agent-adapter-core':
+      '@palouse/agent-adapter-core':
         specifier: workspace:*
         version: link:../core
-      '@reqops/shared':
+      '@palouse/shared':
         specifier: workspace:*
         version: link:../../shared
     devDependencies:
@@ -288,13 +288,13 @@ importers:
 
   packages/auth:
     dependencies:
-      '@reqops/config':
+      '@palouse/config':
         specifier: workspace:*
         version: link:../config
-      '@reqops/db':
+      '@palouse/db':
         specifier: workspace:*
         version: link:../db
-      '@reqops/mail':
+      '@palouse/mail':
         specifier: workspace:*
         version: link:../mail
       better-auth:
@@ -326,10 +326,10 @@ importers:
 
   packages/connectors/asana:
     dependencies:
-      '@reqops/connector-core':
+      '@palouse/connector-core':
         specifier: workspace:*
         version: link:../core
-      '@reqops/shared':
+      '@palouse/shared':
         specifier: workspace:*
         version: link:../../shared
     devDependencies:
@@ -339,7 +339,7 @@ importers:
 
   packages/connectors/core:
     dependencies:
-      '@reqops/shared':
+      '@palouse/shared':
         specifier: workspace:*
         version: link:../../shared
       zod:
@@ -352,10 +352,10 @@ importers:
 
   packages/connectors/google-tasks:
     dependencies:
-      '@reqops/connector-core':
+      '@palouse/connector-core':
         specifier: workspace:*
         version: link:../core
-      '@reqops/shared':
+      '@palouse/shared':
         specifier: workspace:*
         version: link:../../shared
     devDependencies:
@@ -365,10 +365,10 @@ importers:
 
   packages/connectors/microsoft-graph:
     dependencies:
-      '@reqops/connector-core':
+      '@palouse/connector-core':
         specifier: workspace:*
         version: link:../core
-      '@reqops/shared':
+      '@palouse/shared':
         specifier: workspace:*
         version: link:../../shared
     devDependencies:
@@ -378,13 +378,13 @@ importers:
 
   packages/connectors/microsoft-planner:
     dependencies:
-      '@reqops/connector-core':
+      '@palouse/connector-core':
         specifier: workspace:*
         version: link:../core
-      '@reqops/connector-microsoft-graph':
+      '@palouse/connector-microsoft-graph':
         specifier: workspace:*
         version: link:../microsoft-graph
-      '@reqops/shared':
+      '@palouse/shared':
         specifier: workspace:*
         version: link:../../shared
     devDependencies:
@@ -394,13 +394,13 @@ importers:
 
   packages/connectors/microsoft-todo:
     dependencies:
-      '@reqops/connector-core':
+      '@palouse/connector-core':
         specifier: workspace:*
         version: link:../core
-      '@reqops/connector-microsoft-graph':
+      '@palouse/connector-microsoft-graph':
         specifier: workspace:*
         version: link:../microsoft-graph
-      '@reqops/shared':
+      '@palouse/shared':
         specifier: workspace:*
         version: link:../../shared
     devDependencies:
@@ -410,10 +410,10 @@ importers:
 
   packages/connectors/notion:
     dependencies:
-      '@reqops/connector-core':
+      '@palouse/connector-core':
         specifier: workspace:*
         version: link:../core
-      '@reqops/shared':
+      '@palouse/shared':
         specifier: workspace:*
         version: link:../../shared
     devDependencies:
@@ -426,13 +426,13 @@ importers:
       '@node-rs/argon2':
         specifier: ^2.0.2
         version: 2.0.2
-      '@reqops/connector-core':
+      '@palouse/connector-core':
         specifier: workspace:^
         version: link:../connectors/core
-      '@reqops/db':
+      '@palouse/db':
         specifier: workspace:*
         version: link:../db
-      '@reqops/shared':
+      '@palouse/shared':
         specifier: workspace:*
         version: link:../shared
       drizzle-orm:
@@ -454,7 +454,7 @@ importers:
 
   packages/db:
     dependencies:
-      '@reqops/config':
+      '@palouse/config':
         specifier: workspace:*
         version: link:../config
       drizzle-orm:
@@ -479,7 +479,7 @@ importers:
 
   packages/mail:
     dependencies:
-      '@reqops/config':
+      '@palouse/config':
         specifier: workspace:*
         version: link:../config
       resend:
@@ -492,7 +492,7 @@ importers:
 
   packages/mcp-sdk:
     dependencies:
-      '@reqops/shared':
+      '@palouse/shared':
         specifier: workspace:*
         version: link:../shared
       zod:

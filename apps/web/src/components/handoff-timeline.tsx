@@ -1,14 +1,14 @@
 'use client';
 
-import type { HandoffEvent, HandoffStep } from '@reqops/shared';
-import { cn } from '@reqops/ui';
+import type { HandoffEvent, HandoffStep } from '@palouse/shared';
+import { cn } from '@palouse/ui';
 import { EVENT_LABELS, formatDateTime } from '@/lib/handoff-meta';
 
 function eventDetail(event: HandoffEvent): string | null {
   const { kind, payload } = event;
   if (kind === 'reviewed') {
     const decision = payload.decision === 'approved' ? 'Approved' : 'Sent back';
-    const note = typeof payload.note === 'string' && payload.note ? ` — ${payload.note}` : '';
+    const note = typeof payload.note === 'string' && payload.note ? `: ${payload.note}` : '';
     return `${decision}${note}`;
   }
   if ((kind === 'failed' || kind === 'requeued' || kind === 'cancelled') && payload.reason) {
@@ -77,7 +77,7 @@ export function HandoffTimeline({
           <div className="flex-1 pb-4">
             <p className={cn('text-sm', item.isStep && 'text-muted-foreground')}>
               {item.label}
-              {item.failed && item.isStep ? ' — failed' : ''}
+              {item.failed && item.isStep ? ' (failed)' : ''}
             </p>
             {item.detail && (
               <p className="text-muted-foreground text-xs whitespace-pre-wrap">{item.detail}</p>

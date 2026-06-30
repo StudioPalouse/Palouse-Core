@@ -1,5 +1,5 @@
 {
-  "name": "@reqops/auth",
+  "name": "@palouse/auth",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -14,9 +14,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@reqops/config": "workspace:*",
-    "@reqops/db": "workspace:*",
-    "@reqops/mail": "workspace:*",
+    "@palouse/config": "workspace:*",
+    "@palouse/db": "workspace:*",
+    "@palouse/mail": "workspace:*",
     "better-auth": "^1.1.0"
   },
   "devDependencies": {

@@ -1,5 +1,5 @@
 {
-  "name": "@reqops/core",
+  "name": "@palouse/core",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -15,9 +15,9 @@
   },
   "dependencies": {
     "@node-rs/argon2": "^2.0.2",
-    "@reqops/connector-core": "workspace:^",
-    "@reqops/db": "workspace:*",
-    "@reqops/shared": "workspace:*",
+    "@palouse/connector-core": "workspace:^",
+    "@palouse/db": "workspace:*",
+    "@palouse/shared": "workspace:*",
     "drizzle-orm": "^0.36.0"
   },
   "devDependencies": {

@@ -6,12 +6,12 @@ Postgres and Redis also on Fly so the whole environment lives in one org:
 
 | Piece | Where | Name / URL |
 |---|---|---|
-| API (Hono) | Fly `iad` | `reqops-staging-api` → <https://reqops-staging-api.fly.dev> |
-| Web (Next.js) | Fly `iad` | `reqops-staging-web` → <https://reqops-staging-web.fly.dev> |
-| Worker (BullMQ) | Fly `iad` | `reqops-staging-worker` (no public URL) |
-| MCP | Fly `iad` | `reqops-staging-mcp` → <https://reqops-staging-mcp.fly.dev> (streamable HTTP, per-request agent-key auth) |
-| Postgres | Fly `iad` | `reqops-staging-db` (single node, private — `reqops-staging-db.flycast:5432`) |
-| Redis | Upstash via Fly | `reqops-staging-redis` (eviction disabled — BullMQ requirement) |
+| API (Hono) | Fly `iad` | `palouse-staging-api` → <https://palouse-staging-api.fly.dev> |
+| Web (Next.js) | Fly `iad` | `palouse-staging-web` → <https://palouse-staging-web.fly.dev> |
+| Worker (BullMQ) | Fly `iad` | `palouse-staging-worker` (no public URL) |
+| MCP | Fly `iad` | `palouse-staging-mcp` → <https://palouse-staging-mcp.fly.dev> (streamable HTTP, per-request agent-key auth) |
+| Postgres | Fly `iad` | `palouse-staging-db` (single node, private — `palouse-staging-db.flycast:5432`) |
+| Redis | Upstash via Fly | `palouse-staging-redis` (eviction disabled — BullMQ requirement) |
 
 Config lives in `fly/*.toml` (one per app). Non-secret env (URLs, ports,
 `NODE_ENV`) is in each toml's `[env]`; secrets are pushed with
@@ -24,12 +24,12 @@ migrations on every deploy, before new machines receive traffic.
 fly auth login
 ./scripts/fly-provision.sh        # creates the 4 apps + Fly Postgres + Upstash Redis
                                   # (prints REDIS_URL; follow its prompt to create the
-                                  #  reqops_app role + reqops database on Postgres)
+                                  #  palouse_app role + palouse database on Postgres)
 
 cp .env.staging.example .env.staging
-# Fill in: DATABASE_URL (reqops_app password chosen during provisioning),
+# Fill in: DATABASE_URL (palouse_app password chosen during provisioning),
 # REDIS_URL (printed by provision), and generate
-# BETTER_AUTH_SECRET / REQOPS_ENCRYPTION_KEY per the comments in the file.
+# BETTER_AUTH_SECRET / PALOUSE_ENCRYPTION_KEY per the comments in the file.
 
 ./scripts/fly-secrets.sh          # pushes secrets to api / worker / mcp
 ./scripts/fly-deploy.sh           # first deploy of all four apps
@@ -39,7 +39,7 @@ For CI deploys, create a deploy token and save it as the `FLY_API_TOKEN`
 repository secret on GitHub:
 
 ```bash
-fly tokens create org -o reqops
+fly tokens create org -o palouse
 gh secret set FLY_API_TOKEN
 ```
 
@@ -60,11 +60,11 @@ migration is never interrupted mid-flight.
 
 ```bash
 ./scripts/fly-deploy.sh api            # deploy one app from your working tree
-fly logs --app reqops-staging-api      # tail logs
-fly logs --app reqops-staging-worker
-fly ssh console --app reqops-staging-api   # shell inside a machine
-fly secrets list --app reqops-staging-api
-curl https://reqops-staging-api.fly.dev/health/ready
+fly logs --app palouse-staging-api      # tail logs
+fly logs --app palouse-staging-worker
+fly ssh console --app palouse-staging-api   # shell inside a machine
+fly secrets list --app palouse-staging-api
+curl https://palouse-staging-api.fly.dev/health/ready
 ```
 
 Testing a branch without merging: `./scripts/fly-deploy.sh` deploys whatever is
@@ -72,7 +72,7 @@ checked out locally — staging does not have to track `main`.
 
 Connector testing in the cloud: webhooks finally work end-to-end (no tunnel
 needed). Point each provider's OAuth app redirect URI at
-`https://reqops-staging-web.fly.dev/oauth/<provider>/callback` and set the
+`https://palouse-staging-web.fly.dev/oauth/<provider>/callback` and set the
 client ID/secret pairs in `.env.staging`, then re-run `./scripts/fly-secrets.sh`.
 Asana will subscribe real webhooks because `API_BASE_URL` is publicly reachable.
 
@@ -80,7 +80,7 @@ Asana will subscribe real webhooks because `API_BASE_URL` is publicly reachable.
 
 Browsers only ever talk to the **web origin**. `apps/web/next.config.mjs`
 rewrites `/v1/*`, `/api/*`, `/oauth/*`, and `/webhooks/*` server-side to the API
-over Fly private networking (`API_PROXY_TARGET = http://reqops-staging-api.internal:4000`),
+over Fly private networking (`API_PROXY_TARGET = http://palouse-staging-api.internal:4000`),
 so auth cookies are first-party and no infra hostname is user-visible. Because
 `.internal` DNS only lists started machines, the API keeps
 `min_machines_running = 1`.
@@ -90,38 +90,39 @@ Consequences:
   origin — OAuth callbacks and provider webhooks enter through the proxy too.
 - `NEXT_PUBLIC_API_URL` is empty (same-origin). Setting it re-points the browser
   at an API origin directly; only do that with a shared parent domain.
-- Direct API access at `https://reqops-staging-api.fly.dev` still works for
+- Direct API access at `https://palouse-staging-api.fly.dev` still works for
   health checks and machine-to-machine clients (CLI, MCP agents).
 
 ## Custom domains
 
-Domain plan: **staging lives on `test.reqops.ai`**; **`www.reqops.ai` is
-reserved for production** and gets wired up when the prod environment exists.
-DNS is hosted at Namecheap.
+Domain split: the **app lives on `palouse.ai`** (`test.palouse.ai` staging,
+`app.palouse.ai` prod); `palouse.io` is the corporate domain (M365 mail) and is
+not used for app hosting. `palouse.ai` DNS is on **Namecheap** (host field is
+relative to `palouse.ai`).
 
-Staging setup (cert already added via
-`fly certs add test.reqops.ai --app reqops-staging-web`); DNS records at
-Namecheap (host field is just `test` / `_acme-challenge.test`):
+Staging setup (cert added via
+`fly certs add test.palouse.ai --app palouse-staging-web`); one record at
+Namecheap:
 
-| Type  | Host                   | Value                                  |
-|-------|------------------------|----------------------------------------|
-| A     | `test`                 | `66.241.125.213`                       |
-| AAAA  | `test`                 | `2a09:8280:1::126:2677:0`              |
-| CNAME | `_acme-challenge.test` | `test.reqops.ai.ondnrge.flydns.net`    |
+| Type  | Host   | Value                          |
+|-------|--------|--------------------------------|
+| CNAME | `test` | `palouse-staging-web.fly.dev`  |
 
-(Alternative to A+AAAA: `CNAME test -> ondnrge.reqops-staging-web.fly.dev`.)
+A CNAME (not A/AAAA) keeps it off the shared Fly IP and survives IP changes; Fly
+validates the cert over HTTP-01 through it. (Alternative: `A test → 66.241.124.106`,
+IPv4 only.)
 
-After the cert verifies (`fly certs check test.reqops.ai`):
+After the cert verifies (`fly certs check test.palouse.ai`):
 1. Public origin in `fly/api.toml`, `fly/worker.toml`, `fly/mcp.toml`
-   (`API_BASE_URL` / `BETTER_AUTH_URL` / `WEB_BASE_URL`) → `https://test.reqops.ai`.
+   (`API_BASE_URL` / `BETTER_AUTH_URL` / `WEB_BASE_URL`) → `https://test.palouse.ai`.
 2. Redeploy: `./scripts/fly-deploy.sh api worker mcp web`.
 3. Connector OAuth app redirect URIs →
-   `https://test.reqops.ai/oauth/<provider>/callback`.
+   `https://test.palouse.ai/oauth/<provider>/callback`.
 
 The API needs no certificate of its own: public traffic enters through the web
-origin's rewrite proxy, and `reqops-staging-api.fly.dev` remains for direct
+origin's rewrite proxy, and `palouse-staging-api.fly.dev` remains for direct
 machine-to-machine use. Production later repeats the same steps with
-`www.reqops.ai` against the `reqops-prod-web` app.
+`app.palouse.ai` against the `palouse-prod-web` app.
 
 ## Costs & scaling notes
 
@@ -137,11 +138,11 @@ Redis commands.
 - Postgres is a single Fly machine (`shared-cpu-1x`, 1 GB volume, ~$2–3/mo) in
   the same org — private networking only (`.flycast`, no TLS, no public IP).
   No HA on staging by design; production gets its own properly sized cluster.
-  Connect ad-hoc with `fly postgres connect -a reqops-staging-db`.
+  Connect ad-hoc with `fly postgres connect -a palouse-staging-db`.
 - Upstash Redis must keep eviction disabled or BullMQ can silently lose jobs.
 
 History: staging originally ran on a free-tier Supabase Postgres (project
-`reqops-staging`); it was consolidated onto Fly in June 2026 so the whole
+`reqops-staging`, from the app's former name); it was consolidated onto Fly in June 2026 so the whole
 environment lives in one provider, and the Supabase project was paused.
 
 ## Production (later)

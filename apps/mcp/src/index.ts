@@ -2,19 +2,19 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import pino from 'pino';
-import { loadEnv } from '@reqops/config';
-import { getDb, type Database } from '@reqops/db';
-import { ReqOpsError } from '@reqops/shared';
+import { loadEnv } from '@palouse/config';
+import { getDb, type Database } from '@palouse/db';
+import { PalouseError } from '@palouse/shared';
 import { verifyKeyFromEnv, verifyKeyFromHeader } from './auth.js';
 import { buildServer } from './server.js';
 
 const useStdio =
-  process.argv.includes('--stdio') || process.env.REQOPS_MCP_TRANSPORT === 'stdio';
+  process.argv.includes('--stdio') || process.env.PALOUSE_MCP_TRANSPORT === 'stdio';
 
 const env = loadEnv();
 // stdio owns stdout for the protocol — logs must go to stderr there.
 const logger = pino(
-  { level: env.LOG_LEVEL, base: { service: 'reqops-mcp' } },
+  { level: env.LOG_LEVEL, base: { service: 'palouse-mcp' } },
   useStdio ? pino.destination(2) : undefined,
 );
 
@@ -53,8 +53,8 @@ function runHttp(database: Database): void {
       await server.connect(transport);
       await transport.handleRequest(req, res);
     } catch (err) {
-      const status = err instanceof ReqOpsError ? err.status : 500;
-      const message = err instanceof ReqOpsError ? err.message : 'Internal server error';
+      const status = err instanceof PalouseError ? err.status : 500;
+      const message = err instanceof PalouseError ? err.message : 'Internal server error';
       if (status >= 500) logger.error({ err }, 'MCP request failed');
       if (!res.headersSent) {
         res.writeHead(status, { 'content-type': 'application/json' });

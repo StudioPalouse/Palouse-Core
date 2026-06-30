@@ -1,18 +1,18 @@
-name: reqops-dev
+name: palouse-dev
 
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: reqops
-      POSTGRES_PASSWORD: reqops
-      POSTGRES_DB: reqops
+      POSTGRES_USER: palouse
+      POSTGRES_PASSWORD: palouse
+      POSTGRES_DB: palouse
     ports:
       - '5432:5432'
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U reqops -d reqops']
+      test: ['CMD-SHELL', 'pg_isready -U palouse -d palouse']
       interval: 5s
       timeout: 5s
       retries: 10

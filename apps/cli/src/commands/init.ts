@@ -36,7 +36,7 @@ export function initCommand(): Command {
       const template = readFileSync(examplePath, 'utf8');
       const filled = template
         .replace(/^BETTER_AUTH_SECRET=.*$/m, `BETTER_AUTH_SECRET=${randomBytes(32).toString('base64')}`)
-        .replace(/^REQOPS_ENCRYPTION_KEY=.*$/m, `REQOPS_ENCRYPTION_KEY=${randomBytes(32).toString('hex')}`);
+        .replace(/^PALOUSE_ENCRYPTION_KEY=.*$/m, `PALOUSE_ENCRYPTION_KEY=${randomBytes(32).toString('hex')}`);
 
       writeFileSync(envPath, filled);
       console.log(`Wrote ${envPath}`);

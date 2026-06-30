@@ -5,7 +5,7 @@ export default defineConfig({
   out: './migrations',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? 'postgres://reqops:reqops@localhost:5432/reqops',
+    url: process.env.DATABASE_URL ?? 'postgres://palouse:palouse@localhost:5432/palouse',
   },
   strict: true,
   verbose: true,

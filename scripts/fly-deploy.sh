@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy all ReqOps staging apps from the local checkout.
+# Deploy all Palouse staging apps from the local checkout.
 # API deploys first because its release_command runs DB migrations.
 #
 # Usage: ./scripts/fly-deploy.sh [api|web|worker|mcp ...]   (default: all)
@@ -22,4 +22,4 @@ for t in "${TARGETS[@]}"; do
 done
 
 echo "==> Smoke check"
-curl -fsS https://reqops-staging-api.fly.dev/health && echo " api /health OK" || echo " api /health FAILED"
+curl -fsS https://palouse-staging-api.fly.dev/health && echo " api /health OK" || echo " api /health FAILED"

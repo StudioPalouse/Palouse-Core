@@ -7,7 +7,7 @@ export type ErrorCode =
   | 'INTEGRATION_FAILURE'
   | 'INTERNAL';
 
-export class ReqOpsError extends Error {
+export class PalouseError extends Error {
   readonly code: ErrorCode;
   readonly status: number;
   readonly details?: unknown;
@@ -20,9 +20,9 @@ export class ReqOpsError extends Error {
   }
 }
 
-export const notFound = (msg: string) => new ReqOpsError('NOT_FOUND', msg, 404);
-export const unauthorized = (msg = 'Unauthorized') => new ReqOpsError('UNAUTHORIZED', msg, 401);
-export const forbidden = (msg = 'Forbidden') => new ReqOpsError('FORBIDDEN', msg, 403);
-export const conflict = (msg: string) => new ReqOpsError('CONFLICT', msg, 409);
+export const notFound = (msg: string) => new PalouseError('NOT_FOUND', msg, 404);
+export const unauthorized = (msg = 'Unauthorized') => new PalouseError('UNAUTHORIZED', msg, 401);
+export const forbidden = (msg = 'Forbidden') => new PalouseError('FORBIDDEN', msg, 403);
+export const conflict = (msg: string) => new PalouseError('CONFLICT', msg, 409);
 export const validation = (msg: string, details?: unknown) =>
-  new ReqOpsError('VALIDATION', msg, 400, details);
+  new PalouseError('VALIDATION', msg, 400, details);

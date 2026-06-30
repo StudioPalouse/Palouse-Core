@@ -40,19 +40,19 @@ const envSchema = z.object({
   API_BASE_URL: z.string().url(),
   WEB_BASE_URL: z.string().url(),
 
-  REQOPS_ENCRYPTION_KEY: z
+  PALOUSE_ENCRYPTION_KEY: z
     .string()
     .regex(/^[0-9a-f]{64}$/i, 'must be 64 hex chars (AES-256 key)'),
 
   MCP_HTTP_PORT: z.coerce.number().int().positive().default(7777),
-  REQOPS_API_URL: z.string().url().optional(),
+  PALOUSE_API_URL: z.string().url().optional(),
 
   // Transactional mail (Resend). Unset = mail is a logged no-op, so
   // self-hosted deployments work without a mail provider.
   RESEND_API_KEY: z.string().optional(),
   // Must use a domain verified in the Resend dashboard for real delivery;
   // the onboarding default only delivers to the Resend account owner.
-  MAIL_FROM: z.string().default('ReqOps <onboarding@resend.dev>'),
+  MAIL_FROM: z.string().default('Palouse <onboarding@resend.dev>'),
 
   S3_ENDPOINT: z.string().url().optional(),
   S3_REGION: z.string().default('us-east-1'),

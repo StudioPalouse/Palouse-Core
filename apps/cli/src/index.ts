@@ -12,8 +12,8 @@ import { rebuildRollupsCommand } from './commands/rebuild-rollups.js';
 const program = new Command();
 
 program
-  .name('reqops')
-  .description('ReqOps self-host CLI')
+  .name('palouse')
+  .description('Palouse self-host CLI')
   .version('0.0.0');
 
 program.addCommand(initCommand());

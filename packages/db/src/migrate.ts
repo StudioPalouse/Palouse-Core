@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
-import { loadEnv } from '@reqops/config';
+import { loadEnv } from '@palouse/config';
 import { seedModelPrices, CATALOG_VERSION } from './seed/model-prices.js';
 import type { Database } from './index.js';
 

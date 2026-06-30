@@ -1,7 +1,7 @@
 /**
  * Signup email-domain policy.
  *
- * Two independent controls, both env-driven (see @reqops/config):
+ * Two independent controls, both env-driven (see @palouse/config):
  * - AUTH_BLOCK_PUBLIC_EMAIL_DOMAINS: rejects the well-known public/free
  *   providers below. The hosted cloud turns this on; self-hosted deployments
  *   leave it off unless the admin opts in.

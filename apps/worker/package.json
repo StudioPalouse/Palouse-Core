@@ -1,5 +1,5 @@
 {
-  "name": "@reqops/worker",
+  "name": "@palouse/worker",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,21 +12,21 @@
     "test": "echo 'TODO: vitest'"
   },
   "dependencies": {
-    "@reqops/config": "workspace:*",
-    "@reqops/connector-asana": "workspace:^",
-    "@reqops/connector-core": "workspace:^",
-    "@reqops/connector-google-tasks": "workspace:^",
-    "@reqops/connector-notion": "workspace:^",
-    "@reqops/core": "workspace:^",
-    "@reqops/db": "workspace:*",
-    "@reqops/queue": "workspace:^",
-    "@reqops/shared": "workspace:^",
+    "@palouse/config": "workspace:*",
+    "@palouse/connector-asana": "workspace:^",
+    "@palouse/connector-core": "workspace:^",
+    "@palouse/connector-google-tasks": "workspace:^",
+    "@palouse/connector-notion": "workspace:^",
+    "@palouse/core": "workspace:^",
+    "@palouse/db": "workspace:*",
+    "@palouse/queue": "workspace:^",
+    "@palouse/shared": "workspace:^",
     "bullmq": "^5.30.0",
     "drizzle-orm": "^0.36.0",
     "ioredis": "^5.10.1",
     "pino": "^9.5.0",
-    "@reqops/connector-microsoft-todo": "workspace:^",
-    "@reqops/connector-microsoft-planner": "workspace:^"
+    "@palouse/connector-microsoft-todo": "workspace:^",
+    "@palouse/connector-microsoft-planner": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

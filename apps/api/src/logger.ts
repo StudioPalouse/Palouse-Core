@@ -1,9 +1,9 @@
 import pino from 'pino';
-import { loadEnv } from '@reqops/config';
+import { loadEnv } from '@palouse/config';
 
 const env = loadEnv();
 
 export const logger = pino({
   level: env.LOG_LEVEL,
-  base: { service: 'reqops-api' },
+  base: { service: 'palouse-api' },
 });

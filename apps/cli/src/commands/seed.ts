@@ -1,13 +1,13 @@
 import { Command } from 'commander';
 import { eq } from 'drizzle-orm';
-import { loadEnv } from '@reqops/config';
-import { closeDb, getDb, users } from '@reqops/db';
-import { getAuth } from '@reqops/auth';
-import { userActor } from '@reqops/shared';
-import { workspaces as workspaceService, taskService } from '@reqops/core';
+import { loadEnv } from '@palouse/config';
+import { closeDb, getDb, users } from '@palouse/db';
+import { getAuth } from '@palouse/auth';
+import { userActor } from '@palouse/shared';
+import { workspaces as workspaceService, taskService } from '@palouse/core';
 
-const DEMO_EMAIL = 'demo@reqops.local';
-const DEMO_PASSWORD = 'reqops-demo-password';
+const DEMO_EMAIL = 'demo@palouse.local';
+const DEMO_PASSWORD = 'palouse-demo-password';
 
 const DEMO_TASKS = [
   { title: 'Review Q2 connector roadmap', priority: 1, status: 'open' },
