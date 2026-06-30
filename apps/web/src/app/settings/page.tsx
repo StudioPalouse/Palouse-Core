@@ -3,7 +3,14 @@
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { Agent, Integration, Workspace } from '@palouse/shared';
+import type {
+  Agent,
+  Integration,
+  MemberRole,
+  Workspace,
+  WorkspaceMember,
+} from '@palouse/shared';
+import { memberRole } from '@palouse/shared';
 import {
   Badge,
   Button,
@@ -13,11 +20,24 @@ import {
   CardHeader,
   CardTitle,
   cn,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@palouse/ui';
 import { AppShell } from '@/components/app-shell';
 import { NewAgentDialog } from '@/components/new-agent-dialog';
-import { api, oauthStartUrl } from '@/lib/api';
+import { api, ApiError, oauthStartUrl } from '@/lib/api';
 import { AGENT_KIND_LABELS } from '@/lib/agent-meta';
+import { useSession } from '@/lib/auth-client';
+
+const ROLE_LABELS: Record<MemberRole, string> = {
+  owner: 'Owner',
+  admin: 'Admin',
+  member: 'Member',
+  viewer: 'Viewer',
+};
 
 const PROVIDER_LABELS: Record<string, string> = {
   google_tasks: 'Google Tasks',
@@ -215,6 +235,99 @@ function ConnectionsCard({ workspace }: { workspace: Workspace }) {
   );
 }
 
+function TeamCard({ workspace }: { workspace: Workspace }) {
+  const { data: session } = useSession();
+  const myId = session?.user.id;
+  const canManage = workspace.role === 'owner' || workspace.role === 'admin';
+  const [members, setMembers] = useState<WorkspaceMember[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(() => {
+    api.listMembers(workspace.id).then(({ members }) => setMembers(members));
+  }, [workspace.id]);
+
+  useEffect(refresh, [refresh]);
+
+  async function changeRole(userId: string, role: MemberRole) {
+    setError(null);
+    try {
+      await api.updateMemberRole(workspace.id, userId, role);
+      refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to update role');
+    }
+  }
+
+  async function remove(userId: string) {
+    if (!window.confirm('Remove this member from the workspace?')) return;
+    setError(null);
+    try {
+      await api.removeMember(workspace.id, userId);
+      refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to remove member');
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Team</CardTitle>
+        <CardDescription>People with access to this workspace and their roles.</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {error && <p className="text-destructive text-sm">{error}</p>}
+        {members === null ? (
+          <p className="text-muted-foreground text-sm">Loading members…</p>
+        ) : (
+          <ul className="divide-y rounded-md border">
+            {members.map((m) => {
+              const isSelf = m.userId === myId;
+              return (
+                <li key={m.userId} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium">
+                      {m.name ?? m.email}
+                      {isSelf && <span className="text-muted-foreground"> (you)</span>}
+                    </div>
+                    {m.name && <div className="text-muted-foreground truncate text-xs">{m.email}</div>}
+                  </div>
+                  <div className="ml-auto flex items-center gap-2">
+                    {canManage && !isSelf ? (
+                      <Select
+                        value={m.role}
+                        onValueChange={(v) => void changeRole(m.userId, v as MemberRole)}
+                      >
+                        <SelectTrigger size="sm" className="w-28">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {memberRole.options.map((r) => (
+                            <SelectItem key={r} value={r}>
+                              {ROLE_LABELS[r]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Badge variant="outline">{ROLE_LABELS[m.role]}</Badge>
+                    )}
+                    {canManage && !isSelf && (
+                      <Button variant="ghost" size="sm" onClick={() => void remove(m.userId)}>
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function SettingsContent() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
 
@@ -245,6 +358,7 @@ function SettingsContent() {
           </ul>
         </CardContent>
       </Card>
+      {workspace && <TeamCard workspace={workspace} />}
       {workspace && <ConnectionsCard workspace={workspace} />}
       <Card>
         <CardHeader>

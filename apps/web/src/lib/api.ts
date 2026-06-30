@@ -14,12 +14,14 @@ import type {
   Integration,
   LlmGeneration,
   ReviewDecision,
+  MemberRole,
   Task,
   TaskComment,
   TaskSource,
   UpdateTaskInput,
   UsageSummaryRow,
   Workspace,
+  WorkspaceMember,
 } from '@palouse/shared';
 import { API_URL } from './auth-client';
 
@@ -57,6 +59,18 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(input),
     }),
+
+  listMembers: (workspaceId: string) =>
+    request<{ members: WorkspaceMember[] }>(`/v1/workspaces/${workspaceId}/members`),
+
+  updateMemberRole: (workspaceId: string, userId: string, role: MemberRole) =>
+    request<{ member: WorkspaceMember }>(`/v1/workspaces/${workspaceId}/members/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    }),
+
+  removeMember: (workspaceId: string, userId: string) =>
+    request<void>(`/v1/workspaces/${workspaceId}/members/${userId}`, { method: 'DELETE' }),
 
   listTasks: (workspaceId: string, params?: { status?: string; search?: string }) => {
     const qs = new URLSearchParams({ workspaceId, ...params });

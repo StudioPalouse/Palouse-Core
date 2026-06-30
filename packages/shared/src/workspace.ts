@@ -14,6 +14,20 @@ export const workspaceSchema = z.object({
 });
 export type Workspace = z.infer<typeof workspaceSchema>;
 
+export const workspaceMemberSchema = z.object({
+  userId: uuid,
+  email: z.string(),
+  name: z.string().nullable(),
+  role: memberRole,
+  joinedAt: z.string().datetime(),
+});
+export type WorkspaceMember = z.infer<typeof workspaceMemberSchema>;
+
+export const updateMemberRoleInput = z.object({
+  role: memberRole,
+});
+export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleInput>;
+
 export const slug = z
   .string()
   .min(2)
