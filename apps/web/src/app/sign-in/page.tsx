@@ -39,7 +39,13 @@ export default function SignInPage() {
     setError(null);
     const { error } = await signIn.email({ email, password });
     if (error) {
-      setError(error.message ?? 'Sign in failed');
+      // Unverified accounts are blocked (403) and Better-Auth re-sends the link.
+      const notVerified = error.status === 403 || /verif/i.test(error.message ?? '');
+      setError(
+        notVerified
+          ? 'Verify your email before signing in. We just sent a new verification link to your inbox.'
+          : (error.message ?? 'Sign in failed'),
+      );
       setSubmitting(false);
       return;
     }
