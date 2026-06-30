@@ -4,6 +4,15 @@ Renames the application from **ReqOps** to **Palouse** (part of the Palouse
 Productivity suite) and moves all hosted infrastructure from the `reqops`
 (Entorhi) Fly.io organization to the new `palouse` organization.
 
+> ✅ **COMPLETE.** The rename and org move are done; staging runs at
+> `test.palouse.ai` and **production is live at `app.palouse.ai`** (see
+> [`production-setup.md`](./production-setup.md) and [`deployment.md`](./deployment.md)).
+> Phases 1–6 done. Phase 7 (decommission) mostly done — old `reqops-staging-*`
+> apps, DB, and Redis destroyed and the org is empty; remaining tidy-up: optionally
+> delete the empty `reqops`/Entorhi org and remove stale `test.reqops.ai`
+> DNS/cert at Namecheap, and decide `reqops.ai`'s fate. This doc is kept as the
+> migration record.
+
 **Locked decisions**
 - Staging domain: `test.palouse.ai` (`app.palouse.ai` reserved for prod).
 - Full rename, including wire-level identifiers (DB role/name, agent-key prefix,
@@ -94,7 +103,7 @@ api/web/worker deployed (`./scripts/fly-deploy.sh`); all healthy on `*.fly.dev`
 (api /health + /health/ready 200, web 200, web→api proxy 401, worker consuming
 Redis). mcp excluded until M5. Public DNS not yet moved.
 
-## Phase 5 — DNS cutover + mail (Namecheap `palouse.ai` — manual)
+## Phase 5 — DNS cutover + mail (Namecheap `palouse.ai` — manual) — DONE
 App DNS is on `palouse.ai` at Namecheap (NOT `palouse.io`/M365).
 1. `fly certs add test.palouse.ai --app palouse-staging-web` (done).
 2. Namecheap **palouse.ai** Advanced DNS: `CNAME  test → palouse-staging-web.fly.dev`.
@@ -106,12 +115,12 @@ App DNS is on `palouse.ai` at Namecheap (NOT `palouse.io`/M365).
 5. Connector OAuth redirect URIs → `https://test.palouse.ai/oauth/<provider>/callback`.
 6. Swap GitHub `FLY_API_TOKEN` to the palouse org token.
 
-## Phase 6 — Verify
+## Phase 6 — Verify — DONE
 End-to-end on `test.palouse.ai`: sign-in, create task/handoff, re-auth a
 connector, mint a `palouse_agk_` key + MCP call, confirm transactional mail
 delivers from `no-reply@mail.palouse.ai`.
 
-## Phase 7 — Decommission ReqOps / Entorhi (after a verification window)
+## Phase 7 — Decommission ReqOps / Entorhi (after a verification window) — MOSTLY DONE
 Destroy `reqops-staging-*` apps + `reqops-staging-db` + `reqops-staging-redis`;
 remove `test.reqops.ai` cert + Namecheap records; revoke old org deploy token.
 Open question: keep `reqops.ai` as a redirect or drop it.
