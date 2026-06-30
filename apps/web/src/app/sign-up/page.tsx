@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import {
   Button,
@@ -16,24 +15,56 @@ import {
 import { signUp } from '@/lib/auth-client';
 
 export default function SignUpPage() {
-  const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    setSubmitting(true);
     setError(null);
+    if (password !== confirm) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setSubmitting(true);
     const { error } = await signUp.email({ name, email, password });
     if (error) {
       setError(error.message ?? 'Sign up failed');
       setSubmitting(false);
       return;
     }
-    router.push('/workspaces/new');
+    // Email verification is required before sign-in, so we don't drop the user
+    // into the app here — they must click the link we just emailed them.
+    setSubmitted(true);
+  }
+
+  if (submitted) {
+    return (
+      <main className="flex min-h-svh items-center justify-center px-4">
+        <Card className="w-full max-w-sm">
+          <CardHeader>
+            <CardTitle>Check your email</CardTitle>
+            <CardDescription>
+              We sent a verification link to {email}. Click it to activate your account, then sign
+              in.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground text-sm">
+              Didn’t get it? Check your spam folder, or{' '}
+              <Link href="/sign-in" className="text-foreground underline underline-offset-4">
+                sign in
+              </Link>{' '}
+              to have a new link sent.
+            </p>
+          </CardContent>
+        </Card>
+      </main>
+    );
   }
 
   return (
@@ -76,6 +107,18 @@ export default function SignUpPage() {
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="confirm">Confirm password</Label>
+              <Input
+                id="confirm"
+                type="password"
+                required
+                minLength={8}
+                autoComplete="new-password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
               />
             </div>
             {error && <p className="text-destructive text-sm">{error}</p>}

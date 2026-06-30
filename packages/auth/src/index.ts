@@ -10,6 +10,10 @@ function build() {
   const env = loadEnv();
   const db = getDb(env.DATABASE_URL);
   const emailPolicy = policyFromEnv(env);
+  // Require email verification only where transactional mail is configured.
+  // On bare self-hosted installs without RESEND_API_KEY the verification email
+  // can never send, so requiring it would lock users out — keep it off there.
+  const mailConfigured = Boolean(env.RESEND_API_KEY);
 
   const socialProviders: Record<string, { clientId: string; clientSecret: string }> = {};
   if (process.env.AUTH_GOOGLE_CLIENT_ID && process.env.AUTH_GOOGLE_CLIENT_SECRET) {
@@ -40,6 +44,10 @@ function build() {
     advanced: { database: { generateId: false } },
     emailAndPassword: {
       enabled: true,
+      // Hosted policy: block sign-in until the email is verified. An unverified
+      // sign-in attempt is rejected and Better-Auth re-sends the verification
+      // link. Gated on mailConfigured so bare self-host installs still work.
+      requireEmailVerification: mailConfigured,
       // Mail is best-effort: with no RESEND_API_KEY @palouse/mail logs and
       // no-ops, so password auth keeps working on bare self-hosted installs.
       sendResetPassword: async ({ user, url }) => {
@@ -59,9 +67,12 @@ function build() {
       },
     },
     emailVerification: {
-      // Verification emails go out on signup but are not (yet) required to
-      // sign in — flipping requireEmailVerification is a deliberate later step.
+      // Verification email goes out on signup; when mail is configured it is
+      // also required to sign in (see emailAndPassword.requireEmailVerification).
       sendOnSignUp: true,
+      // Re-send the link when an unverified user tries to sign in, so a blocked
+      // sign-in always puts a fresh link in their inbox.
+      sendOnSignIn: true,
       sendVerificationEmail: async ({ user, url }) => {
         await sendEmail({
           to: user.email,
