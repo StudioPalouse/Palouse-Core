@@ -49,7 +49,7 @@ export default function SignInPage() {
       setSubmitting(false);
       return;
     }
-    router.push('/inbox');
+    router.push('/dashboard');
   }
 
   return (

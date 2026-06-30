@@ -158,6 +158,27 @@ function SettingsContent() {
         </CardContent>
       </Card>
       {workspace && <IntegrationsCard workspace={workspace} />}
+      <Card>
+        <CardHeader>
+          <CardTitle>Capabilities</CardTitle>
+          <CardDescription>
+            Turn product areas on or off for your team based on your plan. Per-area enable and
+            disable controls are coming soon.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ul className="text-muted-foreground flex flex-col gap-1.5 text-sm">
+            {['Dashboard', 'Objectives', 'Projects', 'Tasks', 'Decisions', 'Context'].map(
+              (area) => (
+                <li key={area} className="flex items-center justify-between">
+                  <span>{area}</span>
+                  <Badge variant="outline">Coming soon</Badge>
+                </li>
+              ),
+            )}
+          </ul>
+        </CardContent>
+      </Card>
     </div>
   );
 }

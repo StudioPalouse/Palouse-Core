@@ -36,7 +36,7 @@ export default function NewWorkspacePage() {
     setError(null);
     try {
       await api.createWorkspace({ name, slug });
-      router.push('/inbox');
+      router.push('/dashboard');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to create workspace');
       setSubmitting(false);

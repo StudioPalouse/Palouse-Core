@@ -10,7 +10,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (isPending) return;
-    router.replace(session ? '/inbox' : '/sign-in');
+    router.replace(session ? '/dashboard' : '/sign-in');
   }, [session, isPending, router]);
 
   return null;

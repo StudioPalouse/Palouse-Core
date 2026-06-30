@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import type { HandoffListItem, Workspace } from '@palouse/shared';
 import { Badge, Button, Skeleton, Textarea } from '@palouse/ui';
 import { AppShell } from '@/components/app-shell';
+import { TasksTabs } from '@/components/tasks-tabs';
 import { api, ApiError } from '@/lib/api';
 import { formatDateTime } from '@/lib/handoff-meta';
 
@@ -60,11 +61,13 @@ export default function ReviewsPage() {
     <AppShell>
       <div className="flex flex-col gap-4">
         <h1 className="text-lg font-semibold tracking-tight">
-          Reviews
+          Tasks
           {workspace && (
             <span className="text-muted-foreground ml-2 text-sm font-normal">{workspace.name}</span>
           )}
         </h1>
+
+        <TasksTabs />
 
         {handoffs === null ? (
           <div className="flex flex-col gap-3 rounded-lg border p-4">
