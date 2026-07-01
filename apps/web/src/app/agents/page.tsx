@@ -76,7 +76,7 @@ export default function AgentsPage() {
             )}
           </h1>
           <div className="ml-auto">
-            {workspace && (
+            {workspace && (workspace.role === 'owner' || workspace.role === 'admin') && (
               <NewAgentDialog
                 workspaceId={workspace.id}
                 onCreated={(agent) => router.push(`/agents/${agent.id}`)}

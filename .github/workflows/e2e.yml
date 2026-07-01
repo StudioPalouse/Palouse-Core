@@ -1,0 +1,103 @@
+name: E2E
+
+# Reusable smoke suite. Called by CI (on every PR / push) and as a gate by the
+# staging and production deploy workflows. Brings the app up from source against
+# throwaway Postgres + Redis services and drives it through a real browser.
+on:
+  workflow_call:
+
+jobs:
+  smoke:
+    name: E2E smoke
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: palouse
+          POSTGRES_PASSWORD: palouse
+          POSTGRES_DB: palouse
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U palouse -d palouse"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NODE_ENV: production
+      DATABASE_URL: postgres://palouse:palouse@localhost:5432/palouse
+      REDIS_URL: redis://localhost:6379
+      # Test-only secrets. Never reused anywhere real.
+      BETTER_AUTH_SECRET: e2e-ci-better-auth-secret-not-for-real-use
+      BETTER_AUTH_URL: http://localhost:3000
+      PALOUSE_ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000'
+      API_PORT: '4000'
+      API_BASE_URL: http://localhost:3000
+      WEB_BASE_URL: http://localhost:3000
+      API_PROXY_TARGET: http://localhost:4000
+      PALOUSE_API_URL: http://localhost:4000
+      # Any address allowed, and empty RESEND_API_KEY means email verification is
+      # not enforced, so the smoke test can sign in right after signing up.
+      AUTH_BLOCK_PUBLIC_EMAIL_DOMAINS: 'false'
+      RESEND_API_KEY: ''
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Run migrations
+        run: pnpm db:migrate
+
+      - name: Build web
+        run: pnpm -F @palouse/web build
+
+      - name: Start API
+        run: nohup pnpm -F @palouse/api start > api.log 2>&1 &
+
+      - name: Start web
+        run: nohup pnpm -F @palouse/web start > web.log 2>&1 &
+
+      - name: Wait for the stack
+        run: |
+          for url in http://localhost:4000/health http://localhost:3000; do
+            echo "Waiting for $url"
+            for i in $(seq 1 60); do
+              if curl -fsS "$url" > /dev/null 2>&1; then echo "up: $url"; break; fi
+              if [ "$i" = "60" ]; then echo "timed out: $url"; exit 1; fi
+              sleep 2
+            done
+          done
+
+      - name: Install Playwright browser
+        run: pnpm -F @palouse/e2e install:browser
+
+      - name: Run E2E smoke
+        run: pnpm -F @palouse/e2e e2e
+
+      - name: Server logs on failure
+        if: failure()
+        run: |
+          echo '--- api.log ---'; cat api.log || true
+          echo '--- web.log ---'; cat web.log || true
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
