@@ -28,6 +28,34 @@ export const updateMemberRoleInput = z.object({
 });
 export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleInput>;
 
+export const invitationStatus = z.enum(['pending', 'accepted', 'revoked', 'expired']);
+export type InvitationStatus = z.infer<typeof invitationStatus>;
+
+export const invitationSchema = z.object({
+  id: uuid,
+  workspaceId: uuid,
+  email: z.string().email(),
+  role: memberRole,
+  status: invitationStatus,
+  invitedByUserId: uuid.nullable(),
+  expiresAt: z.string().datetime(),
+  createdAt: z.string().datetime(),
+});
+export type Invitation = z.infer<typeof invitationSchema>;
+
+// Invites cannot grant ownership; transfer ownership is a separate, deliberate action.
+export const inviteRole = z.enum(['admin', 'member', 'viewer']);
+export type InviteRole = z.infer<typeof inviteRole>;
+
+export const createInviteInput = z.object({
+  email: z.string().email(),
+  role: inviteRole.default('member'),
+});
+export type CreateInviteInput = z.infer<typeof createInviteInput>;
+
+export const acceptInviteInput = z.object({ token: z.string().min(1) });
+export type AcceptInviteInput = z.infer<typeof acceptInviteInput>;
+
 export const slug = z
   .string()
   .min(2)

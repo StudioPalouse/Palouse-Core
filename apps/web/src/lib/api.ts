@@ -12,6 +12,8 @@ import type {
   HandoffStep,
   HandoffUsageSummary,
   Integration,
+  Invitation,
+  InviteRole,
   LlmGeneration,
   ReviewDecision,
   MemberRole,
@@ -71,6 +73,24 @@ export const api = {
 
   removeMember: (workspaceId: string, userId: string) =>
     request<void>(`/v1/workspaces/${workspaceId}/members/${userId}`, { method: 'DELETE' }),
+
+  listInvites: (workspaceId: string) =>
+    request<{ invitations: Invitation[] }>(`/v1/workspaces/${workspaceId}/invitations`),
+
+  createInvite: (workspaceId: string, input: { email: string; role: InviteRole }) =>
+    request<{ invitation: Invitation }>(`/v1/workspaces/${workspaceId}/invitations`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  revokeInvite: (workspaceId: string, inviteId: string) =>
+    request<void>(`/v1/workspaces/${workspaceId}/invitations/${inviteId}`, { method: 'DELETE' }),
+
+  acceptInvite: (token: string) =>
+    request<{ workspaceId: string }>('/v1/invitations/accept', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    }),
 
   listTasks: (workspaceId: string, params?: { status?: string; search?: string }) => {
     const qs = new URLSearchParams({ workspaceId, ...params });

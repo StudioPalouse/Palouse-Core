@@ -22,6 +22,7 @@
     "@palouse/connector-notion": "workspace:^",
     "@palouse/core": "workspace:^",
     "@palouse/db": "workspace:*",
+    "@palouse/mail": "workspace:*",
     "@palouse/queue": "workspace:^",
     "@palouse/shared": "workspace:*",
     "bullmq": "^5.30.0",

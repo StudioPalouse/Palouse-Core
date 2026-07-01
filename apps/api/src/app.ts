@@ -7,6 +7,7 @@ import { agentRoutes } from './routes/agents.js';
 import { handoffRoutes } from './routes/handoffs.js';
 import { health } from './routes/health.js';
 import { integrationRoutes } from './routes/integrations.js';
+import { invitationRoutes } from './routes/invitations.js';
 import { oauthRoutes } from './routes/oauth.js';
 import { otlpRoutes } from './routes/otlp.js';
 import { taskRoutes } from './routes/tasks.js';
@@ -49,6 +50,7 @@ export function buildApp() {
   app.route('/v1', usageRoutes); // /v1/usage/* + /v1/model-prices*
   app.route('/v1/otlp', otlpRoutes); // agent-key auth; full path /v1/otlp/v1/traces
   app.route('/v1/integrations', integrationRoutes);
+  app.route('/v1/invitations', invitationRoutes);
   app.route('/oauth', oauthRoutes);
   app.route('/webhooks', webhookRoutes);
 

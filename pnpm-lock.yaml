@@ -56,6 +56,9 @@ importers:
       '@palouse/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@palouse/mail':
+        specifier: workspace:*
+        version: link:../../packages/mail
       '@palouse/queue':
         specifier: workspace:^
         version: link:../../packages/queue

@@ -24,7 +24,7 @@ integrationRoutes.post('/:id/sync', async (c) => {
   const workspaceId = c.req.query('workspaceId') ?? '';
   if (!workspaceId) throw validation('workspaceId query param required');
   const db = getDb(loadEnv().DATABASE_URL);
-  await workspaces.requireMembership(db, workspaceId, c.get('userId'));
+  await workspaces.requireRole(db, workspaceId, c.get('userId'), ['owner', 'admin']);
   const row = await integrationService.getIntegrationRow(db, c.req.param('id'));
   if (row.workspaceId !== workspaceId) throw validation('Integration not in this workspace');
   await enqueuePull(getSyncQueue(), row.id);
@@ -35,7 +35,7 @@ integrationRoutes.delete('/:id', async (c) => {
   const workspaceId = c.req.query('workspaceId') ?? '';
   if (!workspaceId) throw validation('workspaceId query param required');
   const db = getDb(loadEnv().DATABASE_URL);
-  await workspaces.requireMembership(db, workspaceId, c.get('userId'));
+  await workspaces.requireRole(db, workspaceId, c.get('userId'), ['owner', 'admin']);
   const id = c.req.param('id');
   await integrationService.deleteIntegration(db, workspaceId, id);
   await removePolling(getSyncQueue(), id).catch(() => {

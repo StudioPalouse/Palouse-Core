@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   boolean,
+  index,
   pgEnum,
   pgTable,
   text,
@@ -122,5 +123,39 @@ export const memberships = pgTable(
   },
   (t) => ({
     workspaceUserUq: uniqueIndex('memberships_workspace_user_uq').on(t.workspaceId, t.userId),
+  }),
+);
+
+export const invitationStatus = pgEnum('invitation_status', [
+  'pending',
+  'accepted',
+  'revoked',
+  'expired',
+]);
+
+export const invitations = pgTable(
+  'invitations',
+  {
+    id: baseId(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    role: memberRole('role').notNull().default('member'),
+    // Only the SHA-256 hash of the invite token is stored; the raw token lives
+    // solely in the emailed accept link.
+    tokenHash: text('token_hash').notNull(),
+    status: invitationStatus('status').notNull().default('pending'),
+    invitedByUserId: uuid('invited_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true, mode: 'date' }),
+    createdAt: ts('created_at'),
+    updatedAt: ts('updated_at'),
+  },
+  (t) => ({
+    tokenHashIdx: index('invitations_token_hash_idx').on(t.tokenHash),
+    workspaceIdx: index('invitations_workspace_idx').on(t.workspaceId),
   }),
 );

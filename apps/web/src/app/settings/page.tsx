@@ -1,16 +1,18 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type {
   Agent,
   Integration,
+  Invitation,
+  InviteRole,
   MemberRole,
   Workspace,
   WorkspaceMember,
 } from '@palouse/shared';
-import { memberRole } from '@palouse/shared';
+import { inviteRole, memberRole } from '@palouse/shared';
 import {
   Badge,
   Button,
@@ -20,6 +22,8 @@ import {
   CardHeader,
   CardTitle,
   cn,
+  Input,
+  Label,
   Select,
   SelectContent,
   SelectItem,
@@ -240,11 +244,18 @@ function TeamCard({ workspace }: { workspace: Workspace }) {
   const myId = session?.user.id;
   const canManage = workspace.role === 'owner' || workspace.role === 'admin';
   const [members, setMembers] = useState<WorkspaceMember[] | null>(null);
+  const [invites, setInvites] = useState<Invitation[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRoleVal, setInviteRoleVal] = useState<InviteRole>('member');
+  const [inviting, setInviting] = useState(false);
 
   const refresh = useCallback(() => {
     api.listMembers(workspace.id).then(({ members }) => setMembers(members));
-  }, [workspace.id]);
+    if (canManage) {
+      api.listInvites(workspace.id).then(({ invitations }) => setInvites(invitations));
+    }
+  }, [workspace.id, canManage]);
 
   useEffect(refresh, [refresh]);
 
@@ -266,6 +277,31 @@ function TeamCard({ workspace }: { workspace: Workspace }) {
       refresh();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to remove member');
+    }
+  }
+
+  async function invite(e: FormEvent) {
+    e.preventDefault();
+    setInviting(true);
+    setError(null);
+    try {
+      await api.createInvite(workspace.id, { email: inviteEmail.trim(), role: inviteRoleVal });
+      setInviteEmail('');
+      refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to send invite');
+    } finally {
+      setInviting(false);
+    }
+  }
+
+  async function revokeInvite(inviteId: string) {
+    setError(null);
+    try {
+      await api.revokeInvite(workspace.id, inviteId);
+      refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to revoke invite');
     }
   }
 
@@ -322,6 +358,62 @@ function TeamCard({ workspace }: { workspace: Workspace }) {
               );
             })}
           </ul>
+        )}
+
+        {canManage && (
+          <div className="flex flex-col gap-3 border-t pt-4">
+            <form onSubmit={invite} className="flex flex-wrap items-end gap-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor="invite-email" className="text-xs">
+                  Invite by email
+                </Label>
+                <Input
+                  id="invite-email"
+                  type="email"
+                  required
+                  placeholder="teammate@company.com"
+                  className="h-8 w-64"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                />
+              </div>
+              <Select value={inviteRoleVal} onValueChange={(v) => setInviteRoleVal(v as InviteRole)}>
+                <SelectTrigger size="sm" className="w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {inviteRole.options.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {ROLE_LABELS[r]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button type="submit" size="sm" disabled={inviting || !inviteEmail.trim()}>
+                {inviting ? 'Sending…' : 'Send invite'}
+              </Button>
+            </form>
+
+            {invites && invites.length > 0 && (
+              <ul className="divide-y rounded-md border">
+                {invites.map((inv) => (
+                  <li key={inv.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
+                    <span className="text-sm">{inv.email}</span>
+                    <Badge variant="outline">{ROLE_LABELS[inv.role]}</Badge>
+                    <Badge variant="secondary">Pending</Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="ml-auto"
+                      onClick={() => void revokeInvite(inv.id)}
+                    >
+                      Revoke
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>

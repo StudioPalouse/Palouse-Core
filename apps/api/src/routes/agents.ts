@@ -30,7 +30,7 @@ agentRoutes.post('/', async (c) => {
   if (!parsed.success || !workspaceId)
     throw validation('Invalid agent input', parsed.success ? undefined : parsed.error.flatten());
   const db = getDb(loadEnv().DATABASE_URL);
-  await workspaces.requireMembership(db, workspaceId, c.get('userId'));
+  await workspaces.requireRole(db, workspaceId, c.get('userId'), ['owner', 'admin']);
   const agent = await agentService.createAgent(db, workspaceId, c.get('userId'), parsed.data);
   return c.json({ agent }, 201);
 });
@@ -53,7 +53,7 @@ agentRoutes.post('/:id/keys', async (c) => {
   if (!parsed.success || !workspaceId)
     throw validation('Invalid key input', parsed.success ? undefined : parsed.error.flatten());
   const db = getDb(loadEnv().DATABASE_URL);
-  await workspaces.requireMembership(db, workspaceId, c.get('userId'));
+  await workspaces.requireRole(db, workspaceId, c.get('userId'), ['owner', 'admin']);
   const { key, plaintext } = await agentService.createApiKey(
     db,
     workspaceId,
@@ -68,7 +68,7 @@ agentRoutes.delete('/:id/keys/:keyId', async (c) => {
   const workspaceId = c.req.query('workspaceId') ?? '';
   if (!workspaceId) throw validation('workspaceId query param required');
   const db = getDb(loadEnv().DATABASE_URL);
-  await workspaces.requireMembership(db, workspaceId, c.get('userId'));
+  await workspaces.requireRole(db, workspaceId, c.get('userId'), ['owner', 'admin']);
   await agentService.revokeApiKey(
     db,
     workspaceId,

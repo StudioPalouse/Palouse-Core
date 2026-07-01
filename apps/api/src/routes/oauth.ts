@@ -25,7 +25,7 @@ oauthRoutes.get('/:provider/start', requireSession, async (c) => {
   if (!workspaceId) throw validation('workspaceId query param required');
 
   const db = getDb(env.DATABASE_URL);
-  await workspaces.requireMembership(db, workspaceId, c.get('userId'));
+  await workspaces.requireRole(db, workspaceId, c.get('userId'), ['owner', 'admin']);
 
   const adapter = adapterFor(provider);
   const config = oauthConfigFor(env, provider);

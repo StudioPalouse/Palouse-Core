@@ -1,5 +1,7 @@
-import { and, count, eq, isNull } from 'drizzle-orm';
+import { createHash, randomBytes } from 'node:crypto';
+import { and, count, desc, eq, isNull } from 'drizzle-orm';
 import {
+  invitations,
   memberships,
   organizations,
   users,
@@ -10,7 +12,9 @@ import {
   conflict,
   forbidden,
   notFound,
+  type CreateInviteInput,
   type CreateWorkspaceInput,
+  type Invitation,
   type MemberRole,
   type Workspace,
   type WorkspaceMember,
@@ -202,4 +206,149 @@ export async function removeMember(
   await db
     .delete(memberships)
     .where(and(eq(memberships.workspaceId, workspaceId), eq(memberships.userId, targetUserId)));
+}
+
+// ---------------------------------------------------------------------------
+// Invitations
+// ---------------------------------------------------------------------------
+
+const INVITE_TTL_DAYS = 7;
+
+function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+function inviteToDto(row: typeof invitations.$inferSelect): Invitation {
+  return {
+    id: row.id,
+    workspaceId: row.workspaceId,
+    email: row.email,
+    role: row.role,
+    status: row.status,
+    invitedByUserId: row.invitedByUserId,
+    expiresAt: row.expiresAt.toISOString(),
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+/**
+ * Create a pending invitation and return the raw token (emailed once, stored
+ * only as a hash). Requires the actor to be owner/admin.
+ */
+export async function createInvite(
+  db: Database,
+  workspaceId: string,
+  actorUserId: string,
+  input: CreateInviteInput,
+): Promise<{ invitation: Invitation; token: string }> {
+  await requireRole(db, workspaceId, actorUserId, ADMIN_ROLES);
+
+  const alreadyMember = await db
+    .select({ id: memberships.id })
+    .from(memberships)
+    .innerJoin(users, eq(memberships.userId, users.id))
+    .where(and(eq(memberships.workspaceId, workspaceId), eq(users.email, input.email)))
+    .limit(1);
+  if (alreadyMember.length > 0) throw conflict('That person is already a member');
+
+  // A fresh invite supersedes any outstanding one for the same email.
+  await db
+    .update(invitations)
+    .set({ status: 'revoked', updatedAt: new Date() })
+    .where(
+      and(
+        eq(invitations.workspaceId, workspaceId),
+        eq(invitations.email, input.email),
+        eq(invitations.status, 'pending'),
+      ),
+    );
+
+  const token = randomBytes(32).toString('base64url');
+  const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 86_400_000);
+  const [row] = await db
+    .insert(invitations)
+    .values({
+      workspaceId,
+      email: input.email,
+      role: input.role,
+      tokenHash: hashToken(token),
+      invitedByUserId: actorUserId,
+      expiresAt,
+    })
+    .returning();
+  return { invitation: inviteToDto(row!), token };
+}
+
+/** Pending invitations for a workspace. */
+export async function listInvites(db: Database, workspaceId: string): Promise<Invitation[]> {
+  const rows = await db
+    .select()
+    .from(invitations)
+    .where(and(eq(invitations.workspaceId, workspaceId), eq(invitations.status, 'pending')))
+    .orderBy(desc(invitations.createdAt));
+  return rows.map(inviteToDto);
+}
+
+/** Revoke a pending invitation. Requires owner/admin. */
+export async function revokeInvite(
+  db: Database,
+  workspaceId: string,
+  actorUserId: string,
+  inviteId: string,
+): Promise<void> {
+  await requireRole(db, workspaceId, actorUserId, ADMIN_ROLES);
+  const rows = await db
+    .select({ id: invitations.id })
+    .from(invitations)
+    .where(and(eq(invitations.id, inviteId), eq(invitations.workspaceId, workspaceId)))
+    .limit(1);
+  if (rows.length === 0) throw notFound('Invitation not found');
+  await db
+    .update(invitations)
+    .set({ status: 'revoked', updatedAt: new Date() })
+    .where(eq(invitations.id, inviteId));
+}
+
+/**
+ * Accept an invitation for the signed-in user: creates the membership (if not
+ * already present) and marks the invite accepted. Returns the workspace id.
+ */
+export async function acceptInvite(
+  db: Database,
+  userId: string,
+  token: string,
+): Promise<{ workspaceId: string }> {
+  return db.transaction(async (tx) => {
+    const [invite] = await tx
+      .select()
+      .from(invitations)
+      .where(and(eq(invitations.tokenHash, hashToken(token)), eq(invitations.status, 'pending')))
+      .limit(1);
+    if (!invite) throw notFound('This invitation is invalid or has already been used');
+    if (invite.expiresAt.getTime() < Date.now()) {
+      await tx
+        .update(invitations)
+        .set({ status: 'expired', updatedAt: new Date() })
+        .where(eq(invitations.id, invite.id));
+      throw conflict('This invitation has expired');
+    }
+
+    const existing = await tx
+      .select({ id: memberships.id })
+      .from(memberships)
+      .where(and(eq(memberships.workspaceId, invite.workspaceId), eq(memberships.userId, userId)))
+      .limit(1);
+    if (existing.length === 0) {
+      await tx
+        .insert(memberships)
+        .values({ workspaceId: invite.workspaceId, userId, role: invite.role });
+    }
+
+    await tx
+      .update(invitations)
+      .set({ status: 'accepted', acceptedAt: new Date(), updatedAt: new Date() })
+      .where(eq(invitations.id, invite.id));
+
+    return { workspaceId: invite.workspaceId };
+  });
 }

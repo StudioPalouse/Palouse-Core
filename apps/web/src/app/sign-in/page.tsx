@@ -1,5 +1,6 @@
 'use client';
 
+import type { Route } from 'next';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState, type FormEvent } from 'react';
@@ -14,6 +15,13 @@ import {
   Label,
 } from '@palouse/ui';
 import { signIn } from '@/lib/auth-client';
+
+/** Internal redirect target from ?next=, guarded against open redirects. */
+function safeNext(): string {
+  if (typeof window === 'undefined') return '/dashboard';
+  const n = new URLSearchParams(window.location.search).get('next');
+  return n && n.startsWith('/') ? n : '/dashboard';
+}
 
 /** Confirmation shown after a completed password reset redirects back here. */
 function ResetSuccessNotice() {
@@ -49,7 +57,7 @@ export default function SignInPage() {
       setSubmitting(false);
       return;
     }
-    router.push('/dashboard');
+    router.push(safeNext() as Route);
   }
 
   return (
