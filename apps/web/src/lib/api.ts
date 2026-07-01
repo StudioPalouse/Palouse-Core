@@ -111,8 +111,14 @@ export const api = {
       body: JSON.stringify({ token }),
     }),
 
-  listTasks: (workspaceId: string, params?: { status?: string; search?: string }) => {
-    const qs = new URLSearchParams({ workspaceId, ...params });
+  listTasks: (
+    workspaceId: string,
+    params?: { status?: string; search?: string; limit?: number },
+  ) => {
+    const qs = new URLSearchParams({ workspaceId });
+    if (params?.status) qs.set('status', params.status);
+    if (params?.search) qs.set('search', params.search);
+    if (params?.limit != null) qs.set('limit', String(params.limit));
     return request<{ tasks: Task[]; total: number }>(`/v1/tasks?${qs}`);
   },
 

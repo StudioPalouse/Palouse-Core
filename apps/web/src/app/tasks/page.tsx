@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import type { Task, TaskStatus } from '@palouse/shared';
+import type { Task } from '@palouse/shared';
 import {
-  Badge,
+  Button,
+  cn,
   Input,
   Select,
   SelectContent,
@@ -16,17 +17,29 @@ import { AppShell } from '@/components/app-shell';
 import { TasksTabs } from '@/components/tasks-tabs';
 import { NewTaskDialog } from '@/components/new-task-dialog';
 import { TaskDetailSheet } from '@/components/task-detail-sheet';
+import { TaskList } from '@/components/task-list';
+import { TaskDisplayMenu } from '@/components/task-display-menu';
 import { api } from '@/lib/api';
 import { useActiveWorkspace } from '@/lib/workspace-context';
-import { formatDate, PRIORITY_LABELS, STATUS_LABELS, STATUS_ORDER } from '@/lib/task-meta';
+import { STATUS_LABELS, STATUS_ORDER } from '@/lib/task-meta';
+import {
+  DEFAULT_DISPLAY,
+  PRESETS,
+  type DisplayConfig,
+} from '@/lib/task-views';
 
-const STATUS_BADGE: Record<TaskStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  open: 'outline',
-  in_progress: 'default',
-  blocked: 'destructive',
-  done: 'secondary',
-  archived: 'secondary',
-};
+const DISPLAY_STORAGE_KEY = 'palouse.tasks.display';
+
+function loadDisplay(): DisplayConfig {
+  if (typeof window === 'undefined') return DEFAULT_DISPLAY;
+  try {
+    const raw = window.localStorage.getItem(DISPLAY_STORAGE_KEY);
+    if (raw) return { ...DEFAULT_DISPLAY, ...(JSON.parse(raw) as Partial<DisplayConfig>) };
+  } catch {
+    // ignore malformed storage
+  }
+  return DEFAULT_DISPLAY;
+}
 
 export default function TasksPage() {
   return (
@@ -42,10 +55,27 @@ function TasksContent() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [display, setDisplay] = useState<DisplayConfig>(DEFAULT_DISPLAY);
+
+  // Hydrate the saved display config on the client, then persist on change.
+  useEffect(() => setDisplay(loadDisplay()), []);
+  const updateDisplay = useCallback((next: DisplayConfig) => {
+    setDisplay(next);
+    try {
+      window.localStorage.setItem(DISPLAY_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // ignore storage failures (private mode, quota)
+    }
+  }, []);
+
+  const activePreset = PRESETS.find(
+    (p) => p.config.groupBy === display.groupBy && p.config.sortBy === display.sortBy,
+  )?.id;
 
   const refresh = useCallback(() => {
     if (!workspace) return;
-    const params: { status?: string; search?: string } = {};
+    // Grouping and sorting happen client-side, so pull a full page of tasks.
+    const params: { status?: string; search?: string; limit?: number } = { limit: 200 };
     if (statusFilter !== 'all') params.status = statusFilter;
     if (search.trim()) params.search = search.trim();
     api.listTasks(workspace.id, params).then(({ tasks }) => setTasks(tasks));
@@ -68,6 +98,20 @@ function TasksContent() {
 
         <TasksTabs />
 
+        <div className="flex flex-wrap items-center gap-1">
+          {PRESETS.map((preset) => (
+            <Button
+              key={preset.id}
+              variant={activePreset === preset.id ? 'secondary' : 'ghost'}
+              size="sm"
+              className={cn(activePreset !== preset.id && 'text-muted-foreground')}
+              onClick={() => updateDisplay(preset.config)}
+            >
+              {preset.label}
+            </Button>
+          ))}
+        </div>
+
         <div className="flex flex-wrap items-center gap-2">
           <Input
             placeholder="Search tasks…"
@@ -88,6 +132,7 @@ function TasksContent() {
               ))}
             </SelectContent>
           </Select>
+          <TaskDisplayMenu config={display} onChange={updateDisplay} />
           <div className="ml-auto">
             {workspace && <NewTaskDialog workspaceId={workspace.id} onCreated={refresh} />}
           </div>
@@ -105,28 +150,7 @@ function TasksContent() {
               No tasks yet. Create one, or connect an integration in Settings to start syncing.
             </p>
           ) : (
-            <ul className="divide-y">
-              {tasks.map((task) => (
-                <li key={task.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedTaskId(task.id)}
-                    className="hover:bg-accent/50 flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors"
-                  >
-                    <Badge variant={STATUS_BADGE[task.status]} className="w-24 justify-center">
-                      {STATUS_LABELS[task.status]}
-                    </Badge>
-                    <span className="min-w-0 flex-1 truncate text-sm">{task.title}</span>
-                    <span className="text-muted-foreground hidden text-xs sm:inline">
-                      {PRIORITY_LABELS[task.priority]}
-                    </span>
-                    <span className="text-muted-foreground w-16 text-right text-xs">
-                      {formatDate(task.dueAt)}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <TaskList tasks={tasks} config={display} onSelect={setSelectedTaskId} />
           )}
         </div>
       </div>

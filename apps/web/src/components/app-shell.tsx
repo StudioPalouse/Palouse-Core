@@ -16,11 +16,14 @@ import {
   Menu,
   Monitor,
   Moon,
+  Network,
   Plus,
   Scale,
+  Server,
   Settings,
   Sun,
   Target,
+  Workflow,
 } from 'lucide-react';
 import {
   Button,
@@ -47,15 +50,27 @@ type NavItem = {
   icon: ComponentType<{ className?: string }>;
   /** Extra path prefixes that should also light up this item. */
   match?: string[];
+  /** Sub-items shown indented while the parent is active. */
+  children?: NavItem[];
 };
 
 const NAV: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/objectives', label: 'Objectives', icon: Target },
-  { href: '/projects', label: 'Projects', icon: KanbanSquare },
   { href: '/tasks', label: 'Tasks', icon: ListChecks, match: ['/reviews'] },
   { href: '/decisions', label: 'Decisions', icon: Scale },
-  { href: '/context', label: 'Context', icon: BookOpen },
+  { href: '/projects', label: 'Projects', icon: KanbanSquare },
+  {
+    href: '/context',
+    label: 'Context',
+    icon: BookOpen,
+    children: [
+      { href: '/context/process', label: 'Process', icon: Workflow },
+      { href: '/context/systems', label: 'Systems', icon: Server },
+      { href: '/context/architecture', label: 'Architecture', icon: Network },
+    ],
+  },
+  { href: '/objectives', label: 'Objectives', icon: Target },
+  // temporary: moves under Settings in Slice 2
   { href: '/agents', label: 'Agents', icon: Bot },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
@@ -66,29 +81,57 @@ function isActive(pathname: string, item: NavItem): boolean {
   );
 }
 
+function NavLink({
+  item,
+  active,
+  nested,
+  onNavigate,
+}: {
+  item: NavItem;
+  active: boolean;
+  nested?: boolean;
+  onNavigate?: () => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
+        nested && 'ml-4 text-[13px]',
+        active
+          ? 'bg-accent text-accent-foreground font-medium'
+          : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+      )}
+    >
+      <Icon className="size-4 shrink-0" />
+      {item.label}
+    </Link>
+  );
+}
+
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   return (
     <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4">
       {NAV.map((item) => {
         const active = isActive(pathname, item);
-        const Icon = item.icon;
         return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={onNavigate}
-            aria-current={active ? 'page' : undefined}
-            className={cn(
-              'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
-              active
-                ? 'bg-accent text-accent-foreground font-medium'
-                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-            )}
-          >
-            <Icon className="size-4 shrink-0" />
-            {item.label}
-          </Link>
+          <div key={item.href} className="flex flex-col gap-0.5">
+            <NavLink item={item} active={active} onNavigate={onNavigate} />
+            {active &&
+              item.children?.map((child) => (
+                <NavLink
+                  key={child.href}
+                  item={child}
+                  active={isActive(pathname, child)}
+                  nested
+                  onNavigate={onNavigate}
+                />
+              ))}
+          </div>
         );
       })}
     </nav>
@@ -109,8 +152,25 @@ function Brand({ onNavigate }: { onNavigate?: () => void }) {
 
 function WorkspaceSwitcher({ onNavigate }: { onNavigate?: () => void }) {
   const router = useRouter();
-  const { workspaces, workspace, setWorkspaceId } = useActiveWorkspace();
-  if (!workspace) return null;
+  const { workspaces, workspace, loading, setWorkspaceId } = useActiveWorkspace();
+
+  // Reserve the switcher's space with a skeleton while the first load resolves,
+  // so the sidebar doesn't shift when the workspace name appears.
+  if (!workspace) {
+    return (
+      <div className="px-3 pb-1">
+        <div
+          className={cn(
+            'flex h-[38px] w-full items-center rounded-md border px-3',
+            loading && 'animate-pulse',
+          )}
+          aria-hidden
+        >
+          <span className="bg-muted h-4 w-24 rounded" />
+        </div>
+      </div>
+    );
+  }
 
   function select(id: string) {
     setWorkspaceId(id);

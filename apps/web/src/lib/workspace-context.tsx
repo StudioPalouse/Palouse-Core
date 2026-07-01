@@ -15,6 +15,16 @@ import { api, ApiError } from '@/lib/api';
 
 const STORAGE_KEY = 'palouse.activeWorkspaceId';
 
+/**
+ * Module-scoped cache of the last-loaded workspace list. The app shell (and this
+ * provider) currently remounts on every navigation, so without a cache the
+ * switcher would refetch and re-render from empty on each page change, making it
+ * "pop in." The module persists for the life of the SPA session, so after the
+ * first successful load every remount hydrates synchronously with no flash. A
+ * background refetch still runs to keep it fresh.
+ */
+let cachedWorkspaces: Workspace[] | null = null;
+
 type WorkspaceContextValue = {
   /** All workspaces the signed-in user belongs to. */
   workspaces: Workspace[];
@@ -39,7 +49,7 @@ const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
  */
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const [workspaces, setWorkspaces] = useState<Workspace[] | null>(null);
+  const [workspaces, setWorkspaces] = useState<Workspace[] | null>(cachedWorkspaces);
   const [activeId, setActiveId] = useState<string | null>(null);
 
   // Hydrate the persisted selection on the client before the list resolves.
@@ -53,10 +63,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       .listWorkspaces()
       .then(({ workspaces }) => {
         if (workspaces.length === 0) {
+          cachedWorkspaces = [];
           setWorkspaces([]);
           router.replace('/workspaces/new');
           return;
         }
+        cachedWorkspaces = workspaces;
         setWorkspaces(workspaces);
       })
       .catch((err) => {
