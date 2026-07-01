@@ -4,3 +4,4 @@ packages:
   - 'packages/connectors/*'
   - 'packages/agent-adapters/*'
   - 'cloud/*'
+  - 'e2e'

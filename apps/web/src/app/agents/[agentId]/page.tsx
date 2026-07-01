@@ -87,6 +87,8 @@ export default function AgentDetailPage() {
 
   useEffect(refresh, [refresh]);
 
+  const canManage = !!workspace && (workspace.role === 'owner' || workspace.role === 'admin');
+
   async function revoke(keyId: string) {
     if (!workspace) return;
     if (!window.confirm('Revoke this key? Any agent using it will lose access immediately.')) return;
@@ -138,7 +140,7 @@ export default function AgentDetailPage() {
           <div className="flex items-center gap-3">
             <h2 className="text-sm font-semibold">API keys</h2>
             <div className="ml-auto">
-              {workspace && (
+              {workspace && canManage && (
                 <AgentKeyDialog workspaceId={workspace.id} agentId={agentId} onCreated={refresh} />
               )}
             </div>
@@ -176,7 +178,7 @@ export default function AgentDetailPage() {
                     <span className="text-muted-foreground ml-auto text-xs">
                       last used: {formatDateTime(key.lastUsedAt)}
                     </span>
-                    {!key.revokedAt && (
+                    {!key.revokedAt && canManage && (
                       <Button variant="ghost" size="sm" onClick={() => void revoke(key.id)}>
                         Revoke
                       </Button>

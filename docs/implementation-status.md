@@ -5,15 +5,15 @@ Updated 2026-06-30. Living status doc for the current build phase. The GitHub Pr
 plan. Detailed plan for the current feature lives in the session plan file
 `~/.claude/plans/sleepy-gathering-pebble.md`.
 
-## IMPORTANT: uncommitted work
+## Status of committed work
 
-Everything below from this session is **uncommitted on `main`**. Branch + commit (or PR)
-before any container reset to avoid losing it. Per repo convention, do not commit to `main`
-directly: branch first.
+The earlier feature batch (UI refresh, Agents UI, Team & access members/invitations, Slice 3
+backend enforcement) is committed on `main` (`cecccdc`…`973e189`). The Slice 3 UI gating,
+Slice 4 account profile, and E2E harness below are going out on a branch + PR (per repo
+convention, do not commit to `main` directly).
 
-Also pending: **migration `0005_windy_betty_ross.sql`** (invitations table) is generated but
-**not yet applied** to staging/prod. It runs on deploy (`pnpm -F @palouse/db migrate`), or
-apply manually against a DB before testing invites locally/staging.
+Pending: **migration `0005_windy_betty_ross.sql`** (invitations table) is committed but not yet
+applied to staging/prod. It runs on the next deploy (`pnpm -F @palouse/db migrate`).
 
 ## Shipped & verified this session (typecheck + build clean)
 
@@ -42,37 +42,42 @@ apply manually against a DB before testing invites locally/staging.
 
 ## Not done yet / resume here
 
-1. **Finish Slice 3 UI gating** (#47): hide admin-only actions for non-admins (viewer/member).
-   - Settings `TaskSourcesPanel`: hide Connect / Sync now / Disconnect when
-     `workspace.role` is not owner/admin.
-   - Settings `AgentConnectionsPanel`: hide "New agent" for non-admins.
-   - `/agents` directory: hide "New agent"; `/agents/[id]`: hide "Create key" + "Revoke".
-   - Compute `canManage = role === 'owner' || role === 'admin'` from the workspace role each page
-     already loads. Server already enforces, so this is UX polish only.
+1. **Slice 3 UI gating** (#47) — DONE. Admin-only actions hidden for non-admins (viewer/member)
+   via `canManage = role === 'owner' || role === 'admin'`:
+   - Settings `TaskSourcesPanel`: Connect / Sync now / Disconnect hidden.
+   - Settings `AgentConnectionsPanel`: "New agent" hidden.
+   - `/agents` directory: "New agent" hidden; `/agents/[agentId]`: "Create key" + "Revoke" hidden.
+   - Server already enforced; this was UX polish only. Web typecheck clean.
 
-2. **Slice 4 — account profile** (#48): a Settings "Account" card to edit display name
-   (`authClient.updateUser({ name })`) and change password
-   (`authClient.changePassword({ currentPassword, newPassword })`). Export those from
-   `@/lib/auth-client` if not already. Password reset already exists.
+2. **Slice 4 — account profile** (#48) — DONE. Settings "Account" card (`AccountCard` in
+   `apps/web/src/app/settings/page.tsx`): edit display name (`updateUser({ name })`), read-only
+   email, and change password (`changePassword({ currentPassword, newPassword,
+   revokeOtherSessions: true })`). `updateUser` / `changePassword` now exported from
+   `@/lib/auth-client`. Web typecheck clean.
 
-3. **Automated end-to-end testing before deploy** (NEW request, not yet on the board): add an
-   E2E harness that runs in CI as a deploy gate. Recommended tracer-bullet approach:
-   - Playwright in `apps/web` (or a top-level `e2e/` package).
-   - Slice 1: one smoke spec (sign up or seeded sign-in → land on Dashboard) run against the full
-     stack brought up via `docker-compose.yml` in CI.
-   - Wire into `.github/workflows/ci.yml` and gate `deploy-staging.yml` / `deploy-prod.yml` on it.
-   - Then expand to the M-roadmap smoke flows (connect a source, create agent + key, hand off,
-     accept invite). Add a "Testing & CI" milestone + epic to the board.
+3. **Automated end-to-end testing before deploy** — DONE (Slice 1 tracer bullet). Playwright in a
+   top-level `e2e/` package (`@palouse/e2e`); one smoke spec (`tests/smoke.spec.ts`: sign up →
+   sign in → create workspace → land on Dashboard). Reusable workflow `.github/workflows/e2e.yml`
+   brings the stack up from source against throwaway Postgres + Redis services (RESEND_API_KEY
+   unset so email verification is not enforced), then runs the browser flow. Wired into `ci.yml`
+   (runs on every PR/push) and gates both `deploy-staging.yml` and `deploy-prod.yml`
+   (`deploy-api` now `needs: e2e`). The Playwright run script is `e2e` (not `test`) so turbo's
+   `pnpm test` does not trigger it in the plain build job.
+   - NOTE: not yet executed against a live stack (no Docker in the dev sandbox). First real run is
+     in CI on the PR. Watch that run.
+   - EXPAND LATER: M-roadmap smoke flows (connect a source, create agent + key, hand off, accept
+     invite). Add a "Testing & CI" milestone + epic to the board.
 
-4. **Verify, migrate, commit**: full `pnpm -r typecheck` + `pnpm -F @palouse/web build`; apply
-   migration 0005 on staging; branch + commit + PR (see uncommitted note above).
+4. **Migration + PR**: full `pnpm typecheck` green (25 tasks). Apply migration 0005 on staging
+   (runs on next deploy). Branch + commit + PR for the Slice 3 gating + Slice 4 + E2E work.
 
 5. **Board bookkeeping**: after an end-to-end test pass, close Phase 4 issues (#20-#25); Team &
-   access #43/#44/#45/#46 are code-complete (verify then close), #47 partial (UI gating left),
-   #48 open. Add the E2E testing milestone/epic.
+   access #43/#44/#45/#46 code-complete (verify then close); #47 and #48 now code-complete.
+   Add the E2E testing (#49?) milestone/epic.
 
 ## Verify commands
 
-- Typecheck: `pnpm -F @palouse/{shared,core,api,web} typecheck`
+- Typecheck: `pnpm typecheck` (turbo, all packages) or `pnpm -F @palouse/{shared,core,api,web} typecheck`
 - Web build (regenerates typed routes): `pnpm -F @palouse/web build`
 - Migration: `pnpm -F @palouse/db generate` (already run for 0005) / `migrate` to apply.
+- E2E locally: bring up the stack, then `pnpm -F @palouse/e2e install:browser && pnpm -F @palouse/e2e e2e` (see `e2e/README.md`).
