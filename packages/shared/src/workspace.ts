@@ -77,3 +77,15 @@ export const createWorkspaceInput = z.object({
   slug,
 });
 export type CreateWorkspaceInput = z.infer<typeof createWorkspaceInput>;
+
+// Account deletion is two-step: confirmName must match the account name (level 1),
+// then the emailed token is submitted to actually delete it (level 2).
+export const requestAccountDeletionInput = z.object({
+  confirmName: z.string().min(1),
+});
+export type RequestAccountDeletionInput = z.infer<typeof requestAccountDeletionInput>;
+
+export const confirmAccountDeletionInput = z.object({
+  token: z.string().min(1),
+});
+export type ConfirmAccountDeletionInput = z.infer<typeof confirmAccountDeletionInput>;

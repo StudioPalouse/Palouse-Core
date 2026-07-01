@@ -1,9 +1,11 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { and, count, desc, eq, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, gt, isNull } from 'drizzle-orm';
 import {
+  accountDeletionTokens,
   invitations,
   memberships,
   organizations,
+  usageRollupsDaily,
   users,
   workspaces,
   type Database,
@@ -12,6 +14,7 @@ import {
   conflict,
   forbidden,
   notFound,
+  validation,
   type CreateInviteInput,
   type CreateWorkspaceInput,
   type Invitation,
@@ -22,6 +25,7 @@ import {
 } from '@palouse/shared';
 
 const ADMIN_ROLES: MemberRole[] = ['owner', 'admin'];
+const OWNER_ROLES: MemberRole[] = ['owner'];
 
 function toDto(ws: typeof workspaces.$inferSelect, role: MemberRole): Workspace {
   return {
@@ -411,4 +415,106 @@ export async function acceptInvite(
 
     return { workspaceId: invite.workspaceId };
   });
+}
+
+// ---------------------------------------------------------------------------
+// Account deletion (owner-only, two-step: type the name, then click an email link)
+// ---------------------------------------------------------------------------
+
+const ACCOUNT_DELETION_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+/**
+ * Level 1 of account deletion: the owner re-types the account name to confirm
+ * intent. On a match we mint a single-use token (stored only as a hash) and
+ * return it plus the owner's email so the caller can send the confirmation link.
+ * Any earlier unconsumed token for this workspace is dropped so only the newest
+ * link works.
+ */
+export async function requestAccountDeletion(
+  db: Database,
+  workspaceId: string,
+  actorUserId: string,
+  confirmName: string,
+): Promise<{ token: string; email: string; accountName: string }> {
+  await requireRole(db, workspaceId, actorUserId, OWNER_ROLES);
+
+  const [ws] = await db
+    .select({ name: workspaces.name })
+    .from(workspaces)
+    .where(eq(workspaces.id, workspaceId))
+    .limit(1);
+  if (!ws) throw notFound('Workspace not found');
+  if (confirmName.trim() !== ws.name) {
+    throw validation('The name you typed does not match the account name');
+  }
+
+  const [actor] = await db
+    .select({ email: users.email })
+    .from(users)
+    .where(eq(users.id, actorUserId))
+    .limit(1);
+  if (!actor) throw notFound('User not found');
+
+  await db.delete(accountDeletionTokens).where(eq(accountDeletionTokens.workspaceId, workspaceId));
+
+  const token = randomBytes(32).toString('base64url');
+  await db.insert(accountDeletionTokens).values({
+    workspaceId,
+    requestedByUserId: actorUserId,
+    tokenHash: hashToken(token),
+    expiresAt: new Date(Date.now() + ACCOUNT_DELETION_TTL_MS),
+  });
+
+  return { token, email: actor.email, accountName: ws.name };
+}
+
+/**
+ * Level 2 of account deletion: consume the emailed token and permanently delete
+ * the account. The token identifies the workspace; the actor must still be an
+ * owner of it. Deletes the backing organization, which cascades the workspace
+ * and everything under it. usage_rollups_daily has no FK (denormalized), so it
+ * is cleared explicitly for the org's workspaces.
+ */
+export async function confirmAccountDeletion(
+  db: Database,
+  actorUserId: string,
+  token: string,
+): Promise<{ workspaceId: string }> {
+  const [row] = await db
+    .select()
+    .from(accountDeletionTokens)
+    .where(
+      and(
+        eq(accountDeletionTokens.tokenHash, hashToken(token)),
+        isNull(accountDeletionTokens.consumedAt),
+        gt(accountDeletionTokens.expiresAt, new Date()),
+      ),
+    )
+    .limit(1);
+  if (!row) throw notFound('This confirmation link is invalid or has expired');
+
+  await requireRole(db, row.workspaceId, actorUserId, OWNER_ROLES);
+
+  const [ws] = await db
+    .select({ organizationId: workspaces.organizationId })
+    .from(workspaces)
+    .where(eq(workspaces.id, row.workspaceId))
+    .limit(1);
+  if (!ws) throw notFound('Workspace not found');
+
+  await db.transaction(async (tx) => {
+    // Clear the denormalized rollups for every workspace in the org (no FK to cascade).
+    const orgWorkspaces = await tx
+      .select({ id: workspaces.id })
+      .from(workspaces)
+      .where(eq(workspaces.organizationId, ws.organizationId));
+    for (const w of orgWorkspaces) {
+      await tx.delete(usageRollupsDaily).where(eq(usageRollupsDaily.workspaceId, w.id));
+    }
+    // Deleting the org cascades its workspaces, memberships, invitations, tasks,
+    // agents, handoffs, integrations, and this token.
+    await tx.delete(organizations).where(eq(organizations.id, ws.organizationId));
+  });
+
+  return { workspaceId: row.workspaceId };
 }
