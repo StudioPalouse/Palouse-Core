@@ -14,21 +14,21 @@
   "dependencies": {
     "@palouse/shared": "workspace:*",
     "@palouse/ui": "workspace:^",
-    "better-auth": "^1.1.0",
-    "lucide-react": "^1.17.0",
-    "next": "^15.0.0",
+    "better-auth": "^1.6.23",
+    "lucide-react": "^1.23.0",
+    "next": "^15.5.20",
     "next-themes": "^0.4.6",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "recharts": "^2.15.0"
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "recharts": "^2.15.4"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.3.0",
-    "@types/node": "^22.10.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "tailwindcss": "^4.3.0",
+    "@tailwindcss/postcss": "^4.3.2",
+    "@types/node": "^22.20.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "tailwindcss": "^4.3.2",
     "tw-animate-css": "^1.4.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.9.3"
   }
 }

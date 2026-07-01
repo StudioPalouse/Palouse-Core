@@ -17,10 +17,10 @@
     "@palouse/config": "workspace:*",
     "@palouse/db": "workspace:*",
     "@palouse/mail": "workspace:*",
-    "better-auth": "^1.1.0"
+    "better-auth": "^1.6.23"
   },
   "devDependencies": {
-    "typescript": "^5.6.0",
-    "vitest": "^3.2.4"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.6"
   }
 }

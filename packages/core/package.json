@@ -18,12 +18,12 @@
     "@palouse/connector-core": "workspace:^",
     "@palouse/db": "workspace:*",
     "@palouse/shared": "workspace:*",
-    "drizzle-orm": "^0.36.0"
+    "drizzle-orm": "^0.36.4"
   },
   "devDependencies": {
-    "@testcontainers/postgresql": "^11.0.0",
-    "@types/node": "^22.10.0",
-    "typescript": "^5.6.0",
-    "vitest": "^3.2.4"
+    "@testcontainers/postgresql": "^11.14.0",
+    "@types/node": "^22.20.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.6"
   }
 }

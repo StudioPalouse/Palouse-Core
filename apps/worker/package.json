@@ -16,21 +16,21 @@
     "@palouse/connector-asana": "workspace:^",
     "@palouse/connector-core": "workspace:^",
     "@palouse/connector-google-tasks": "workspace:^",
+    "@palouse/connector-microsoft-planner": "workspace:^",
+    "@palouse/connector-microsoft-todo": "workspace:^",
     "@palouse/connector-notion": "workspace:^",
     "@palouse/core": "workspace:^",
     "@palouse/db": "workspace:*",
     "@palouse/queue": "workspace:^",
     "@palouse/shared": "workspace:^",
-    "bullmq": "^5.30.0",
-    "drizzle-orm": "^0.36.0",
-    "ioredis": "^5.10.1",
-    "pino": "^9.5.0",
-    "@palouse/connector-microsoft-todo": "workspace:^",
-    "@palouse/connector-microsoft-planner": "workspace:^"
+    "bullmq": "^5.79.2",
+    "drizzle-orm": "^0.36.4",
+    "ioredis": "^5.11.1",
+    "pino": "^9.14.0"
   },
   "devDependencies": {
-    "@types/node": "^22.10.0",
-    "tsx": "^4.19.0",
-    "typescript": "^5.6.0"
+    "@types/node": "^22.20.0",
+    "tsx": "^4.22.4",
+    "typescript": "^5.9.3"
   }
 }
