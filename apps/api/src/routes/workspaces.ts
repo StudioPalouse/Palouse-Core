@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import {
   createInviteInput,
   createWorkspaceInput,
+  setMemberStatusInput,
   updateMemberRoleInput,
   validation,
 } from '@palouse/shared';
@@ -49,6 +50,20 @@ workspaceRoutes.patch('/:workspaceId/members/:userId', async (c) => {
     c.get('userId'),
     c.req.param('userId'),
     parsed.data.role,
+  );
+  return c.json({ member });
+});
+
+workspaceRoutes.patch('/:workspaceId/members/:userId/status', async (c) => {
+  const parsed = setMemberStatusInput.safeParse(await c.req.json());
+  if (!parsed.success) throw validation('Invalid status', parsed.error.flatten());
+  const db = getDb(loadEnv().DATABASE_URL);
+  const member = await workspaces.setMemberStatus(
+    db,
+    c.req.param('workspaceId'),
+    c.get('userId'),
+    c.req.param('userId'),
+    parsed.data.status,
   );
   return c.json({ member });
 });

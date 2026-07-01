@@ -10,11 +10,18 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
-const baseId = () => uuid('id').primaryKey().default(sql`gen_random_uuid()`);
+const baseId = () =>
+  uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`);
 const ts = (name: string) =>
   timestamp(name, { withTimezone: true, mode: 'date' }).notNull().defaultNow();
 
 export const memberRole = pgEnum('member_role', ['owner', 'admin', 'member', 'viewer']);
+
+// Deactivated members keep their membership row (so their authored/assigned work
+// stays attributable and visible) but lose all access to the workspace.
+export const membershipStatus = pgEnum('membership_status', ['active', 'inactive']);
 
 export const organizations = pgTable(
   'organizations',
@@ -118,6 +125,8 @@ export const memberships = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     role: memberRole('role').notNull().default('member'),
+    status: membershipStatus('status').notNull().default('active'),
+    deactivatedAt: timestamp('deactivated_at', { withTimezone: true, mode: 'date' }),
     createdAt: ts('created_at'),
     updatedAt: ts('updated_at'),
   },
