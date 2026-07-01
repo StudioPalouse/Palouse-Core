@@ -22,7 +22,7 @@ jobs:
     name: Deploy api (runs migrations)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - run: flyctl deploy . --config fly/api.toml --dockerfile apps/api/Dockerfile --remote-only --yes
 
@@ -37,7 +37,7 @@ jobs:
         # real MCP server ships (standing rule: minimal hosting spend in testing).
         app: [web, worker]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - run: flyctl deploy . --config fly/${{ matrix.app }}.toml --dockerfile apps/${{ matrix.app }}/Dockerfile --remote-only --yes
 
