@@ -17,6 +17,7 @@ import type {
   LlmGeneration,
   ReviewDecision,
   MemberRole,
+  MembershipStatus,
   Task,
   TaskComment,
   TaskSource,
@@ -69,6 +70,12 @@ export const api = {
     request<{ member: WorkspaceMember }>(`/v1/workspaces/${workspaceId}/members/${userId}`, {
       method: 'PATCH',
       body: JSON.stringify({ role }),
+    }),
+
+  setMemberStatus: (workspaceId: string, userId: string, status: MembershipStatus) =>
+    request<{ member: WorkspaceMember }>(`/v1/workspaces/${workspaceId}/members/${userId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
     }),
 
   removeMember: (workspaceId: string, userId: string) =>

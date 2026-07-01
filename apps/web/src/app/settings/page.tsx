@@ -9,6 +9,7 @@ import type {
   Invitation,
   InviteRole,
   MemberRole,
+  MembershipStatus,
   Workspace,
   WorkspaceMember,
 } from '@palouse/shared';
@@ -282,8 +283,27 @@ function TeamCard({ workspace }: { workspace: Workspace }) {
     }
   }
 
+  async function setStatus(userId: string, status: MembershipStatus) {
+    if (
+      status === 'inactive' &&
+      !window.confirm('Deactivate this member? They keep their history but lose access.')
+    ) {
+      return;
+    }
+    setError(null);
+    try {
+      await api.setMemberStatus(workspace.id, userId, status);
+      refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to update member');
+    }
+  }
+
   async function remove(userId: string) {
-    if (!window.confirm('Remove this member from the workspace?')) return;
+    if (
+      !window.confirm('Remove this member from the workspace? This does not delete their account.')
+    )
+      return;
     setError(null);
     try {
       await api.removeMember(workspace.id, userId);
@@ -333,7 +353,13 @@ function TeamCard({ workspace }: { workspace: Workspace }) {
             {members.map((m) => {
               const isSelf = m.userId === myId;
               return (
-                <li key={m.userId} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
+                <li
+                  key={m.userId}
+                  className={cn(
+                    'flex flex-wrap items-center gap-3 px-3 py-2.5',
+                    m.status === 'inactive' && 'opacity-60',
+                  )}
+                >
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium">
                       {m.name ?? m.email}
@@ -344,6 +370,7 @@ function TeamCard({ workspace }: { workspace: Workspace }) {
                     )}
                   </div>
                   <div className="ml-auto flex items-center gap-2">
+                    {m.status === 'inactive' && <Badge variant="outline">Inactive</Badge>}
                     {canManage && !isSelf ? (
                       <Select
                         value={m.role}
@@ -364,9 +391,20 @@ function TeamCard({ workspace }: { workspace: Workspace }) {
                       <Badge variant="outline">{ROLE_LABELS[m.role]}</Badge>
                     )}
                     {canManage && !isSelf && (
-                      <Button variant="ghost" size="sm" onClick={() => void remove(m.userId)}>
-                        Remove
-                      </Button>
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            void setStatus(m.userId, m.status === 'active' ? 'inactive' : 'active')
+                          }
+                        >
+                          {m.status === 'active' ? 'Deactivate' : 'Reactivate'}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => void remove(m.userId)}>
+                          Remove
+                        </Button>
+                      </>
                     )}
                   </div>
                 </li>

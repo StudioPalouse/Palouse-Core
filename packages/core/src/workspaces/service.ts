@@ -16,16 +16,14 @@ import {
   type CreateWorkspaceInput,
   type Invitation,
   type MemberRole,
+  type MembershipStatus,
   type Workspace,
   type WorkspaceMember,
 } from '@palouse/shared';
 
 const ADMIN_ROLES: MemberRole[] = ['owner', 'admin'];
 
-function toDto(
-  ws: typeof workspaces.$inferSelect,
-  role: MemberRole,
-): Workspace {
+function toDto(ws: typeof workspaces.$inferSelect, role: MemberRole): Workspace {
   return {
     id: ws.id,
     organizationId: ws.organizationId,
@@ -42,7 +40,7 @@ export async function listWorkspacesForUser(db: Database, userId: string): Promi
     .select({ workspace: workspaces, role: memberships.role })
     .from(memberships)
     .innerJoin(workspaces, eq(memberships.workspaceId, workspaces.id))
-    .where(eq(memberships.userId, userId))
+    .where(and(eq(memberships.userId, userId), eq(memberships.status, 'active')))
     .orderBy(workspaces.createdAt);
   return rows.map((r) => toDto(r.workspace, r.role));
 }
@@ -90,7 +88,13 @@ export async function requireMembership(
   const rows = await db
     .select({ role: memberships.role })
     .from(memberships)
-    .where(and(eq(memberships.workspaceId, workspaceId), eq(memberships.userId, userId)))
+    .where(
+      and(
+        eq(memberships.workspaceId, workspaceId),
+        eq(memberships.userId, userId),
+        eq(memberships.status, 'active'),
+      ),
+    )
     .limit(1);
   if (rows.length === 0) throw forbidden('Not a member of this workspace');
   return rows[0]!.role;
@@ -113,6 +117,7 @@ function memberToDto(r: {
   email: string;
   name: string | null;
   role: MemberRole;
+  status: MembershipStatus;
   joinedAt: Date;
 }): WorkspaceMember {
   return {
@@ -120,6 +125,7 @@ function memberToDto(r: {
     email: r.email,
     name: r.name,
     role: r.role,
+    status: r.status,
     joinedAt: r.joinedAt.toISOString(),
   };
 }
@@ -132,6 +138,7 @@ export async function listMembers(db: Database, workspaceId: string): Promise<Wo
       email: users.email,
       name: users.name,
       role: memberships.role,
+      status: memberships.status,
       joinedAt: memberships.createdAt,
     })
     .from(memberships)
@@ -152,6 +159,7 @@ async function getMember(
       email: users.email,
       name: users.name,
       role: memberships.role,
+      status: memberships.status,
       joinedAt: memberships.createdAt,
     })
     .from(memberships)
@@ -161,11 +169,18 @@ async function getMember(
   return rows[0] ? memberToDto(rows[0]) : null;
 }
 
-async function ownerCount(db: Database, workspaceId: string): Promise<number> {
+/** Active owners only: a deactivated owner cannot be the one keeping a workspace alive. */
+async function activeOwnerCount(db: Database, workspaceId: string): Promise<number> {
   const [row] = await db
     .select({ n: count() })
     .from(memberships)
-    .where(and(eq(memberships.workspaceId, workspaceId), eq(memberships.role, 'owner')));
+    .where(
+      and(
+        eq(memberships.workspaceId, workspaceId),
+        eq(memberships.role, 'owner'),
+        eq(memberships.status, 'active'),
+      ),
+    );
   return Number(row?.n ?? 0);
 }
 
@@ -180,7 +195,11 @@ export async function updateMemberRole(
   await requireRole(db, workspaceId, actorUserId, ADMIN_ROLES);
   const current = await getMember(db, workspaceId, targetUserId);
   if (!current) throw notFound('Member not found');
-  if (current.role === 'owner' && role !== 'owner' && (await ownerCount(db, workspaceId)) <= 1) {
+  if (
+    current.role === 'owner' &&
+    role !== 'owner' &&
+    (await activeOwnerCount(db, workspaceId)) <= 1
+  ) {
     throw conflict('A workspace must keep at least one owner');
   }
   await db
@@ -200,12 +219,53 @@ export async function removeMember(
   await requireRole(db, workspaceId, actorUserId, ADMIN_ROLES);
   const current = await getMember(db, workspaceId, targetUserId);
   if (!current) throw notFound('Member not found');
-  if (current.role === 'owner' && (await ownerCount(db, workspaceId)) <= 1) {
+  if (current.role === 'owner' && (await activeOwnerCount(db, workspaceId)) <= 1) {
     throw conflict('A workspace must keep at least one owner');
   }
   await db
     .delete(memberships)
     .where(and(eq(memberships.workspaceId, workspaceId), eq(memberships.userId, targetUserId)));
+}
+
+/**
+ * Deactivate or reactivate a member. Deactivating keeps the membership row (so
+ * their work stays attributable) but blocks access: `requireMembership` only
+ * matches active members, so it takes effect on the deactivated user's next
+ * request without touching their sessions (which are global and may cover other
+ * workspaces they still belong to). Cannot deactivate the last active owner,
+ * which also stops an admin from locking themselves out as the sole owner.
+ */
+export async function setMemberStatus(
+  db: Database,
+  workspaceId: string,
+  actorUserId: string,
+  targetUserId: string,
+  status: MembershipStatus,
+): Promise<WorkspaceMember> {
+  await requireRole(db, workspaceId, actorUserId, ADMIN_ROLES);
+  const current = await getMember(db, workspaceId, targetUserId);
+  if (!current) throw notFound('Member not found');
+
+  if (
+    status === 'inactive' &&
+    current.role === 'owner' &&
+    (await activeOwnerCount(db, workspaceId)) <= 1
+  ) {
+    throw conflict('A workspace must keep at least one active owner');
+  }
+
+  if (current.status === status) return current;
+
+  await db
+    .update(memberships)
+    .set({
+      status,
+      deactivatedAt: status === 'inactive' ? new Date() : null,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(memberships.workspaceId, workspaceId), eq(memberships.userId, targetUserId)));
+
+  return { ...current, status };
 }
 
 // ---------------------------------------------------------------------------

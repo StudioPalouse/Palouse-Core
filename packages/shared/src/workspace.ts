@@ -4,6 +4,9 @@ import { uuid } from './ids.js';
 export const memberRole = z.enum(['owner', 'admin', 'member', 'viewer']);
 export type MemberRole = z.infer<typeof memberRole>;
 
+export const membershipStatus = z.enum(['active', 'inactive']);
+export type MembershipStatus = z.infer<typeof membershipStatus>;
+
 export const workspaceSchema = z.object({
   id: uuid,
   organizationId: uuid,
@@ -19,6 +22,7 @@ export const workspaceMemberSchema = z.object({
   email: z.string(),
   name: z.string().nullable(),
   role: memberRole,
+  status: membershipStatus,
   joinedAt: z.string().datetime(),
 });
 export type WorkspaceMember = z.infer<typeof workspaceMemberSchema>;
@@ -27,6 +31,12 @@ export const updateMemberRoleInput = z.object({
   role: memberRole,
 });
 export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleInput>;
+
+// Deactivate (status 'inactive') or reactivate (status 'active') a member.
+export const setMemberStatusInput = z.object({
+  status: membershipStatus,
+});
+export type SetMemberStatusInput = z.infer<typeof setMemberStatusInput>;
 
 export const invitationStatus = z.enum(['pending', 'accepted', 'revoked', 'expired']);
 export type InvitationStatus = z.infer<typeof invitationStatus>;
