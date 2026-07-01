@@ -1,8 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import type { Task, TaskStatus, Workspace } from '@palouse/shared';
+import type { Task, TaskStatus } from '@palouse/shared';
 import {
   Badge,
   Input,
@@ -17,7 +16,8 @@ import { AppShell } from '@/components/app-shell';
 import { TasksTabs } from '@/components/tasks-tabs';
 import { NewTaskDialog } from '@/components/new-task-dialog';
 import { TaskDetailSheet } from '@/components/task-detail-sheet';
-import { api, ApiError } from '@/lib/api';
+import { api } from '@/lib/api';
+import { useActiveWorkspace } from '@/lib/workspace-context';
 import { formatDate, PRIORITY_LABELS, STATUS_LABELS, STATUS_ORDER } from '@/lib/task-meta';
 
 const STATUS_BADGE: Record<TaskStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
@@ -29,27 +29,19 @@ const STATUS_BADGE: Record<TaskStatus, 'default' | 'secondary' | 'destructive' |
 };
 
 export default function TasksPage() {
-  const router = useRouter();
-  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  return (
+    <AppShell>
+      <TasksContent />
+    </AppShell>
+  );
+}
+
+function TasksContent() {
+  const { workspace } = useActiveWorkspace();
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-
-  useEffect(() => {
-    api
-      .listWorkspaces()
-      .then(({ workspaces }) => {
-        if (workspaces.length === 0) {
-          router.replace('/workspaces/new');
-          return;
-        }
-        setWorkspace(workspaces[0]!);
-      })
-      .catch((err) => {
-        if (err instanceof ApiError && err.status === 401) router.replace('/sign-in');
-      });
-  }, [router]);
 
   const refresh = useCallback(() => {
     if (!workspace) return;
@@ -65,7 +57,7 @@ export default function TasksPage() {
   }, [refresh, search]);
 
   return (
-    <AppShell>
+    <>
       <div className="flex flex-col gap-4">
         <h1 className="text-lg font-semibold tracking-tight">
           Tasks
@@ -147,6 +139,6 @@ export default function TasksPage() {
           onChanged={refresh}
         />
       )}
-    </AppShell>
+    </>
   );
 }

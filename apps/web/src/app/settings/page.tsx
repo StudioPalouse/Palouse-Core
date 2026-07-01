@@ -35,6 +35,7 @@ import { NewAgentDialog } from '@/components/new-agent-dialog';
 import { api, ApiError, oauthStartUrl } from '@/lib/api';
 import { AGENT_KIND_LABELS } from '@/lib/agent-meta';
 import { useSession, updateUser, changePassword } from '@/lib/auth-client';
+import { useActiveWorkspace } from '@/lib/workspace-context';
 
 const ROLE_LABELS: Record<MemberRole, string> = {
   owner: 'Owner',
@@ -146,7 +147,9 @@ function TaskSourcesPanel({ workspace }: { workspace: Workspace }) {
         <div className="flex flex-wrap gap-2">
           {CONNECTABLE.map((provider) => (
             <Button key={provider} variant="outline" size="sm" asChild>
-              <a href={oauthStartUrl(provider, workspace.id)}>Connect {PROVIDER_LABELS[provider]}</a>
+              <a href={oauthStartUrl(provider, workspace.id)}>
+                Connect {PROVIDER_LABELS[provider]}
+              </a>
             </Button>
           ))}
         </div>
@@ -336,7 +339,9 @@ function TeamCard({ workspace }: { workspace: Workspace }) {
                       {m.name ?? m.email}
                       {isSelf && <span className="text-muted-foreground"> (you)</span>}
                     </div>
-                    {m.name && <div className="text-muted-foreground truncate text-xs">{m.email}</div>}
+                    {m.name && (
+                      <div className="text-muted-foreground truncate text-xs">{m.email}</div>
+                    )}
                   </div>
                   <div className="ml-auto flex items-center gap-2">
                     {canManage && !isSelf ? (
@@ -387,7 +392,10 @@ function TeamCard({ workspace }: { workspace: Workspace }) {
                   onChange={(e) => setInviteEmail(e.target.value)}
                 />
               </div>
-              <Select value={inviteRoleVal} onValueChange={(v) => setInviteRoleVal(v as InviteRole)}>
+              <Select
+                value={inviteRoleVal}
+                onValueChange={(v) => setInviteRoleVal(v as InviteRole)}
+              >
                 <SelectTrigger size="sm" className="w-28">
                   <SelectValue />
                 </SelectTrigger>
@@ -576,13 +584,7 @@ function AccountCard() {
 }
 
 function SettingsContent() {
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-
-  useEffect(() => {
-    api.listWorkspaces().then(({ workspaces }) => setWorkspaces(workspaces));
-  }, []);
-
-  const workspace = workspaces[0];
+  const { workspaces, workspace } = useActiveWorkspace();
 
   return (
     <div className="flex flex-col gap-4">

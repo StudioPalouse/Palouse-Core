@@ -8,12 +8,15 @@ import { useTheme } from 'next-themes';
 import {
   BookOpen,
   Bot,
+  Check,
+  ChevronsUpDown,
   KanbanSquare,
   LayoutDashboard,
   ListChecks,
   Menu,
   Monitor,
   Moon,
+  Plus,
   Scale,
   Settings,
   Sun,
@@ -36,6 +39,7 @@ import {
   SheetTrigger,
 } from '@palouse/ui';
 import { signOut, useSession } from '@/lib/auth-client';
+import { WorkspaceProvider, useActiveWorkspace } from '@/lib/workspace-context';
 
 type NavItem = {
   href: Route;
@@ -103,6 +107,53 @@ function Brand({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
+function WorkspaceSwitcher({ onNavigate }: { onNavigate?: () => void }) {
+  const router = useRouter();
+  const { workspaces, workspace, setWorkspaceId } = useActiveWorkspace();
+  if (!workspace) return null;
+
+  function select(id: string) {
+    setWorkspaceId(id);
+    onNavigate?.();
+  }
+
+  return (
+    <div className="px-3 pb-1">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="hover:bg-accent/50 flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors"
+          >
+            <span className="min-w-0 flex-1 truncate font-medium">{workspace.name}</span>
+            <ChevronsUpDown className="text-muted-foreground size-4 shrink-0" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuLabel className="text-muted-foreground text-xs">
+            Workspaces
+          </DropdownMenuLabel>
+          {workspaces.map((ws) => (
+            <DropdownMenuItem key={ws.id} onSelect={() => select(ws.id)}>
+              <span className="min-w-0 flex-1 truncate">{ws.name}</span>
+              {ws.id === workspace.id && <Check className="size-4 shrink-0" />}
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => {
+              onNavigate?.();
+              router.push('/workspaces/new');
+            }}
+          >
+            <Plus className="size-4" /> New workspace
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
 function ThemeRadio() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -146,7 +197,9 @@ function UserMenu() {
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent side="top" align="start" className="w-56">
-          <DropdownMenuLabel className="truncate font-normal">{email || 'Account'}</DropdownMenuLabel>
+          <DropdownMenuLabel className="truncate font-normal">
+            {email || 'Account'}
+          </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuLabel className="text-muted-foreground text-xs">Theme</DropdownMenuLabel>
           <ThemeRadio />
@@ -166,7 +219,7 @@ function UserMenu() {
   );
 }
 
-export function AppShell({ children }: { children: ReactNode }) {
+function AppShellInner({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -174,6 +227,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Desktop sidebar */}
       <aside className="bg-card/40 hidden w-60 shrink-0 flex-col border-r lg:flex">
         <Brand />
+        <WorkspaceSwitcher />
         <NavLinks />
         <UserMenu />
       </aside>
@@ -191,6 +245,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <SheetContent side="left" className="w-64 p-0">
               <SheetTitle className="sr-only">Navigation</SheetTitle>
               <Brand onNavigate={() => setMobileOpen(false)} />
+              <WorkspaceSwitcher onNavigate={() => setMobileOpen(false)} />
               <NavLinks onNavigate={() => setMobileOpen(false)} />
               <UserMenu />
             </SheetContent>
@@ -205,5 +260,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
       </div>
     </div>
+  );
+}
+
+export function AppShell({ children }: { children: ReactNode }) {
+  return (
+    <WorkspaceProvider>
+      <AppShellInner>{children}</AppShellInner>
+    </WorkspaceProvider>
   );
 }
