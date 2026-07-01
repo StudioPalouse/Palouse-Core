@@ -60,9 +60,10 @@ applied to staging/prod. It runs on the next deploy (`pnpm -F @palouse/db migrat
    sign in → create workspace → land on Dashboard). Reusable workflow `.github/workflows/e2e.yml`
    brings the stack up from source against throwaway Postgres + Redis services (RESEND_API_KEY
    unset so email verification is not enforced), then runs the browser flow. Wired into `ci.yml`
-   (runs on every PR/push) and gates both `deploy-staging.yml` and `deploy-prod.yml`
-   (`deploy-api` now `needs: e2e`). The Playwright run script is `e2e` (not `test`) so turbo's
-   `pnpm test` does not trigger it in the plain build job.
+   (runs on every PR/push) as the pre-merge gate. It is NOT a deploy-time gate: deploys run only
+   the post-deploy `curl` smoke against the live env (see `docs/PLAN-e2e-where-to-run.md`). The
+   Playwright run script is `e2e` (not `test`) so turbo's `pnpm test` does not trigger it in the
+   plain build job.
    - NOTE: not yet executed against a live stack (no Docker in the dev sandbox). First real run is
      in CI on the PR. Watch that run.
    - EXPAND LATER: M-roadmap smoke flows (connect a source, create agent + key, hand off, accept

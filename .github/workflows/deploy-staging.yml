@@ -14,13 +14,12 @@ env:
   FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
 jobs:
-  e2e:
-    name: E2E gate
-    uses: ./.github/workflows/e2e.yml
-
+  # E2E is the pre-merge gate in CI (ci.yml), not a deploy-time gate: it runs
+  # against its own ephemeral stack, so re-running it here would re-test the
+  # already-merged commit in a substrate that isn't the deployed artifact. The
+  # meaningful post-deploy signal is the smoke job below (hits the live env).
   deploy-api:
     name: Deploy api (runs migrations)
-    needs: e2e
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -16,13 +16,14 @@ env:
   FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_PROD }}
 
 jobs:
-  e2e:
-    name: E2E gate
-    uses: ./.github/workflows/e2e.yml
-
+  # No E2E gate here: prod tags are cut from an already-green main (validated by
+  # the pre-merge CI E2E in ci.yml), and the E2E suite runs its own ephemeral
+  # stack rather than the deployed artifact. The post-deploy smoke job below is
+  # the real check against live prod. NOTE: tags do not trigger ci.yml, so this
+  # relies on tagging a commit that passed CI on main (enforce via branch
+  # protection requiring the E2E check to merge).
   deploy-api:
     name: Deploy api (runs migrations)
-    needs: e2e
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
