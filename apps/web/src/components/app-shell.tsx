@@ -8,6 +8,7 @@ import { useTheme } from 'next-themes';
 import {
   BookOpen,
   Check,
+  ChevronRight,
   ChevronsUpDown,
   KanbanSquare,
   LayoutDashboard,
@@ -84,11 +85,13 @@ function NavLink({
   active,
   nested,
   onNavigate,
+  className,
 }: {
   item: NavItem;
   active: boolean;
   nested?: boolean;
   onNavigate?: () => void;
+  className?: string;
 }) {
   const Icon = item.icon;
   return (
@@ -102,6 +105,7 @@ function NavLink({
         active
           ? 'bg-accent text-accent-foreground font-medium'
           : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+        className,
       )}
     >
       <Icon className="size-4 shrink-0" />
@@ -110,28 +114,58 @@ function NavLink({
   );
 }
 
-function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+function NavSection({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
   const pathname = usePathname();
+  const active = isActive(pathname, item);
+  const children = item.children ?? [];
+  const childActive = children.some((child) => isActive(pathname, child));
+  const [expanded, setExpanded] = useState(active || childActive);
+
+  // Auto-open the section when you navigate into it or one of its sub-pages.
+  useEffect(() => {
+    if (active || childActive) setExpanded(true);
+  }, [active, childActive]);
+
+  if (children.length === 0) {
+    return <NavLink item={item} active={active} onNavigate={onNavigate} />;
+  }
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <div className="flex items-center gap-0.5">
+        <NavLink item={item} active={active} onNavigate={onNavigate} className="flex-1" />
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-label={`${expanded ? 'Collapse' : 'Expand'} ${item.label}`}
+          aria-expanded={expanded}
+          className="text-muted-foreground hover:bg-accent/50 hover:text-foreground flex size-8 shrink-0 items-center justify-center rounded-md transition-colors"
+        >
+          <ChevronRight
+            className={cn('size-4 transition-transform', expanded && 'rotate-90')}
+          />
+        </button>
+      </div>
+      {expanded &&
+        children.map((child) => (
+          <NavLink
+            key={child.href}
+            item={child}
+            active={isActive(pathname, child)}
+            nested
+            onNavigate={onNavigate}
+          />
+        ))}
+    </div>
+  );
+}
+
+function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4">
-      {NAV.map((item) => {
-        const active = isActive(pathname, item);
-        return (
-          <div key={item.href} className="flex flex-col gap-0.5">
-            <NavLink item={item} active={active} onNavigate={onNavigate} />
-            {active &&
-              item.children?.map((child) => (
-                <NavLink
-                  key={child.href}
-                  item={child}
-                  active={isActive(pathname, child)}
-                  nested
-                  onNavigate={onNavigate}
-                />
-              ))}
-          </div>
-        );
-      })}
+      {NAV.map((item) => (
+        <NavSection key={item.href} item={item} onNavigate={onNavigate} />
+      ))}
     </nav>
   );
 }
