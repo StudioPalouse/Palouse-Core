@@ -17,11 +17,11 @@ function ConfirmDeletion() {
     if (!token) return;
     setStatus('deleting');
     try {
-      await api.confirmAccountDeletion(token);
+      await api.confirmWorkspaceDeletion(token);
       setStatus('done');
     } catch (err) {
       setStatus('error');
-      setMessage(err instanceof ApiError ? err.message : 'Could not delete this account');
+      setMessage(err instanceof ApiError ? err.message : 'Could not delete this workspace');
     }
   }
 
@@ -43,11 +43,11 @@ function ConfirmDeletion() {
   }
 
   if (!session) {
-    const next = encodeURIComponent(`/account/delete?token=${token}`);
+    const next = encodeURIComponent(`/workspaces/delete?token=${token}`);
     return (
       <>
         <CardHeader>
-          <CardTitle>Confirm account deletion</CardTitle>
+          <CardTitle>Confirm workspace deletion</CardTitle>
           <CardDescription>
             Sign in to confirm. You will land back here automatically.
           </CardDescription>
@@ -65,9 +65,9 @@ function ConfirmDeletion() {
     return (
       <>
         <CardHeader>
-          <CardTitle>Account deleted</CardTitle>
+          <CardTitle>Workspace deleted</CardTitle>
           <CardDescription>
-            The account and everything in it has been permanently removed.
+            The workspace and everything in it has been permanently removed.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -82,7 +82,7 @@ function ConfirmDeletion() {
   return (
     <>
       <CardHeader>
-        <CardTitle className="text-destructive">Delete this account?</CardTitle>
+        <CardTitle className="text-destructive">Delete this workspace?</CardTitle>
         <CardDescription>
           This permanently removes the workspace and everything in it: tasks, agents, integrations,
           and members. This cannot be undone.
@@ -99,7 +99,7 @@ function ConfirmDeletion() {
             {status === 'deleting' ? 'Deleting…' : 'Delete permanently'}
           </Button>
           <Button asChild variant="ghost">
-            <Link href="/settings">Cancel</Link>
+            <Link href="/settings/organization">Cancel</Link>
           </Button>
         </div>
       </CardContent>
@@ -107,7 +107,7 @@ function ConfirmDeletion() {
   );
 }
 
-export default function AccountDeletePage() {
+export default function WorkspaceDeletePage() {
   return (
     <main className="flex min-h-svh items-center justify-center px-4">
       <Card className="w-full max-w-sm">

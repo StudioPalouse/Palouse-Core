@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { and, count, desc, eq, gt, isNull } from 'drizzle-orm';
 import {
-  accountDeletionTokens,
+  workspaceDeletionTokens,
   invitations,
   memberships,
   organizations,
@@ -418,24 +418,24 @@ export async function acceptInvite(
 }
 
 // ---------------------------------------------------------------------------
-// Account deletion (owner-only, two-step: type the name, then click an email link)
+// Workspace deletion (owner-only, two-step: type the name, then click an email link)
 // ---------------------------------------------------------------------------
 
-const ACCOUNT_DELETION_TTL_MS = 60 * 60 * 1000; // 1 hour
+const WORKSPACE_DELETION_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 /**
- * Level 1 of account deletion: the owner re-types the account name to confirm
+ * Level 1 of workspace deletion: the owner re-types the workspace name to confirm
  * intent. On a match we mint a single-use token (stored only as a hash) and
  * return it plus the owner's email so the caller can send the confirmation link.
  * Any earlier unconsumed token for this workspace is dropped so only the newest
  * link works.
  */
-export async function requestAccountDeletion(
+export async function requestWorkspaceDeletion(
   db: Database,
   workspaceId: string,
   actorUserId: string,
   confirmName: string,
-): Promise<{ token: string; email: string; accountName: string }> {
+): Promise<{ token: string; email: string; workspaceName: string }> {
   await requireRole(db, workspaceId, actorUserId, OWNER_ROLES);
 
   const [ws] = await db
@@ -445,7 +445,7 @@ export async function requestAccountDeletion(
     .limit(1);
   if (!ws) throw notFound('Workspace not found');
   if (confirmName.trim() !== ws.name) {
-    throw validation('The name you typed does not match the account name');
+    throw validation('The name you typed does not match the workspace name');
   }
 
   const [actor] = await db
@@ -455,39 +455,41 @@ export async function requestAccountDeletion(
     .limit(1);
   if (!actor) throw notFound('User not found');
 
-  await db.delete(accountDeletionTokens).where(eq(accountDeletionTokens.workspaceId, workspaceId));
+  await db
+    .delete(workspaceDeletionTokens)
+    .where(eq(workspaceDeletionTokens.workspaceId, workspaceId));
 
   const token = randomBytes(32).toString('base64url');
-  await db.insert(accountDeletionTokens).values({
+  await db.insert(workspaceDeletionTokens).values({
     workspaceId,
     requestedByUserId: actorUserId,
     tokenHash: hashToken(token),
-    expiresAt: new Date(Date.now() + ACCOUNT_DELETION_TTL_MS),
+    expiresAt: new Date(Date.now() + WORKSPACE_DELETION_TTL_MS),
   });
 
-  return { token, email: actor.email, accountName: ws.name };
+  return { token, email: actor.email, workspaceName: ws.name };
 }
 
 /**
- * Level 2 of account deletion: consume the emailed token and permanently delete
- * the account. The token identifies the workspace; the actor must still be an
- * owner of it. Deletes the backing organization, which cascades the workspace
- * and everything under it. usage_rollups_daily has no FK (denormalized), so it
- * is cleared explicitly for the org's workspaces.
+ * Level 2 of workspace deletion: consume the emailed token and permanently
+ * delete the workspace. The token identifies the workspace; the actor must still
+ * be an owner of it. Deletes the backing organization, which cascades the
+ * workspace and everything under it. usage_rollups_daily has no FK (denormalized),
+ * so it is cleared explicitly for the org's workspaces.
  */
-export async function confirmAccountDeletion(
+export async function confirmWorkspaceDeletion(
   db: Database,
   actorUserId: string,
   token: string,
 ): Promise<{ workspaceId: string }> {
   const [row] = await db
     .select()
-    .from(accountDeletionTokens)
+    .from(workspaceDeletionTokens)
     .where(
       and(
-        eq(accountDeletionTokens.tokenHash, hashToken(token)),
-        isNull(accountDeletionTokens.consumedAt),
-        gt(accountDeletionTokens.expiresAt, new Date()),
+        eq(workspaceDeletionTokens.tokenHash, hashToken(token)),
+        isNull(workspaceDeletionTokens.consumedAt),
+        gt(workspaceDeletionTokens.expiresAt, new Date()),
       ),
     )
     .limit(1);

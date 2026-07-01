@@ -26,7 +26,7 @@ export function DangerZoneCard({ workspace }: { workspace: Workspace }) {
     setStatus(null);
     setSubmitting(true);
     try {
-      await api.requestAccountDeletion(workspace.id, name.trim());
+      await api.requestWorkspaceDeletion(workspace.id, name.trim());
       setStatus({
         kind: 'ok',
         text: 'Check your email for a link to finish deleting this workspace. It expires in 1 hour.',

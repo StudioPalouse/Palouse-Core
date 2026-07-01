@@ -3,7 +3,6 @@ import { cors } from 'hono/cors';
 import { PalouseError } from '@palouse/shared';
 import { getAuth } from '@palouse/auth';
 import { loadEnv } from '@palouse/config';
-import { accountRoutes } from './routes/account.js';
 import { agentRoutes } from './routes/agents.js';
 import { handoffRoutes } from './routes/handoffs.js';
 import { health } from './routes/health.js';
@@ -52,7 +51,6 @@ export function buildApp() {
   app.route('/v1/otlp', otlpRoutes); // agent-key auth; full path /v1/otlp/v1/traces
   app.route('/v1/integrations', integrationRoutes);
   app.route('/v1/invitations', invitationRoutes);
-  app.route('/v1/account', accountRoutes);
   app.route('/oauth', oauthRoutes);
   app.route('/webhooks', webhookRoutes);
 

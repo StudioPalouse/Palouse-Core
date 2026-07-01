@@ -78,6 +78,8 @@ palouse/
 
 ## 3. Core data model (Drizzle + Postgres)
 
+For the canonical meaning of Organization, Workspace, and User Account (and why the Better-Auth `accounts` table is unrelated), see [the glossary](./glossary.md).
+
 All tables get `id uuid pk default gen_random_uuid()`, `created_at`, `updated_at`. Tenant-scoped tables carry `workspace_id` with a composite index.
 
 ```

@@ -169,11 +169,11 @@ export const invitations = pgTable(
   }),
 );
 
-// Pending "delete this account" confirmations. Level 1 (typing the account name)
-// is checked when the row is created; this table is level 2: the raw token is
-// emailed to the owner and stored only as a hash. Consuming it deletes the org.
-export const accountDeletionTokens = pgTable(
-  'account_deletion_tokens',
+// Pending "delete this workspace" confirmations. Level 1 (typing the workspace
+// name) is checked when the row is created; this table is level 2: the raw token
+// is emailed to the owner and stored only as a hash. Consuming it deletes the org.
+export const workspaceDeletionTokens = pgTable(
+  'workspace_deletion_tokens',
   {
     id: baseId(),
     workspaceId: uuid('workspace_id')
@@ -188,7 +188,7 @@ export const accountDeletionTokens = pgTable(
     createdAt: ts('created_at'),
   },
   (t) => ({
-    tokenHashIdx: index('account_deletion_tokens_hash_idx').on(t.tokenHash),
-    workspaceIdx: index('account_deletion_tokens_workspace_idx').on(t.workspaceId),
+    tokenHashIdx: index('workspace_deletion_tokens_hash_idx').on(t.tokenHash),
+    workspaceIdx: index('workspace_deletion_tokens_workspace_idx').on(t.workspaceId),
   }),
 );

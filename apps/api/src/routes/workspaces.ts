@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
 import {
+  confirmWorkspaceDeletionInput,
   createInviteInput,
   createWorkspaceInput,
-  requestAccountDeletionInput,
+  requestWorkspaceDeletionInput,
   setMemberStatusInput,
   updateMemberRoleInput,
   validation,
@@ -127,33 +128,44 @@ workspaceRoutes.delete('/:workspaceId/invitations/:inviteId', async (c) => {
   return c.body(null, 204);
 });
 
-// Level 1 of account deletion: owner re-types the account name; we email them a
-// one-time confirmation link. The actual delete happens at POST /v1/account/deletion/confirm.
+// Level 1 of workspace deletion: owner re-types the workspace name; we email them
+// a one-time confirmation link. The actual delete happens at the confirm route below.
 workspaceRoutes.post('/:workspaceId/deletion', async (c) => {
-  const parsed = requestAccountDeletionInput.safeParse(await c.req.json());
+  const parsed = requestWorkspaceDeletionInput.safeParse(await c.req.json());
   if (!parsed.success) throw validation('Invalid confirmation', parsed.error.flatten());
   const env = loadEnv();
   const db = getDb(env.DATABASE_URL);
-  const { token, email, accountName } = await workspaces.requestAccountDeletion(
+  const { token, email, workspaceName } = await workspaces.requestWorkspaceDeletion(
     db,
     c.req.param('workspaceId'),
     c.get('userId'),
     parsed.data.confirmName,
   );
-  const confirmUrl = `${env.WEB_BASE_URL}/account/delete?token=${encodeURIComponent(token)}`;
+  const confirmUrl = `${env.WEB_BASE_URL}/workspaces/delete?token=${encodeURIComponent(token)}`;
   await sendEmail({
     to: email,
-    subject: `Confirm deleting the ${accountName} account`,
+    subject: `Confirm deleting the ${workspaceName} workspace`,
     html: renderBasicEmail({
-      heading: 'Confirm account deletion',
+      heading: 'Confirm workspace deletion',
       bodyLines: [
-        `You asked to permanently delete the ${accountName} account and everything in it.`,
+        `You asked to permanently delete the ${workspaceName} workspace and everything in it.`,
         'This cannot be undone. If you did not request this, ignore this email and nothing happens.',
         'This link expires in 1 hour.',
       ],
-      ctaLabel: 'Delete this account permanently',
+      ctaLabel: 'Delete this workspace permanently',
       ctaUrl: confirmUrl,
     }),
   });
   return c.json({ requested: true });
+});
+
+// Level 2 of workspace deletion: consume the emailed token. The token carries the
+// workspace, so this is not nested under /:workspaceId. The signed-in user must
+// still be an owner of that workspace (checked in the service).
+workspaceRoutes.post('/deletion/confirm', async (c) => {
+  const parsed = confirmWorkspaceDeletionInput.safeParse(await c.req.json());
+  if (!parsed.success) throw validation('Invalid token', parsed.error.flatten());
+  const db = getDb(loadEnv().DATABASE_URL);
+  const result = await workspaces.confirmWorkspaceDeletion(db, c.get('userId'), parsed.data.token);
+  return c.json(result);
 });

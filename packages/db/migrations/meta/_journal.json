@@ -57,6 +57,13 @@
       "when": 1782927854585,
       "tag": "0007_stormy_lenny_balinger",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1782928054585,
+      "tag": "0008_rename_workspace_deletion_tokens",
+      "breakpoints": true
     }
   ]
 }

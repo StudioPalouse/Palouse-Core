@@ -63,14 +63,14 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
-  requestAccountDeletion: (workspaceId: string, confirmName: string) =>
+  requestWorkspaceDeletion: (workspaceId: string, confirmName: string) =>
     request<{ requested: boolean }>(`/v1/workspaces/${workspaceId}/deletion`, {
       method: 'POST',
       body: JSON.stringify({ confirmName }),
     }),
 
-  confirmAccountDeletion: (token: string) =>
-    request<{ workspaceId: string }>('/v1/account/deletion/confirm', {
+  confirmWorkspaceDeletion: (token: string) =>
+    request<{ workspaceId: string }>('/v1/workspaces/deletion/confirm', {
       method: 'POST',
       body: JSON.stringify({ token }),
     }),
