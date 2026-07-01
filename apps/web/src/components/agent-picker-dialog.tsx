@@ -76,7 +76,7 @@ export function AgentPickerDialog({
         {agents !== null && agents.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             No agents in this workspace yet. Head to{' '}
-            <Link href="/agents" className="text-foreground underline underline-offset-2">
+            <Link href="/settings/agents" className="text-foreground underline underline-offset-2">
               Agents
             </Link>{' '}
             to create one and mint a key, then come back.

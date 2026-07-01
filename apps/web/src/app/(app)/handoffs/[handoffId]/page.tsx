@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { isTerminal } from '@palouse/shared';
 import { Badge, Button, Separator, Skeleton, Textarea } from '@palouse/ui';
-import { AppShell } from '@/components/app-shell';
 import { HandoffTimeline } from '@/components/handoff-timeline';
 import { UsageSummaryCards } from '@/components/usage-summary-cards';
 import { api } from '@/lib/api';
@@ -39,11 +38,7 @@ function durationLabel(detail: HandoffDetail): string | null {
  * the per-call generation ledger.
  */
 export default function ActivityReportPage() {
-  return (
-    <AppShell>
-      <ActivityReportContent />
-    </AppShell>
-  );
+  return <ActivityReportContent />;
 }
 
 function ActivityReportContent() {

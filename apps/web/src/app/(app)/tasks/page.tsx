@@ -13,7 +13,6 @@ import {
   SelectValue,
   Skeleton,
 } from '@palouse/ui';
-import { AppShell } from '@/components/app-shell';
 import { TasksTabs } from '@/components/tasks-tabs';
 import { NewTaskDialog } from '@/components/new-task-dialog';
 import { TaskDetailSheet } from '@/components/task-detail-sheet';
@@ -42,11 +41,7 @@ function loadDisplay(): DisplayConfig {
 }
 
 export default function TasksPage() {
-  return (
-    <AppShell>
-      <TasksContent />
-    </AppShell>
-  );
+  return <TasksContent />;
 }
 
 function TasksContent() {

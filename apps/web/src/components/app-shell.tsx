@@ -7,7 +7,6 @@ import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { useTheme } from 'next-themes';
 import {
   BookOpen,
-  Bot,
   Check,
   ChevronsUpDown,
   KanbanSquare,
@@ -23,6 +22,7 @@ import {
   Settings,
   Sun,
   Target,
+  UserCog,
   Workflow,
 } from 'lucide-react';
 import {
@@ -70,8 +70,6 @@ const NAV: NavItem[] = [
     ],
   },
   { href: '/objectives', label: 'Objectives', icon: Target },
-  // temporary: moves under Settings in Slice 2
-  { href: '/agents', label: 'Agents', icon: Bot },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -238,6 +236,7 @@ function UserMenu() {
   const router = useRouter();
   const { data: session } = useSession();
   const email = session?.user.email ?? '';
+  const image = session?.user.image ?? null;
   const initial = email.charAt(0).toUpperCase() || '?';
 
   return (
@@ -248,9 +247,7 @@ function UserMenu() {
             type="button"
             className="hover:bg-accent/50 flex w-full items-center gap-3 rounded-md p-2 text-left transition-colors"
           >
-            <span className="bg-primary text-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-medium">
-              {initial}
-            </span>
+            <UserAvatar image={image} initial={initial} />
             <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs">
               {email || 'Account'}
             </span>
@@ -260,6 +257,12 @@ function UserMenu() {
           <DropdownMenuLabel className="truncate font-normal">
             {email || 'Account'}
           </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link href="/account">
+              <UserCog className="size-4" /> Account settings
+            </Link>
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuLabel className="text-muted-foreground text-xs">Theme</DropdownMenuLabel>
           <ThemeRadio />
@@ -276,6 +279,25 @@ function UserMenu() {
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
+  );
+}
+
+/** The circular user avatar: profile image when set, initial letter otherwise. */
+function UserAvatar({ image, initial }: { image: string | null; initial: string }) {
+  if (image) {
+    // eslint-disable-next-line @next/next/no-img-element -- data-URL avatar, no loader needed
+    return (
+      <img
+        src={image}
+        alt=""
+        className="size-8 shrink-0 rounded-full object-cover"
+      />
+    );
+  }
+  return (
+    <span className="bg-primary text-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-medium">
+      {initial}
+    </span>
   );
 }
 

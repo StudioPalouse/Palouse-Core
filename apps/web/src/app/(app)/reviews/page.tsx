@@ -4,18 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { HandoffListItem } from '@palouse/shared';
 import { Badge, Button, Skeleton, Textarea } from '@palouse/ui';
-import { AppShell } from '@/components/app-shell';
 import { TasksTabs } from '@/components/tasks-tabs';
 import { api } from '@/lib/api';
 import { useActiveWorkspace } from '@/lib/workspace-context';
 import { formatDateTime } from '@/lib/handoff-meta';
 
 export default function ReviewsPage() {
-  return (
-    <AppShell>
-      <ReviewsContent />
-    </AppShell>
-  );
+  return <ReviewsContent />;
 }
 
 function ReviewsContent() {

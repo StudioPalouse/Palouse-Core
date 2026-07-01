@@ -16,7 +16,6 @@ import {
   Skeleton,
 } from '@palouse/ui';
 import { Download } from 'lucide-react';
-import { AppShell } from '@/components/app-shell';
 import { AgentsTabs } from '@/components/agents-tabs';
 import { BreakdownChart, DailySpendChart } from '@/components/spend-charts';
 import { api } from '@/lib/api';
@@ -81,11 +80,7 @@ function downloadAgentCsv(rows: UsageSummaryRow[]) {
 }
 
 export default function AgentsSpendPage() {
-  return (
-    <AppShell>
-      <AgentsSpendContent />
-    </AppShell>
-  );
+  return <AgentsSpendContent />;
 }
 
 function AgentsSpendContent() {

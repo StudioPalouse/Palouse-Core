@@ -6,22 +6,18 @@ import { useRouter } from 'next/navigation';
 import type { Agent } from '@palouse/shared';
 import { Badge, Skeleton } from '@palouse/ui';
 import { ChevronRight } from 'lucide-react';
-import { AppShell } from '@/components/app-shell';
 import { AgentsTabs } from '@/components/agents-tabs';
 import { NewAgentDialog } from '@/components/new-agent-dialog';
 import { api } from '@/lib/api';
 import { useActiveWorkspace } from '@/lib/workspace-context';
+import { canManage } from '@/lib/roles';
 import { AGENT_KIND_LABELS } from '@/lib/agent-meta';
 import { formatUsd } from '@/lib/handoff-meta';
 
 type AgentRow = { agent: Agent; tasks: number; spend: number };
 
 export default function AgentsPage() {
-  return (
-    <AppShell>
-      <AgentsContent />
-    </AppShell>
-  );
+  return <AgentsContent />;
 }
 
 function AgentsContent() {
@@ -67,10 +63,10 @@ function AgentsContent() {
           )}
         </h1>
         <div className="ml-auto">
-          {workspace && (workspace.role === 'owner' || workspace.role === 'admin') && (
+          {workspace && canManage(workspace.role) && (
             <NewAgentDialog
               workspaceId={workspace.id}
-              onCreated={(agent) => router.push(`/agents/${agent.id}`)}
+              onCreated={(agent) => router.push(`/settings/agents/${agent.id}`)}
             />
           )}
         </div>
@@ -93,7 +89,7 @@ function AgentsContent() {
             {rows.map(({ agent, tasks, spend }) => (
               <li key={agent.id}>
                 <Link
-                  href={{ pathname: `/agents/${agent.id}` }}
+                  href={{ pathname: `/settings/agents/${agent.id}` }}
                   className="hover:bg-accent/50 flex w-full items-center gap-3 px-4 py-3 text-left transition-colors"
                 >
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">{agent.name}</span>

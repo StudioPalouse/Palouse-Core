@@ -6,7 +6,6 @@ import { useParams, useRouter } from 'next/navigation';
 import type { Agent, AgentApiKey, HandoffListItem, UsageSummaryRow } from '@palouse/shared';
 import { Badge, Button, Card, CardContent, Skeleton } from '@palouse/ui';
 import { ChevronLeft } from 'lucide-react';
-import { AppShell } from '@/components/app-shell';
 import { AgentKeyDialog } from '@/components/agent-key-dialog';
 import { MiniSpark } from '@/components/spend-charts';
 import { api, ApiError } from '@/lib/api';
@@ -26,11 +25,7 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
 }
 
 export default function AgentDetailPage() {
-  return (
-    <AppShell>
-      <AgentDetailContent />
-    </AppShell>
-  );
+  return <AgentDetailContent />;
 }
 
 function AgentDetailContent() {
@@ -57,7 +52,7 @@ function AgentDetailContent() {
         setKeys(keys);
       })
       .catch((err) => {
-        if (err instanceof ApiError && err.status === 404) router.replace('/agents');
+        if (err instanceof ApiError && err.status === 404) router.replace('/settings/agents');
       });
 
     api
@@ -95,7 +90,7 @@ function AgentDetailContent() {
     <div className="flex flex-col gap-6">
       <div>
         <Link
-          href="/agents"
+          href="/settings/agents"
           className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
         >
           <ChevronLeft className="size-3.5" /> Agents

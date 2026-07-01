@@ -5,8 +5,8 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@palouse/ui';
 
 const TABS = [
-  { href: '/agents', label: 'Directory' },
-  { href: '/agents/spend', label: 'Spend' },
+  { href: '/settings/agents', label: 'Directory' },
+  { href: '/settings/agents/spend', label: 'Spend' },
 ] as const;
 
 export function AgentsTabs() {

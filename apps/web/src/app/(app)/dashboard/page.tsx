@@ -13,7 +13,6 @@ import {
   Target,
   TrendingUp,
 } from 'lucide-react';
-import { AppShell } from '@/components/app-shell';
 import { api, ApiError } from '@/lib/api';
 import { useActiveWorkspace } from '@/lib/workspace-context';
 import { HANDOFF_STATE_LABELS, formatDateTime, formatUsd } from '@/lib/handoff-meta';
@@ -75,11 +74,7 @@ function StatCard({
 }
 
 export default function DashboardPage() {
-  return (
-    <AppShell>
-      <DashboardContent />
-    </AppShell>
-  );
+  return <DashboardContent />;
 }
 
 function DashboardContent() {
