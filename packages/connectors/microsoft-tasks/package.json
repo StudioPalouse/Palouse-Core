@@ -1,0 +1,26 @@
+{
+  "name": "@palouse/connector-microsoft-tasks",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "echo 'TODO: eslint'",
+    "test": "echo 'TODO: vitest'"
+  },
+  "dependencies": {
+    "@palouse/connector-core": "workspace:*",
+    "@palouse/connector-microsoft-graph": "workspace:*",
+    "@palouse/connector-microsoft-planner": "workspace:*",
+    "@palouse/connector-microsoft-todo": "workspace:*",
+    "@palouse/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

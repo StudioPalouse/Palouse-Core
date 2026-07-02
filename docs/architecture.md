@@ -163,7 +163,7 @@ External SaaS ◄──poll──── apps/worker (cron per integration) ─�
 | Provider | Inbound | Outbound | Notes |
 |---|---|---|---|
 | Asana | Webhooks (Events API) | REST | `X-Hook-Secret` handshake; subscriptions decay on inactivity — worker refreshes weekly. |
-| MS To Do / Planner | Graph change notifications (subscriptions, max ~3 days) | Graph REST | Worker auto-renews every 24h; delta query for backfill. |
+| Microsoft Tasks (`ms_tasks`) | To Do half: Graph change notifications (subscriptions, max ~3 days). Planner half: poll every 120s (Graph has no Planner notifications). | Graph REST | One connection, one consent — both products sit behind delegated `Tasks.ReadWrite`. Pulled tasks keep `ms_todo`/`ms_planner` provenance in `task_sources`; pushes route on it. Planner needs a work/school account — personal accounts degrade to To Do only. Worker auto-renews subscriptions every 24h. Legacy `ms_todo`/`ms_planner` connections still sync but are no longer offered. |
 | Google Tasks | **No webhooks** — poll every 60s using `tasks.list?updatedMin=` + cursor. | REST | Backoff to 5min when integration idle >30min. |
 
 ### Conflict resolution

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."integration_provider" ADD VALUE 'ms_tasks' BEFORE 'ms_todo';

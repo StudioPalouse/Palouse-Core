@@ -1,7 +1,16 @@
 import { z } from 'zod';
 import { uuid } from './ids.js';
 
-export const integrationProvider = z.enum(['google_tasks', 'ms_todo', 'ms_planner', 'asana', 'notion']);
+// ms_tasks is the unified Microsoft connection (To Do + Planner via one Graph
+// consent). ms_todo/ms_planner remain for rows created before the merge.
+export const integrationProvider = z.enum([
+  'google_tasks',
+  'ms_tasks',
+  'ms_todo',
+  'ms_planner',
+  'asana',
+  'notion',
+]);
 export type IntegrationProvider = z.infer<typeof integrationProvider>;
 
 export const integrationStatus = z.enum(['active', 'degraded', 'revoked']);

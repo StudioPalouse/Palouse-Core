@@ -70,14 +70,16 @@ webhookRoutes.post('/asana/:integrationId', async (c) => {
 });
 
 /**
- * Microsoft Graph change-notification receiver (ms_todo). Two phases:
+ * Microsoft Graph change-notification receiver (ms_tasks, plus legacy ms_todo
+ * connections created before the unified connector). Two phases:
  * 1. Validation — Graph POSTs ?validationToken=... on subscription create and
  *    expects the raw token echoed back as text/plain within 10 seconds.
  * 2. Notifications — JSON body { value: [...] }. Authenticity is checked via
  *    clientState, which we set to the integration id at subscribe time. Graph
  *    requires a 202 fast; processing happens on the sync queue.
  */
-webhookRoutes.post('/ms_todo/:integrationId', async (c) => {
+webhookRoutes.post('/:provider{ms_tasks|ms_todo}/:integrationId', async (c) => {
+  const provider = c.req.param('provider') as 'ms_tasks' | 'ms_todo';
   const validationToken = c.req.query('validationToken');
   if (validationToken) {
     return c.text(validationToken, 200);
@@ -111,7 +113,7 @@ webhookRoutes.post('/ms_todo/:integrationId', async (c) => {
   const payloadHash = createHash('sha256').update(rawBody).digest('hex');
   const inserted = await db
     .insert(webhookDeliveries)
-    .values({ integrationId, provider: 'ms_todo', signature: integrationId, payloadHash })
+    .values({ integrationId, provider, signature: integrationId, payloadHash })
     .onConflictDoNothing()
     .returning({ id: webhookDeliveries.id });
 

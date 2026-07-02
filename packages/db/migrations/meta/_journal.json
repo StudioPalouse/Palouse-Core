@@ -64,6 +64,13 @@
       "when": 1782928054585,
       "tag": "0008_rename_workspace_deletion_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1783000479836,
+      "tag": "0009_sturdy_sheva_callister",
+      "breakpoints": true
     }
   ]
 }

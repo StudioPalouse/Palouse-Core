@@ -119,6 +119,7 @@ export async function runPush(
     };
     await adapter.push(ctx, {
       externalId: source.externalId,
+      externalSystem: source.externalSystem,
       title: task.title,
       status: task.status,
       descriptionMd: task.descriptionMd,

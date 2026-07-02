@@ -43,7 +43,7 @@ oauthRoutes.get('/:provider/callback', async (c) => {
   const providerParsed = integrationProvider.safeParse(c.req.param('provider'));
   if (!providerParsed.success) throw validation('Unknown provider');
   const provider = providerParsed.data;
-  const settingsUrl = `${env.WEB_BASE_URL}/settings`;
+  const settingsUrl = `${env.WEB_BASE_URL}/settings/integrations`;
 
   const code = c.req.query('code');
   const state = c.req.query('state');

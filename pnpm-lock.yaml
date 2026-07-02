@@ -48,6 +48,9 @@ importers:
       '@palouse/connector-microsoft-planner':
         specifier: workspace:^
         version: link:../../packages/connectors/microsoft-planner
+      '@palouse/connector-microsoft-tasks':
+        specifier: workspace:^
+        version: link:../../packages/connectors/microsoft-tasks
       '@palouse/connector-microsoft-todo':
         specifier: workspace:^
         version: link:../../packages/connectors/microsoft-todo
@@ -238,6 +241,9 @@ importers:
       '@palouse/connector-microsoft-planner':
         specifier: workspace:^
         version: link:../../packages/connectors/microsoft-planner
+      '@palouse/connector-microsoft-tasks':
+        specifier: workspace:^
+        version: link:../../packages/connectors/microsoft-tasks
       '@palouse/connector-microsoft-todo':
         specifier: workspace:^
         version: link:../../packages/connectors/microsoft-todo
@@ -412,6 +418,28 @@ importers:
       '@palouse/connector-microsoft-graph':
         specifier: workspace:*
         version: link:../microsoft-graph
+      '@palouse/shared':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/connectors/microsoft-tasks:
+    dependencies:
+      '@palouse/connector-core':
+        specifier: workspace:*
+        version: link:../core
+      '@palouse/connector-microsoft-graph':
+        specifier: workspace:*
+        version: link:../microsoft-graph
+      '@palouse/connector-microsoft-planner':
+        specifier: workspace:*
+        version: link:../microsoft-planner
+      '@palouse/connector-microsoft-todo':
+        specifier: workspace:*
+        version: link:../microsoft-todo
       '@palouse/shared':
         specifier: workspace:*
         version: link:../../shared

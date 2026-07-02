@@ -25,6 +25,9 @@ const bytea = customType<{ data: Buffer; driverData: Buffer; default: false }>({
 
 export const integrationProvider = pgEnum('integration_provider', [
   'google_tasks',
+  // Unified Microsoft connection (To Do + Planner). ms_todo/ms_planner are
+  // legacy per-product connections kept for existing rows.
+  'ms_tasks',
   'ms_todo',
   'ms_planner',
   'asana',

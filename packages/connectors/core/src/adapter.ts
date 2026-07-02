@@ -55,6 +55,11 @@ export interface PullResult {
 /** Outbound change pushed back to the originating system. */
 export interface PushPayload {
   externalId: string;
+  /**
+   * System the task_sources row came from. Adapters that front more than one
+   * external system (ms_tasks wraps To Do + Planner) route on this.
+   */
+  externalSystem?: ExternalSystem;
   title?: string;
   status?: Task['status'];
   dueAt?: string | null;
