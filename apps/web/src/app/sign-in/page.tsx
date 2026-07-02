@@ -1,5 +1,7 @@
 'use client';
 
+import { AuthFrame } from '@/components/auth-frame';
+
 import type { Route } from 'next';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -61,7 +63,7 @@ export default function SignInPage() {
   }
 
   return (
-    <main className="flex min-h-svh items-center justify-center px-4">
+    <AuthFrame>
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Sign in to Palouse</CardTitle>
@@ -115,6 +117,6 @@ export default function SignInPage() {
           </form>
         </CardContent>
       </Card>
-    </main>
+    </AuthFrame>
   );
 }

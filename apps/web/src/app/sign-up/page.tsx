@@ -1,5 +1,7 @@
 'use client';
 
+import { AuthFrame } from '@/components/auth-frame';
+
 import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import {
@@ -44,7 +46,7 @@ export default function SignUpPage() {
 
   if (submitted) {
     return (
-      <main className="flex min-h-svh items-center justify-center px-4">
+      <AuthFrame>
         <Card className="w-full max-w-sm">
           <CardHeader>
             <CardTitle>Check your email</CardTitle>
@@ -63,12 +65,12 @@ export default function SignUpPage() {
             </p>
           </CardContent>
         </Card>
-      </main>
+      </AuthFrame>
     );
   }
 
   return (
-    <main className="flex min-h-svh items-center justify-center px-4">
+    <AuthFrame>
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Create your account</CardTitle>
@@ -134,6 +136,6 @@ export default function SignUpPage() {
           </form>
         </CardContent>
       </Card>
-    </main>
+    </AuthFrame>
   );
 }

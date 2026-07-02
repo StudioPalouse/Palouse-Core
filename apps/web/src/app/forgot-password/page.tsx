@@ -1,5 +1,7 @@
 'use client';
 
+import { AuthFrame } from '@/components/auth-frame';
+
 import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import {
@@ -41,7 +43,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <main className="flex min-h-svh items-center justify-center px-4">
+    <AuthFrame>
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Reset your password</CardTitle>
@@ -92,6 +94,6 @@ export default function ForgotPasswordPage() {
           )}
         </CardContent>
       </Card>
-    </main>
+    </AuthFrame>
   );
 }
