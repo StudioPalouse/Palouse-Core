@@ -45,6 +45,9 @@ importers:
       '@palouse/connector-google-tasks':
         specifier: workspace:^
         version: link:../../packages/connectors/google-tasks
+      '@palouse/connector-microsoft-graph':
+        specifier: workspace:^
+        version: link:../../packages/connectors/microsoft-graph
       '@palouse/connector-microsoft-planner':
         specifier: workspace:^
         version: link:../../packages/connectors/microsoft-planner

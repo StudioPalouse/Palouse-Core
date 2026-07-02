@@ -17,6 +17,21 @@ export const GRAPH_API = process.env.PALOUSE_MS_GRAPH_API_BASE ?? 'https://graph
 // Tasks.ReadWrite covers both To Do tasks and Planner tasks (delegated).
 export const MS_SCOPES = ['offline_access', 'openid', 'email', 'profile', 'Tasks.ReadWrite'];
 
+const ADMIN_CONSENT_URL = 'https://login.microsoftonline.com/organizations/adminconsent';
+
+/**
+ * Tenant-wide admin-consent link an IT admin opens to approve the app for
+ * their whole organization (grants the permissions in the app manifest's
+ * requiredResourceAccess). Meant to be copyable/sendable; exposes only the
+ * public client id.
+ */
+export function msAdminConsentUrl(input: { clientId: string; redirectUri: string }): string {
+  const u = new URL(ADMIN_CONSENT_URL);
+  u.searchParams.set('client_id', input.clientId);
+  u.searchParams.set('redirect_uri', input.redirectUri);
+  return u.toString();
+}
+
 export function msBuildAuthUrl(input: {
   config: OAuthClientConfig;
   redirectUri: string;

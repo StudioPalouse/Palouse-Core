@@ -18,7 +18,7 @@ import {
   DialogTitle,
   Skeleton,
 } from '@palouse/ui';
-import { api, oauthStartUrl } from '@/lib/api';
+import { adminConsentUrl, api, oauthStartUrl } from '@/lib/api';
 import { canManage } from '@/lib/roles';
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -49,6 +49,50 @@ const CATALOG: { provider: string; label: string; description: string }[] = [
     description: 'Tasks from your Asana workspace, updated as they change.',
   },
 ];
+
+/**
+ * Shown when Entra blocked the sign-in because the tenant requires admin
+ * approval for new apps. Hand-holds the user to their IT admin instead of
+ * presenting a dead-end failure.
+ */
+function AdminConsentHelp() {
+  const [copied, setCopied] = useState(false);
+  const approvalLink = adminConsentUrl('ms_tasks');
+  const mailtoHref = `mailto:?subject=${encodeURIComponent(
+    'Approve Palouse for our Microsoft 365 organization',
+  )}&body=${encodeURIComponent(
+    'Hi,\n\n' +
+      "I'm connecting our team's tasks to Palouse and Microsoft says the app needs admin approval for our organization.\n\n" +
+      'Could you approve it? Open this link and sign in with your admin account:\n\n' +
+      `${approvalLink}\n\n` +
+      'It only asks for access to read and update tasks (Microsoft To Do and Planner).\n\nThanks!',
+  )}`;
+
+  async function copyLink() {
+    await navigator.clipboard.writeText(approvalLink);
+    setCopied(true);
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-md border px-3 py-3 text-sm">
+      <p className="font-medium">Your organization needs to approve Palouse first</p>
+      <p className="text-muted-foreground">
+        Your company limits which apps can access Microsoft 365. If the Microsoft screen showed a
+        &quot;Request approval&quot; box, that is the fastest path. Otherwise, send your IT admin
+        the approval link below: one click approves Palouse for your whole organization, and then
+        anyone on your team can connect.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={() => void copyLink()}>
+          {copied ? 'Copied' : 'Copy approval link'}
+        </Button>
+        <Button variant="ghost" size="sm" asChild>
+          <a href={mailtoHref}>Email your IT admin</a>
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function formatTime(iso: string | null): string {
   if (!iso) return 'never';
@@ -123,7 +167,8 @@ function AddConnectionDialog({
           <DialogTitle>Add a connection</DialogTitle>
           <DialogDescription>
             Pick the service your team uses for tasks. You will be sent there to sign in and
-            approve access.
+            approve access. If your company restricts new apps, we will walk you through
+            requesting approval.
           </DialogDescription>
         </DialogHeader>
         <ul className="divide-y rounded-md border">
@@ -153,6 +198,7 @@ export function IntegrationsCard({ workspace }: { workspace: Workspace }) {
 
   const connected = searchParams.get('connected');
   const error = searchParams.get('error');
+  const adminConsentGranted = searchParams.get('admin_consent') === 'granted';
 
   const refresh = useCallback(() => {
     api.listIntegrations(workspace.id).then(({ integrations }) => setIntegrations(integrations));
@@ -185,7 +231,13 @@ export function IntegrationsCard({ workspace }: { workspace: Workspace }) {
             Connected {PROVIDER_LABELS[connected] ?? connected}. First sync is queued.
           </p>
         )}
-        {error && (
+        {adminConsentGranted && (
+          <p className="rounded-md border px-3 py-2 text-sm">
+            Palouse is approved for your organization. Connect Microsoft Tasks to finish setup.
+          </p>
+        )}
+        {error === 'ms_admin_consent' && <AdminConsentHelp />}
+        {error && error !== 'ms_admin_consent' && (
           <p className="text-destructive rounded-md border px-3 py-2 text-sm">
             Connection failed ({error}). Check the provider OAuth env vars and try again.
           </p>
