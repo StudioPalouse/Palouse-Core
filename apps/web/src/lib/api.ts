@@ -246,4 +246,9 @@ export function oauthStartUrl(provider: string, workspaceId: string): string {
   return `${API_URL}/oauth/${provider}/start?workspaceId=${workspaceId}`;
 }
 
+/** Shareable link an IT admin opens to approve the app for their whole tenant. */
+export function adminConsentUrl(provider: string): string {
+  return `${API_URL}/oauth/${provider}/admin-consent`;
+}
+
 export { ApiError };

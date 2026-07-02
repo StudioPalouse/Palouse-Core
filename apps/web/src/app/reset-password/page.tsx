@@ -1,5 +1,7 @@
 'use client';
 
+import { AuthFrame } from '@/components/auth-frame';
+
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState, type FormEvent } from 'react';
@@ -101,7 +103,7 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <main className="flex min-h-svh items-center justify-center px-4">
+    <AuthFrame>
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Choose a new password</CardTitle>
@@ -113,6 +115,6 @@ export default function ResetPasswordPage() {
           </Suspense>
         </CardContent>
       </Card>
-    </main>
+    </AuthFrame>
   );
 }

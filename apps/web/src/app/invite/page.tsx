@@ -1,5 +1,7 @@
 'use client';
 
+import { AuthFrame } from '@/components/auth-frame';
+
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -105,12 +107,12 @@ function InviteAccept() {
 
 export default function InvitePage() {
   return (
-    <main className="flex min-h-svh items-center justify-center px-4">
+    <AuthFrame>
       <Card className="w-full max-w-sm">
         <Suspense fallback={null}>
           <InviteAccept />
         </Suspense>
       </Card>
-    </main>
+    </AuthFrame>
   );
 }

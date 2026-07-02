@@ -42,6 +42,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@palouse/ui';
+import { BrandMark } from '@/components/brand-logo';
 import { signOut, useSession } from '@/lib/auth-client';
 import { WorkspaceProvider, useActiveWorkspace } from '@/lib/workspace-context';
 
@@ -177,6 +178,7 @@ function Brand({ onNavigate }: { onNavigate?: () => void }) {
       onClick={onNavigate}
       className="flex h-14 items-center gap-2 px-5 text-base font-semibold tracking-tight"
     >
+      <BrandMark size={22} />
       Palouse
     </Link>
   );
@@ -366,7 +368,11 @@ function AppShellInner({ children }: { children: ReactNode }) {
               <UserMenu />
             </SheetContent>
           </Sheet>
-          <Link href="/dashboard" className="text-base font-semibold tracking-tight">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 text-base font-semibold tracking-tight"
+          >
+            <BrandMark size={22} />
             Palouse
           </Link>
         </header>
