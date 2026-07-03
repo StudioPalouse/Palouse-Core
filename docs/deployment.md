@@ -9,7 +9,7 @@ Postgres and Redis also on Fly so the whole environment lives in one org:
 | API (Hono) | Fly `iad` | `palouse-staging-api` → <https://palouse-staging-api.fly.dev> |
 | Web (Next.js) | Fly `iad` | `palouse-staging-web` → <https://palouse-staging-web.fly.dev> |
 | Worker (BullMQ) | Fly `iad` | `palouse-staging-worker` (no public URL) |
-| MCP | Fly `iad` | `palouse-staging-mcp` → <https://palouse-staging-mcp.fly.dev> (streamable HTTP, per-request agent-key auth) |
+| MCP | Fly `iad` | `palouse-staging-mcp` → `mcp-test.palouse.ai` (streamable HTTP at `/mcp`, per-request agent-key auth) |
 | Postgres | Fly `iad` | `palouse-staging-db` (single node, private — `palouse-staging-db.flycast:5432`) |
 | Redis | Upstash via Fly | `palouse-staging-redis` (eviction disabled — BullMQ requirement) |
 
@@ -50,8 +50,8 @@ gh secret set FLY_API_TOKEN
 1. **deploy-api** — builds on Fly's remote builders, runs migrations via the
    release command, then rolls API machines.
 2. **deploy-services** — web, worker, and mcp in parallel.
-3. **smoke** — `GET /health`, `GET /health/ready` (DB reachable), and the web
-   root must all return success or the run fails.
+3. **smoke** — `GET /health`, `GET /health/ready` (DB reachable), the web
+   root, and the MCP `/healthz` must all return success or the run fails.
 
 Deploys queue rather than cancel (`concurrency.cancel-in-progress: false`) so a
 migration is never interrupted mid-flight.
@@ -100,13 +100,15 @@ Domain split: the **app lives on `palouse.ai`** (`test.palouse.ai` staging,
 not used for app hosting. `palouse.ai` DNS is on **Namecheap** (host field is
 relative to `palouse.ai`).
 
-Staging setup (cert added via
-`fly certs add test.palouse.ai --app palouse-staging-web`); one record at
+Staging setup (certs added via
+`fly certs add test.palouse.ai --app palouse-staging-web` and
+`fly certs add mcp-test.palouse.ai --app palouse-staging-mcp`); records at
 Namecheap:
 
-| Type  | Host   | Value                          |
-|-------|--------|--------------------------------|
-| CNAME | `test` | `palouse-staging-web.fly.dev`  |
+| Type  | Host       | Value                          |
+|-------|------------|--------------------------------|
+| CNAME | `test`     | `palouse-staging-web.fly.dev`  |
+| CNAME | `mcp-test` | `palouse-staging-mcp.fly.dev`  |
 
 A CNAME (not A/AAAA) keeps it off the shared Fly IP and survives IP changes; Fly
 validates the cert over HTTP-01 through it. (Alternative: `A test → 66.241.124.106`,
@@ -121,8 +123,16 @@ After the cert verifies (`fly certs check test.palouse.ai`):
 
 The API needs no certificate of its own: public traffic enters through the web
 origin's rewrite proxy, and `palouse-staging-api.fly.dev` remains for direct
-machine-to-machine use. Production later repeats the same steps with
-`app.palouse.ai` against the `palouse-prod-web` app.
+machine-to-machine use. Production repeats the same steps with `app.palouse.ai`
+against `palouse-prod-web` and `mcp.palouse.ai` against `palouse-prod-mcp`
+(CNAME `mcp → palouse-prod-mcp.fly.dev`).
+
+The MCP server gets its own hostname (rather than a path under the web origin)
+because it is a separate Fly app: agents talk straight to it with a Bearer
+agent key, no proxy hop. The protocol endpoint is `/mcp`
+(`https://mcp-test.palouse.ai/mcp` staging, `https://mcp.palouse.ai/mcp` prod);
+these URLs are baked into the web build as `NEXT_PUBLIC_MCP_URL` (see
+`fly/web*.toml` build args) so onboarding snippets render the right endpoint.
 
 ## Costs & scaling notes
 
@@ -157,7 +167,7 @@ nothing with it (own DB, Redis, secrets). It is **live at
 | API | `palouse-prod-api` → <https://palouse-prod-api.fly.dev> (1 warm machine) |
 | Web | `palouse-prod-web` → `app.palouse.ai` (auto-stops to zero; cold start at alpha) |
 | Worker | `palouse-prod-worker` (always-on) |
-| MCP | `palouse-prod-mcp` (0 machines until M5) |
+| MCP | `palouse-prod-mcp` → `mcp.palouse.ai` (streamable HTTP at `/mcp`; auto-stops to zero) |
 | Postgres | `palouse-prod-db` (single node, **WAL backups to Tigris**, 7-day PITR window) |
 | Redis | `palouse-prod-redis` (Upstash, eviction disabled) |
 
@@ -170,7 +180,7 @@ URLs point at `https://app.palouse.ai`). The cert was added with
 `.github/workflows/deploy-prod.yml` runs on tags matching `v*` (and manual
 `workflow_dispatch`), using the `*.prod.toml` configs and the
 `FLY_API_TOKEN_PROD` repo secret. Same job shape as staging (api+migrations →
-web/worker → smoke). To ship:
+web/worker/mcp → smoke). To ship:
 
 ```bash
 git tag -a v0.1.3 -m "…" && git push origin v0.1.3   # triggers deploy-prod.yml

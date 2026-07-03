@@ -18,7 +18,8 @@ export function createAgentKeyCommand(): Command {
         const scopes = opts.scopes
           ? opts.scopes.split(',').map((s) => agentKeyScope.parse(s.trim()))
           : [...ALL_AGENT_KEY_SCOPES];
-        const db = getDb(loadEnv().DATABASE_URL);
+        const env = loadEnv();
+        const db = getDb(env.DATABASE_URL);
         try {
           const { workspaceId, actorUserId } = await resolveWorkspaceAndActor(
             db,
@@ -48,7 +49,31 @@ export function createAgentKeyCommand(): Command {
 
           console.log(`API key for ${agent.name} (key id ${key.id}). Shown once, store it now:`);
           console.log(`\n  ${plaintext}\n`);
-          console.log('MCP config snippet (Claude Code / Claude Desktop):');
+          if (env.PUBLIC_MCP_URL) {
+            console.log('Connect Claude Code:');
+            console.log(
+              `\n  claude mcp add --transport http palouse ${env.PUBLIC_MCP_URL} --header "Authorization: Bearer ${plaintext}"\n`,
+            );
+            console.log('Other MCP clients (HTTP):');
+            console.log(
+              JSON.stringify(
+                {
+                  mcpServers: {
+                    palouse: {
+                      type: 'http',
+                      url: env.PUBLIC_MCP_URL,
+                      headers: { Authorization: `Bearer ${plaintext}` },
+                    },
+                  },
+                },
+                null,
+                2,
+              ),
+            );
+            console.log('\nOr run the server locally over stdio (needs DATABASE_URL):');
+          } else {
+            console.log('MCP config snippet (stdio, runs next to the database):');
+          }
           console.log(
             JSON.stringify(
               {

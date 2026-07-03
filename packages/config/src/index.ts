@@ -46,6 +46,9 @@ const envSchema = z.object({
 
   MCP_HTTP_PORT: z.coerce.number().int().positive().default(7777),
   PALOUSE_API_URL: z.string().url().optional(),
+  // Public URL of the MCP HTTP endpoint (e.g. https://mcp.palouse.ai/mcp).
+  // Used in onboarding snippets (CLI key output); unset = stdio snippet only.
+  PUBLIC_MCP_URL: z.string().url().optional(),
 
   // Transactional mail (Resend). Unset = mail is a logged no-op, so
   // self-hosted deployments work without a mail provider.
