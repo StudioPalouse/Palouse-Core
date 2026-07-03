@@ -43,6 +43,15 @@ export const EVENT_LABELS: Record<string, string> = {
   cancelled: 'Cancelled',
 };
 
+// Fired after any handoff mutation (hand off, review, cancel) so surfaces
+// showing derived state (task-row badges, the Reviews tab count) can refresh
+// immediately instead of waiting out their poll interval.
+export const HANDOFFS_CHANGED_EVENT = 'palouse:handoffs-changed';
+
+export function emitHandoffsChanged(): void {
+  window.dispatchEvent(new Event(HANDOFFS_CHANGED_EVENT));
+}
+
 export function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 10_000) return `${Math.round(n / 1000)}k`;

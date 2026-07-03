@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Task } from '@palouse/shared';
+import type { HandoffState, Task } from '@palouse/shared';
 import { Badge, cn } from '@palouse/ui';
 import { ChevronRight } from 'lucide-react';
 import { TaskRow } from '@/components/task-row';
@@ -10,10 +10,13 @@ import { groupTasks, type DisplayConfig } from '@/lib/task-views';
 export function TaskList({
   tasks,
   config,
+  handoffStates,
   onSelect,
 }: {
   tasks: Task[];
   config: DisplayConfig;
+  /** Task id → state of its current active agent handoff. */
+  handoffStates?: Record<string, HandoffState>;
   onSelect: (id: string) => void;
 }) {
   const groups = groupTasks(tasks, config);
@@ -25,7 +28,7 @@ export function TaskList({
       <ul className="divide-y">
         {groups[0]?.tasks.map((task) => (
           <li key={task.id}>
-            <TaskRow task={task} onSelect={onSelect} />
+            <TaskRow task={task} handoffState={handoffStates?.[task.id]} onSelect={onSelect} />
           </li>
         ))}
       </ul>
@@ -68,7 +71,11 @@ export function TaskList({
               <ul className="divide-y border-t">
                 {group.tasks.map((task) => (
                   <li key={task.id}>
-                    <TaskRow task={task} onSelect={onSelect} />
+                    <TaskRow
+                      task={task}
+                      handoffState={handoffStates?.[task.id]}
+                      onSelect={onSelect}
+                    />
                   </li>
                 ))}
               </ul>

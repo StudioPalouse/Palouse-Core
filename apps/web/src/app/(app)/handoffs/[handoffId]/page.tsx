@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { isTerminal } from '@palouse/shared';
-import { Badge, Button, Separator, Skeleton, Textarea } from '@palouse/ui';
+import { Badge, Separator, Skeleton } from '@palouse/ui';
+import { HandoffReviewActions } from '@/components/handoff-review-actions';
 import { HandoffTimeline } from '@/components/handoff-timeline';
 import { UsageSummaryCards } from '@/components/usage-summary-cards';
 import { api } from '@/lib/api';
@@ -46,8 +47,6 @@ function ActivityReportContent() {
   const { workspace } = useActiveWorkspace();
   const workspaceId = workspace?.id ?? null;
   const [detail, setDetail] = useState<HandoffDetail | null>(null);
-  const [reviewNote, setReviewNote] = useState('');
-  const [acting, setActing] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!workspaceId) return;
@@ -63,22 +62,6 @@ function ActivityReportContent() {
     const t = setInterval(() => void refresh(), POLL_MS);
     return () => clearInterval(t);
   }, [detail, refresh]);
-
-  async function review(decision: 'approved' | 'rejected') {
-    if (!workspaceId || !detail) return;
-    setActing(true);
-    try {
-      await api.reviewHandoff(workspaceId, detail.handoff.id, {
-        decision,
-        note: reviewNote.trim() || undefined,
-        ...(decision === 'rejected' ? { rejectAction: 'retry' as const } : {}),
-      });
-      setReviewNote('');
-      await refresh();
-    } finally {
-      setActing(false);
-    }
-  }
 
   return !detail ? (
     <div className="flex flex-col gap-3">
@@ -105,31 +88,17 @@ function ActivityReportContent() {
 
       <UsageSummaryCards summary={detail.summary} durationLabel={durationLabel(detail)} />
 
-      {detail.handoff.state === 'needs_review' && (
+      {workspaceId && detail.handoff.state === 'needs_review' && (
         <div className="flex flex-col gap-2 rounded-lg border p-4">
           <p className="text-sm font-medium">Review the agent&apos;s work</p>
           {detail.handoff.resultSummaryMd && (
             <p className="text-sm whitespace-pre-wrap">{detail.handoff.resultSummaryMd}</p>
           )}
-          <Textarea
-            rows={2}
-            placeholder="Optional note for the record…"
-            value={reviewNote}
-            onChange={(e) => setReviewNote(e.target.value)}
+          <HandoffReviewActions
+            workspaceId={workspaceId}
+            handoffId={detail.handoff.id}
+            onReviewed={() => void refresh()}
           />
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={acting}
-              onClick={() => void review('rejected')}
-            >
-              Send back
-            </Button>
-            <Button size="sm" disabled={acting} onClick={() => void review('approved')}>
-              Approve
-            </Button>
-          </div>
         </div>
       )}
 

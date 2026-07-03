@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import {
   agentHandoffs,
   agents,
@@ -9,6 +9,8 @@ import {
 } from '@palouse/db';
 import {
   conflict,
+  handoffState,
+  isTerminal,
   notFound,
   type CreateHandoffInput,
   type Handoff,
@@ -312,6 +314,14 @@ export async function listHandoffs(
 ): Promise<{ handoffs: HandoffListItem[]; total: number }> {
   const conditions = [eq(agentHandoffs.workspaceId, query.workspaceId)];
   if (query.state) conditions.push(eq(agentHandoffs.state, query.state));
+  if (query.active) {
+    conditions.push(
+      inArray(
+        agentHandoffs.state,
+        handoffState.options.filter((s) => !isTerminal(s)),
+      ),
+    );
+  }
   if (query.agentId) conditions.push(eq(agentHandoffs.actorAgentId, query.agentId));
   if (query.taskId) conditions.push(eq(agentHandoffs.taskId, query.taskId));
   const where = and(...conditions);
