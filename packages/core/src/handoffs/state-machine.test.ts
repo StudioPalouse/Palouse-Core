@@ -14,7 +14,8 @@ import {
   workspaces,
   type Database,
 } from '@palouse/db';
-import { claimNext, createHandoff, heartbeat, reapExpired } from './state-machine.js';
+import { listHandoffsQuery } from '@palouse/shared';
+import { claimNext, createHandoff, heartbeat, listHandoffs, reapExpired } from './state-machine.js';
 
 const MIGRATIONS_DIR = fileURLToPath(new URL('../../../db/migrations', import.meta.url));
 
@@ -204,5 +205,40 @@ describe('reapExpired', () => {
     const row = await getRow(handoff.id);
     expect(row.state).toBe('cancelled');
     expect(row.failureReason).toBe('claim_ttl_expired');
+  });
+});
+
+describe('listHandoffs', () => {
+  it('active filter returns only non-terminal handoffs', async () => {
+    const ctx = await seed();
+    const live = await queueHandoff(ctx);
+    const finished = await queueHandoff(ctx);
+    await db
+      .update(agentHandoffs)
+      .set({ state: 'completed' })
+      .where(eq(agentHandoffs.id, finished.id));
+
+    const { handoffs, total } = await listHandoffs(
+      db,
+      listHandoffsQuery.parse({ workspaceId: ctx.workspaceId, active: 'true' }),
+    );
+    expect(total).toBe(1);
+    expect(handoffs.map((h) => h.id)).toEqual([live.id]);
+  });
+
+  it('without the active filter it returns everything in the workspace', async () => {
+    const ctx = await seed();
+    await queueHandoff(ctx);
+    const finished = await queueHandoff(ctx);
+    await db
+      .update(agentHandoffs)
+      .set({ state: 'cancelled' })
+      .where(eq(agentHandoffs.id, finished.id));
+
+    const { total } = await listHandoffs(
+      db,
+      listHandoffsQuery.parse({ workspaceId: ctx.workspaceId }),
+    );
+    expect(total).toBe(2);
   });
 });

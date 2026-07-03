@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@palouse/ui';
 import { api, ApiError } from '@/lib/api';
+import { emitHandoffsChanged } from '@/lib/handoff-meta';
 
 export function AgentPickerDialog({
   workspaceId,
@@ -55,6 +56,7 @@ export function AgentPickerDialog({
     setError(null);
     try {
       await api.createHandoff(workspaceId, taskId, { agentId, reviewRequired });
+      emitHandoffsChanged();
       onOpenChange(false);
       onHandedOff();
     } catch (err) {

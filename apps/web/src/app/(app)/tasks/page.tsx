@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import type { Task } from '@palouse/shared';
+import type { HandoffState, Task } from '@palouse/shared';
 import {
   Button,
   cn,
@@ -19,6 +19,7 @@ import { TaskDetailSheet } from '@/components/task-detail-sheet';
 import { TaskList } from '@/components/task-list';
 import { TaskDisplayMenu } from '@/components/task-display-menu';
 import { api } from '@/lib/api';
+import { HANDOFFS_CHANGED_EVENT } from '@/lib/handoff-meta';
 import { useActiveWorkspace } from '@/lib/workspace-context';
 import { STATUS_LABELS, STATUS_ORDER } from '@/lib/task-meta';
 import {
@@ -28,6 +29,7 @@ import {
 } from '@/lib/task-views';
 
 const DISPLAY_STORAGE_KEY = 'palouse.tasks.display';
+const HANDOFF_POLL_MS = 15_000;
 
 function loadDisplay(): DisplayConfig {
   if (typeof window === 'undefined') return DEFAULT_DISPLAY;
@@ -80,6 +82,37 @@ function TasksContent() {
     const t = setTimeout(refresh, search ? 250 : 0);
     return () => clearTimeout(t);
   }, [refresh, search]);
+
+  // Active agent handoffs, so rows can show what agents are up to. Kept
+  // fresh with a light poll plus the handoffs-changed signal from actions
+  // taken in the detail sheet.
+  const [handoffStates, setHandoffStates] = useState<Record<string, HandoffState>>({});
+  useEffect(() => {
+    if (!workspace) return;
+    let cancelled = false;
+    const load = () => {
+      api
+        .listHandoffs(workspace.id, { active: true, limit: 100 })
+        .then(({ handoffs }) => {
+          if (cancelled) return;
+          const map: Record<string, HandoffState> = {};
+          // Rows come newest-first; keep the most recent handoff per task.
+          for (const h of handoffs) if (!(h.taskId in map)) map[h.taskId] = h.state;
+          setHandoffStates(map);
+        })
+        .catch(() => {
+          // Transient fetch errors keep the last known badges.
+        });
+    };
+    load();
+    const t = setInterval(load, HANDOFF_POLL_MS);
+    window.addEventListener(HANDOFFS_CHANGED_EVENT, load);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+      window.removeEventListener(HANDOFFS_CHANGED_EVENT, load);
+    };
+  }, [workspace]);
 
   return (
     <>
@@ -145,7 +178,12 @@ function TasksContent() {
               No tasks yet. Create one, or connect an integration in Settings to start syncing.
             </p>
           ) : (
-            <TaskList tasks={tasks} config={display} onSelect={setSelectedTaskId} />
+            <TaskList
+              tasks={tasks}
+              config={display}
+              handoffStates={handoffStates}
+              onSelect={setSelectedTaskId}
+            />
           )}
         </div>
       </div>

@@ -1,5 +1,6 @@
-import type { Task, TaskStatus } from '@palouse/shared';
+import type { HandoffState, Task, TaskStatus } from '@palouse/shared';
 import { Badge } from '@palouse/ui';
+import { HANDOFF_STATE_BADGE, HANDOFF_STATE_LABELS } from '@/lib/handoff-meta';
 import { formatDate, PRIORITY_LABELS, STATUS_LABELS } from '@/lib/task-meta';
 
 const STATUS_BADGE: Record<TaskStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
@@ -10,7 +11,16 @@ const STATUS_BADGE: Record<TaskStatus, 'default' | 'secondary' | 'destructive' |
   archived: 'secondary',
 };
 
-export function TaskRow({ task, onSelect }: { task: Task; onSelect: (id: string) => void }) {
+export function TaskRow({
+  task,
+  handoffState,
+  onSelect,
+}: {
+  task: Task;
+  /** Live state of the task's current agent handoff, if one is active. */
+  handoffState?: HandoffState;
+  onSelect: (id: string) => void;
+}) {
   return (
     <button
       type="button"
@@ -21,6 +31,11 @@ export function TaskRow({ task, onSelect }: { task: Task; onSelect: (id: string)
         {STATUS_LABELS[task.status]}
       </Badge>
       <span className="min-w-0 flex-1 truncate text-sm">{task.title}</span>
+      {handoffState && (
+        <Badge variant={HANDOFF_STATE_BADGE[handoffState]}>
+          {HANDOFF_STATE_LABELS[handoffState]}
+        </Badge>
+      )}
       <span className="text-muted-foreground hidden text-xs sm:inline">
         {PRIORITY_LABELS[task.priority]}
       </span>

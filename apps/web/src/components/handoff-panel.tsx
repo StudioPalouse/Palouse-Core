@@ -9,9 +9,10 @@ import {
   type HandoffStep,
   type HandoffUsageSummary,
 } from '@palouse/shared';
-import { Badge, Button, Textarea } from '@palouse/ui';
-import { api } from '@/lib/api';
+import { Badge, Button } from '@palouse/ui';
+import { api, ApiError } from '@/lib/api';
 import {
+  emitHandoffsChanged,
   formatDateTime,
   formatTokens,
   formatUsd,
@@ -19,6 +20,7 @@ import {
   HANDOFF_STATE_LABELS,
 } from '@/lib/handoff-meta';
 import { AgentPickerDialog } from './agent-picker-dialog';
+import { HandoffReviewActions } from './handoff-review-actions';
 import { HandoffTimeline } from './handoff-timeline';
 
 const POLL_MS = 5_000;
@@ -30,8 +32,8 @@ export function HandoffPanel({ workspaceId, taskId }: { workspaceId: string; tas
   const [steps, setSteps] = useState<HandoffStep[]>([]);
   const [summary, setSummary] = useState<HandoffUsageSummary | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [reviewNote, setReviewNote] = useState('');
   const [acting, setActing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const { handoffs } = await api.listHandoffs(workspaceId, { taskId });
@@ -64,12 +66,15 @@ export function HandoffPanel({ workspaceId, taskId }: { workspaceId: string; tas
     return () => clearInterval(t);
   }, [latest, refresh]);
 
-  async function act(fn: () => Promise<unknown>) {
+  async function cancel(handoffId: string) {
     setActing(true);
+    setError(null);
     try {
-      await fn();
-      setReviewNote('');
+      await api.cancelHandoff(workspaceId, handoffId);
+      emitHandoffsChanged();
       await refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't cancel the agent. Try again.");
     } finally {
       setActing(false);
     }
@@ -85,7 +90,7 @@ export function HandoffPanel({ workspaceId, taskId }: { workspaceId: string; tas
               variant="ghost"
               size="sm"
               disabled={acting}
-              onClick={() => void act(() => api.cancelHandoff(workspaceId, latest.id))}
+              onClick={() => void cancel(latest.id)}
             >
               Cancel
             </Button>
@@ -97,6 +102,8 @@ export function HandoffPanel({ workspaceId, taskId }: { workspaceId: string; tas
           )}
         </div>
       </div>
+
+      {error && <p className="text-destructive text-sm">{error}</p>}
 
       {latest === undefined ? null : latest === null ? (
         <p className="text-muted-foreground text-sm">
@@ -138,44 +145,11 @@ export function HandoffPanel({ workspaceId, taskId }: { workspaceId: string; tas
           {latest.state === 'needs_review' && (
             <div className="flex flex-col gap-2 rounded-md border p-3">
               <p className="text-sm font-medium">Review the agent&apos;s work</p>
-              <Textarea
-                rows={2}
-                placeholder="Optional note for the record (required context if sending back)…"
-                value={reviewNote}
-                onChange={(e) => setReviewNote(e.target.value)}
+              <HandoffReviewActions
+                workspaceId={workspaceId}
+                handoffId={latest.id}
+                onReviewed={() => void refresh()}
               />
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={acting}
-                  onClick={() =>
-                    void act(() =>
-                      api.reviewHandoff(workspaceId, latest.id, {
-                        decision: 'rejected',
-                        note: reviewNote.trim() || undefined,
-                        rejectAction: 'retry',
-                      }),
-                    )
-                  }
-                >
-                  Send back
-                </Button>
-                <Button
-                  size="sm"
-                  disabled={acting}
-                  onClick={() =>
-                    void act(() =>
-                      api.reviewHandoff(workspaceId, latest.id, {
-                        decision: 'approved',
-                        note: reviewNote.trim() || undefined,
-                      }),
-                    )
-                  }
-                >
-                  Approve
-                </Button>
-              </div>
             </div>
           )}
 

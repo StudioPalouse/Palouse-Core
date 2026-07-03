@@ -65,6 +65,11 @@ export type CreateHandoffInput = z.infer<typeof createHandoffInput>;
 export const listHandoffsQuery = z.object({
   workspaceId: uuid,
   state: handoffState.optional(),
+  // Narrows to non-terminal states (queued/claimed/in_progress/needs_review),
+  // e.g. to badge task rows with live agent activity in one request.
+  active: z
+    .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true')])
+    .optional(),
   agentId: uuid.optional(),
   taskId: uuid.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),

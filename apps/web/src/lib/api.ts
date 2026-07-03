@@ -185,9 +185,20 @@ export const api = {
 
   listHandoffs: (
     workspaceId: string,
-    params?: { state?: HandoffState; taskId?: string; agentId?: string },
+    params?: {
+      state?: HandoffState;
+      taskId?: string;
+      agentId?: string;
+      active?: boolean;
+      limit?: number;
+    },
   ) => {
-    const qs = new URLSearchParams({ workspaceId, ...params });
+    const qs = new URLSearchParams({ workspaceId });
+    if (params?.state) qs.set('state', params.state);
+    if (params?.taskId) qs.set('taskId', params.taskId);
+    if (params?.agentId) qs.set('agentId', params.agentId);
+    if (params?.active) qs.set('active', 'true');
+    if (params?.limit != null) qs.set('limit', String(params.limit));
     return request<{ handoffs: HandoffListItem[]; total: number }>(`/v1/handoffs?${qs}`);
   },
 
