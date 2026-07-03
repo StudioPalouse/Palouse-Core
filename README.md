@@ -8,11 +8,12 @@ behalf of a human and report back.
 Open core: full product is Apache-2.0 and self-hostable. Hosted SaaS layers a
 small set of BSL-licensed cloud features on top of the same code.
 
-> Status: **public alpha live at <https://app.palouse.ai>** (release `v0.1.2`).
-> M4 (Microsoft connectors) built, pending live-tenant testing. M2 (tasks core +
-> unified inbox) and M3 (Google Tasks + Asana sync) work end-to-end. Microsoft
-> To Do + Planner share a Graph client: OAuth, pull, outbound push, Graph change
-> notifications (To Do) with subscription auto-renewal, and polling fallback.
+> Status: **public alpha live at <https://app.palouse.ai>** (release `v0.7.0`).
+> M5 (handoffs + hosted MCP) is live: agents connect over streamable HTTP at
+> `https://mcp.palouse.ai/mcp` with a workspace agent key, claim handed-off
+> tasks, and report back through the review queue. M4 (Microsoft connectors)
+> built, pending live-tenant testing. M2 (tasks core + unified inbox) and M3
+> (Google Tasks + Asana sync) work end-to-end.
 > Cloud staging runs at <https://test.palouse.ai>; production at
 > <https://app.palouse.ai> (see [`docs/deployment.md`](./docs/deployment.md)).
 > See [`docs/architecture.md`](./docs/architecture.md) for the complete plan.
