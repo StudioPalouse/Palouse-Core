@@ -11,6 +11,8 @@ export function TaskList({
   tasks,
   config,
   handoffStates,
+  selectedIds,
+  onToggleSelect,
   onSelect,
   onHandOff,
 }: {
@@ -18,10 +20,14 @@ export function TaskList({
   config: DisplayConfig;
   /** Task id → state of its current active agent handoff. */
   handoffStates?: Record<string, HandoffState>;
+  /** Multi-select state; rows show checkboxes when onToggleSelect is set. */
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
   onSelect: (id: string) => void;
   /** Quick hand-off action on rows without an active handoff. */
   onHandOff?: (id: string) => void;
 }) {
+  const selectionActive = (selectedIds?.size ?? 0) > 0;
   const groups = groupTasks(tasks, config);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
@@ -34,6 +40,9 @@ export function TaskList({
             <TaskRow
               task={task}
               handoffState={handoffStates?.[task.id]}
+              selected={selectedIds?.has(task.id)}
+              selectionActive={selectionActive}
+              onToggleSelect={onToggleSelect}
               onSelect={onSelect}
               onHandOff={onHandOff}
             />
@@ -82,6 +91,9 @@ export function TaskList({
                     <TaskRow
                       task={task}
                       handoffState={handoffStates?.[task.id]}
+                      selected={selectedIds?.has(task.id)}
+                      selectionActive={selectionActive}
+                      onToggleSelect={onToggleSelect}
                       onSelect={onSelect}
                       onHandOff={onHandOff}
                     />

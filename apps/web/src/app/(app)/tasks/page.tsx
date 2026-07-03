@@ -23,11 +23,7 @@ import { api } from '@/lib/api';
 import { HANDOFFS_CHANGED_EVENT } from '@/lib/handoff-meta';
 import { useActiveWorkspace } from '@/lib/workspace-context';
 import { STATUS_LABELS, STATUS_ORDER } from '@/lib/task-meta';
-import {
-  DEFAULT_DISPLAY,
-  PRESETS,
-  type DisplayConfig,
-} from '@/lib/task-views';
+import { DEFAULT_DISPLAY, PRESETS, type DisplayConfig } from '@/lib/task-views';
 
 const DISPLAY_STORAGE_KEY = 'palouse.tasks.display';
 const HANDOFF_POLL_MS = 15_000;
@@ -53,8 +49,19 @@ function TasksContent() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  // Task getting a quick hand-off straight from its row, skipping the sheet.
-  const [handOffTaskId, setHandOffTaskId] = useState<string | null>(null);
+  // Tasks being handed off via the picker: one from a row's quick action,
+  // several from the multi-select bar.
+  const [pickerTaskIds, setPickerTaskIds] = useState<string[] | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
   const [display, setDisplay] = useState<DisplayConfig>(DEFAULT_DISPLAY);
 
   // Hydrate the saved display config on the client, then persist on change.
@@ -117,6 +124,18 @@ function TasksContent() {
     };
   }, [workspace]);
 
+  // Selection only holds visible tasks that are still eligible for hand-off;
+  // rows that gain an active handoff or drop out of the filter fall away.
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      if (prev.size === 0) return prev;
+      const next = new Set(
+        (tasks ?? []).filter((t) => prev.has(t.id) && !handoffStates[t.id]).map((t) => t.id),
+      );
+      return next.size === prev.size ? prev : next;
+    });
+  }, [tasks, handoffStates]);
+
   return (
     <>
       <div className="flex flex-col gap-4">
@@ -169,6 +188,22 @@ function TasksContent() {
           </div>
         </div>
 
+        {selectedIds.size > 0 && (
+          <div className="bg-muted/40 flex flex-wrap items-center gap-2 rounded-md border px-3 py-2">
+            <p className="text-sm">
+              {selectedIds.size} task{selectedIds.size === 1 ? '' : 's'} selected
+            </p>
+            <div className="ml-auto flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+                Clear
+              </Button>
+              <Button size="sm" onClick={() => setPickerTaskIds([...selectedIds])}>
+                Hand off to agent
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div className="rounded-lg border">
           {tasks === null ? (
             <div className="flex flex-col gap-3 p-4">
@@ -185,8 +220,10 @@ function TasksContent() {
               tasks={tasks}
               config={display}
               handoffStates={handoffStates}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelect}
               onSelect={setSelectedTaskId}
-              onHandOff={setHandOffTaskId}
+              onHandOff={(id) => setPickerTaskIds([id])}
             />
           )}
         </div>
@@ -201,15 +238,18 @@ function TasksContent() {
         />
       )}
 
-      {workspace && handOffTaskId && (
+      {workspace && pickerTaskIds && (
         <AgentPickerDialog
           workspaceId={workspace.id}
-          taskId={handOffTaskId}
+          taskIds={pickerTaskIds}
           open
           onOpenChange={(open) => {
-            if (!open) setHandOffTaskId(null);
+            if (!open) setPickerTaskIds(null);
           }}
-          onHandedOff={() => setHandOffTaskId(null)}
+          onHandedOff={() => {
+            setPickerTaskIds(null);
+            setSelectedIds(new Set());
+          }}
         />
       )}
     </>

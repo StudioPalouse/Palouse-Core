@@ -1,6 +1,6 @@
 import type { HandoffState, Task, TaskStatus } from '@palouse/shared';
 import { Bot } from 'lucide-react';
-import { Badge, Button } from '@palouse/ui';
+import { Badge, Button, cn } from '@palouse/ui';
 import { HANDOFF_STATE_BADGE, HANDOFF_STATE_LABELS } from '@/lib/handoff-meta';
 import { formatDate, PRIORITY_LABELS, STATUS_LABELS } from '@/lib/task-meta';
 
@@ -15,19 +15,50 @@ const STATUS_BADGE: Record<TaskStatus, 'default' | 'secondary' | 'destructive' |
 export function TaskRow({
   task,
   handoffState,
+  selected = false,
+  selectionActive = false,
+  onToggleSelect,
   onSelect,
   onHandOff,
 }: {
   task: Task;
   /** Live state of the task's current agent handoff, if one is active. */
   handoffState?: HandoffState;
+  selected?: boolean;
+  /** True while any row is selected, keeping every checkbox visible. */
+  selectionActive?: boolean;
+  onToggleSelect?: (id: string) => void;
   onSelect: (id: string) => void;
   /** Quick hand-off from the row; shown on hover when no handoff is active. */
   onHandOff?: (id: string) => void;
 }) {
-  const quickHandOff = onHandOff && !handoffState;
+  // Tasks already with an agent can't be handed off again, so they can't be
+  // selected either; the checkbox keeps its slot to preserve alignment.
+  const selectable = !handoffState;
   return (
     <div className="group hover:bg-accent/50 flex w-full items-center transition-colors">
+      {onToggleSelect && (
+        <label
+          className={cn(
+            'hidden shrink-0 items-center self-stretch pl-4 sm:flex',
+            !selectable && 'invisible',
+          )}
+        >
+          <input
+            type="checkbox"
+            aria-label={`Select ${task.title}`}
+            className={cn(
+              'accent-foreground size-4 transition-opacity',
+              selected || selectionActive
+                ? 'opacity-100'
+                : 'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100',
+            )}
+            checked={selected}
+            disabled={!selectable}
+            onChange={() => onToggleSelect(task.id)}
+          />
+        </label>
+      )}
       <button
         type="button"
         onClick={() => onSelect(task.id)}
@@ -49,7 +80,7 @@ export function TaskRow({
           {formatDate(task.dueAt)}
         </span>
       </button>
-      {quickHandOff && (
+      {onHandOff && selectable && (
         <Button
           variant="ghost"
           size="sm"

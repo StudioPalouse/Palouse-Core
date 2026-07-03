@@ -160,7 +160,7 @@ export function HandoffPanel({ workspaceId, taskId }: { workspaceId: string; tas
 
       <AgentPickerDialog
         workspaceId={workspaceId}
-        taskId={taskId}
+        taskIds={[taskId]}
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         onHandedOff={() => void refresh()}
