@@ -14,6 +14,7 @@ import {
   Skeleton,
 } from '@palouse/ui';
 import { TasksTabs } from '@/components/tasks-tabs';
+import { AgentPickerDialog } from '@/components/agent-picker-dialog';
 import { NewTaskDialog } from '@/components/new-task-dialog';
 import { TaskDetailSheet } from '@/components/task-detail-sheet';
 import { TaskList } from '@/components/task-list';
@@ -52,6 +53,8 @@ function TasksContent() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  // Task getting a quick hand-off straight from its row, skipping the sheet.
+  const [handOffTaskId, setHandOffTaskId] = useState<string | null>(null);
   const [display, setDisplay] = useState<DisplayConfig>(DEFAULT_DISPLAY);
 
   // Hydrate the saved display config on the client, then persist on change.
@@ -183,6 +186,7 @@ function TasksContent() {
               config={display}
               handoffStates={handoffStates}
               onSelect={setSelectedTaskId}
+              onHandOff={setHandOffTaskId}
             />
           )}
         </div>
@@ -194,6 +198,18 @@ function TasksContent() {
           taskId={selectedTaskId}
           onClose={() => setSelectedTaskId(null)}
           onChanged={refresh}
+        />
+      )}
+
+      {workspace && handOffTaskId && (
+        <AgentPickerDialog
+          workspaceId={workspace.id}
+          taskId={handOffTaskId}
+          open
+          onOpenChange={(open) => {
+            if (!open) setHandOffTaskId(null);
+          }}
+          onHandedOff={() => setHandOffTaskId(null)}
         />
       )}
     </>

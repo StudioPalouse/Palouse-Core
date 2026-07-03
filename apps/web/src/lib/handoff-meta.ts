@@ -43,6 +43,18 @@ export const EVENT_LABELS: Record<string, string> = {
   cancelled: 'Cancelled',
 };
 
+// Machine failure codes get plain-language copy; agent-written reasons pass
+// through as-is.
+const FAILURE_REASON_LABELS: Record<string, string> = {
+  heartbeat_timeout: 'The agent stopped responding, so the task was taken back.',
+  claim_ttl_expired: 'No agent picked this up in time.',
+  rejected_in_review: 'The work was rejected in review.',
+};
+
+export function formatFailureReason(reason: string): string {
+  return FAILURE_REASON_LABELS[reason] ?? reason;
+}
+
 // Fired after any handoff mutation (hand off, review, cancel) so surfaces
 // showing derived state (task-row badges, the Reviews tab count) can refresh
 // immediately instead of waiting out their poll interval.

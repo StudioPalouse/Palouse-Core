@@ -22,6 +22,7 @@ import {
 import { api } from '@/lib/api';
 import { formatDate, PRIORITY_LABELS, STATUS_LABELS, STATUS_ORDER } from '@/lib/task-meta';
 import { HandoffPanel } from './handoff-panel';
+import { Markdown } from './markdown';
 
 export function TaskDetailSheet({
   workspaceId,
@@ -134,9 +135,7 @@ export function TaskDetailSheet({
               </div>
 
               {task.descriptionMd && (
-                <p className="text-muted-foreground text-sm whitespace-pre-wrap">
-                  {task.descriptionMd}
-                </p>
+                <Markdown className="text-muted-foreground">{task.descriptionMd}</Markdown>
               )}
 
               <Separator />
@@ -152,7 +151,7 @@ export function TaskDetailSheet({
                 )}
                 {comments.map((c) => (
                   <div key={c.id} className="rounded-md border p-3">
-                    <p className="text-sm whitespace-pre-wrap">{c.bodyMd}</p>
+                    <Markdown>{c.bodyMd}</Markdown>
                     <p className="text-muted-foreground mt-2 text-xs">{formatDate(c.createdAt)}</p>
                   </div>
                 ))}

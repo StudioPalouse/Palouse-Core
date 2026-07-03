@@ -14,6 +14,7 @@ import { api, ApiError } from '@/lib/api';
 import {
   emitHandoffsChanged,
   formatDateTime,
+  formatFailureReason,
   formatTokens,
   formatUsd,
   HANDOFF_STATE_BADGE,
@@ -22,6 +23,7 @@ import {
 import { AgentPickerDialog } from './agent-picker-dialog';
 import { HandoffReviewActions } from './handoff-review-actions';
 import { HandoffTimeline } from './handoff-timeline';
+import { Markdown } from './markdown';
 
 const POLL_MS = 5_000;
 
@@ -67,6 +69,7 @@ export function HandoffPanel({ workspaceId, taskId }: { workspaceId: string; tas
   }, [latest, refresh]);
 
   async function cancel(handoffId: string) {
+    if (!window.confirm('Cancel this agent task? The agent stops working on it.')) return;
     setActing(true);
     setError(null);
     try {
@@ -135,11 +138,9 @@ export function HandoffPanel({ workspaceId, taskId }: { workspaceId: string; tas
             </p>
           )}
 
-          {latest.resultSummaryMd && (
-            <p className="text-sm whitespace-pre-wrap">{latest.resultSummaryMd}</p>
-          )}
+          {latest.resultSummaryMd && <Markdown>{latest.resultSummaryMd}</Markdown>}
           {latest.failureReason && (
-            <p className="text-destructive text-sm">{latest.failureReason}</p>
+            <p className="text-destructive text-sm">{formatFailureReason(latest.failureReason)}</p>
           )}
 
           {latest.state === 'needs_review' && (

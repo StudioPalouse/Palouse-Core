@@ -6,6 +6,7 @@ import { isTerminal } from '@palouse/shared';
 import { Badge, Separator, Skeleton } from '@palouse/ui';
 import { HandoffReviewActions } from '@/components/handoff-review-actions';
 import { HandoffTimeline } from '@/components/handoff-timeline';
+import { Markdown } from '@/components/markdown';
 import { UsageSummaryCards } from '@/components/usage-summary-cards';
 import { api } from '@/lib/api';
 import { useActiveWorkspace } from '@/lib/workspace-context';
@@ -15,6 +16,7 @@ import {
   HANDOFF_STATE_BADGE,
   HANDOFF_STATE_LABELS,
 } from '@/lib/handoff-meta';
+import { formatModelName } from '@/lib/model-names';
 
 const POLL_MS = 5_000;
 
@@ -91,9 +93,7 @@ function ActivityReportContent() {
       {workspaceId && detail.handoff.state === 'needs_review' && (
         <div className="flex flex-col gap-2 rounded-lg border p-4">
           <p className="text-sm font-medium">Review the agent&apos;s work</p>
-          {detail.handoff.resultSummaryMd && (
-            <p className="text-sm whitespace-pre-wrap">{detail.handoff.resultSummaryMd}</p>
-          )}
+          {detail.handoff.resultSummaryMd && <Markdown>{detail.handoff.resultSummaryMd}</Markdown>}
           <HandoffReviewActions
             workspaceId={workspaceId}
             handoffId={detail.handoff.id}
@@ -130,7 +130,7 @@ function ActivityReportContent() {
                       <td className="text-muted-foreground px-3 py-2 text-xs">
                         {formatDateTime(g.occurredAt)}
                       </td>
-                      <td className="px-3 py-2">{g.model}</td>
+                      <td className="px-3 py-2">{formatModelName(g.model)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">
                         {g.inputTokens.toLocaleString()}
                       </td>
