@@ -23,13 +23,14 @@ import { emitHandoffsChanged } from '@/lib/handoff-meta';
 
 export function AgentPickerDialog({
   workspaceId,
-  taskId,
+  taskIds,
   open,
   onOpenChange,
   onHandedOff,
 }: {
   workspaceId: string;
-  taskId: string;
+  /** One task from the sheet or row action, several from a bulk selection. */
+  taskIds: string[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onHandedOff: () => void;
@@ -39,6 +40,7 @@ export function AgentPickerDialog({
   const [reviewRequired, setReviewRequired] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const many = taskIds.length > 1;
 
   useEffect(() => {
     if (!open) return;
@@ -51,18 +53,30 @@ export function AgentPickerDialog({
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!agentId) return;
+    if (!agentId || taskIds.length === 0) return;
     setSubmitting(true);
     setError(null);
-    try {
-      await api.createHandoff(workspaceId, taskId, { agentId, reviewRequired });
-      emitHandoffsChanged();
+    const results = await Promise.allSettled(
+      taskIds.map((taskId) => api.createHandoff(workspaceId, taskId, { agentId, reviewRequired })),
+    );
+    setSubmitting(false);
+    const failed = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+    if (results.length > failed.length) emitHandoffsChanged();
+    if (failed.length === 0) {
       onOpenChange(false);
       onHandedOff();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to hand off task');
-    } finally {
-      setSubmitting(false);
+      return;
+    }
+    const reason =
+      failed[0]!.reason instanceof ApiError ? failed[0]!.reason.message : 'Request failed';
+    if (failed.length === taskIds.length) {
+      setError(taskIds.length === 1 ? reason : `No hand-offs went through. ${reason}`);
+    } else {
+      // Partial: succeeded tasks are queued; leave the dialog open so the
+      // failures are seen. The task list prunes handed-off rows on its own.
+      setError(
+        `${failed.length} of ${taskIds.length} hand-offs didn't go through. The rest are queued.`,
+      );
     }
   }
 
@@ -70,9 +84,11 @@ export function AgentPickerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Hand off to agent</DialogTitle>
+          <DialogTitle>
+            {many ? `Hand off ${taskIds.length} tasks` : 'Hand off to agent'}
+          </DialogTitle>
           <DialogDescription>
-            The agent picks the task up over MCP and reports back here.
+            The agent picks the work up over MCP and reports back here.
           </DialogDescription>
         </DialogHeader>
         {agents !== null && agents.length === 0 ? (
@@ -112,7 +128,11 @@ export function AgentPickerDialog({
             {error && <p className="text-destructive text-sm">{error}</p>}
             <DialogFooter>
               <Button type="submit" disabled={submitting || !agentId}>
-                {submitting ? 'Handing off…' : 'Hand off'}
+                {submitting
+                  ? 'Handing off…'
+                  : many
+                    ? `Hand off ${taskIds.length} tasks`
+                    : 'Hand off'}
               </Button>
             </DialogFooter>
           </form>
