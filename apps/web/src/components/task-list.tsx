@@ -12,12 +12,15 @@ export function TaskList({
   config,
   handoffStates,
   onSelect,
+  onHandOff,
 }: {
   tasks: Task[];
   config: DisplayConfig;
   /** Task id → state of its current active agent handoff. */
   handoffStates?: Record<string, HandoffState>;
   onSelect: (id: string) => void;
+  /** Quick hand-off action on rows without an active handoff. */
+  onHandOff?: (id: string) => void;
 }) {
   const groups = groupTasks(tasks, config);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -28,7 +31,12 @@ export function TaskList({
       <ul className="divide-y">
         {groups[0]?.tasks.map((task) => (
           <li key={task.id}>
-            <TaskRow task={task} handoffState={handoffStates?.[task.id]} onSelect={onSelect} />
+            <TaskRow
+              task={task}
+              handoffState={handoffStates?.[task.id]}
+              onSelect={onSelect}
+              onHandOff={onHandOff}
+            />
           </li>
         ))}
       </ul>
@@ -75,6 +83,7 @@ export function TaskList({
                       task={task}
                       handoffState={handoffStates?.[task.id]}
                       onSelect={onSelect}
+                      onHandOff={onHandOff}
                     />
                   </li>
                 ))}

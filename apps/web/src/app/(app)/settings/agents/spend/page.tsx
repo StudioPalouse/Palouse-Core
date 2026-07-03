@@ -21,6 +21,7 @@ import { BreakdownChart, DailySpendChart } from '@/components/spend-charts';
 import { api } from '@/lib/api';
 import { useActiveWorkspace } from '@/lib/workspace-context';
 import { formatTokens, formatUsd } from '@/lib/handoff-meta';
+import { formatModelName } from '@/lib/model-names';
 
 type SpendData = {
   total: number;
@@ -107,7 +108,7 @@ function AgentsSpendContent() {
         byAgent: [...agent.rows].sort((a, b) => b.costUsd - a.costUsd),
         byModel: [...model.rows]
           .sort((a, b) => b.costUsd - a.costUsd)
-          .map((r) => ({ name: r.key, cost: r.costUsd })),
+          .map((r) => ({ name: formatModelName(r.key), cost: r.costUsd })),
       });
     });
   }, [workspace, days]);

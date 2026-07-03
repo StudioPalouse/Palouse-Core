@@ -1,7 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Textarea } from '@palouse/ui';
+import { ChevronDown } from 'lucide-react';
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  Textarea,
+} from '@palouse/ui';
 import { api, ApiError } from '@/lib/api';
 import { emitHandoffsChanged } from '@/lib/handoff-meta';
 
@@ -22,14 +30,14 @@ export function HandoffReviewActions({
   const [acting, setActing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function review(decision: 'approved' | 'rejected') {
+  async function review(decision: 'approved' | 'rejected', rejectAction?: 'retry' | 'fail') {
     setActing(true);
     setError(null);
     try {
       await api.reviewHandoff(workspaceId, handoffId, {
         decision,
         note: note.trim() || undefined,
-        ...(decision === 'rejected' ? { rejectAction: 'retry' as const } : {}),
+        ...(decision === 'rejected' ? { rejectAction } : {}),
       });
       setNote('');
       emitHandoffsChanged();
@@ -40,7 +48,7 @@ export function HandoffReviewActions({
           ? err.message
           : decision === 'approved'
             ? "Couldn't record the approval. Try again."
-            : "Couldn't send this back. Try again.",
+            : "Couldn't record the review. Try again.",
       );
     } finally {
       setActing(false);
@@ -57,14 +65,32 @@ export function HandoffReviewActions({
       />
       {error && <p className="text-destructive text-sm">{error}</p>}
       <div className="flex justify-end gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={acting}
-          onClick={() => void review('rejected')}
-        >
-          Send back
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" disabled={acting}>
+              Send back
+              <ChevronDown className="size-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => void review('rejected', 'retry')}>
+              <div className="flex flex-col">
+                <span>For another attempt</span>
+                <span className="text-muted-foreground text-xs">
+                  The agent tries again with your note.
+                </span>
+              </div>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => void review('rejected', 'fail')}>
+              <div className="flex flex-col">
+                <span>Reject and close</span>
+                <span className="text-muted-foreground text-xs">
+                  Marks the agent task as failed, with no retry.
+                </span>
+              </div>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button size="sm" disabled={acting} onClick={() => void review('approved')}>
           Approve
         </Button>
