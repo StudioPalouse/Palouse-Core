@@ -34,9 +34,17 @@ async function runStdio(database: Database): Promise<void> {
  */
 function runHttp(database: Database): void {
   const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
-    if (req.url === '/healthz') {
+    const path = req.url?.split('?')[0];
+    if (path === '/healthz') {
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ ok: true }));
+      return;
+    }
+    // The protocol lives at /mcp only, so the URL in configs stays unambiguous
+    // and the root remains free for a human-facing page later.
+    if (path !== '/mcp') {
+      res.writeHead(404, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Not found. The MCP endpoint is /mcp.' }));
       return;
     }
     try {

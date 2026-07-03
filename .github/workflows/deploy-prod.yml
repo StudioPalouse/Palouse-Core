@@ -37,9 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # mcp rejoins at M5 — placeholder scaled to 0 machines until the real
-        # MCP server ships (standing rule: minimal hosting spend until needed).
-        app: [web, worker]
+        app: [web, worker, mcp]
     steps:
       - uses: actions/checkout@v5
       - uses: superfly/flyctl-actions/setup-flyctl@master
@@ -56,3 +54,5 @@ jobs:
         run: curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://palouse-prod-api.fly.dev/health/ready
       - name: Web responds
         run: curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors -o /dev/null https://palouse-prod-web.fly.dev/
+      - name: MCP liveness
+        run: curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://palouse-prod-mcp.fly.dev/healthz

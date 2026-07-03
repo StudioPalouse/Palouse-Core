@@ -7,6 +7,7 @@ primary_region = "iad"
   # Empty = same-origin: the browser talks only to the web origin and the Next
   # rewrite proxy forwards API paths over Fly private networking.
   NEXT_PUBLIC_API_URL = ""
+  NEXT_PUBLIC_MCP_URL = "https://mcp.palouse.ai/mcp"
   API_PROXY_TARGET = "http://palouse-prod-api.internal:4000"
 
 [env]

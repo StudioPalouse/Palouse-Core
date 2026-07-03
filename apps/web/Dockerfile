@@ -18,6 +18,10 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 # Where the Next server forwards proxied API paths (baked into the route manifest).
 ARG API_PROXY_TARGET=http://localhost:4000
 ENV API_PROXY_TARGET=$API_PROXY_TARGET
+# Public MCP endpoint shown in agent onboarding snippets. Empty = self-hosted
+# build with no known endpoint; the UI shows a placeholder instead.
+ARG NEXT_PUBLIC_MCP_URL=
+ENV NEXT_PUBLIC_MCP_URL=$NEXT_PUBLIC_MCP_URL
 RUN pnpm build
 EXPOSE 3000
 CMD ["pnpm", "start"]

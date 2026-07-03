@@ -19,7 +19,33 @@ import { Check, Copy } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
 import { SCOPE_LABELS } from '@/lib/agent-meta';
 
-function mcpSnippet(plaintext: string): string {
+// Baked at build time (fly/web*.toml build args). Empty in self-hosted builds
+// that have not set NEXT_PUBLIC_MCP_URL; the UI shows a placeholder then.
+const MCP_URL = process.env.NEXT_PUBLIC_MCP_URL ?? '';
+const MCP_URL_PLACEHOLDER = 'https://your-palouse-host/mcp';
+
+function claudeCodeSnippet(plaintext: string): string {
+  const url = MCP_URL || MCP_URL_PLACEHOLDER;
+  return `claude mcp add --transport http palouse ${url} --header "Authorization: Bearer ${plaintext}"`;
+}
+
+function httpConfigSnippet(plaintext: string): string {
+  return JSON.stringify(
+    {
+      mcpServers: {
+        palouse: {
+          type: 'http',
+          url: MCP_URL || MCP_URL_PLACEHOLDER,
+          headers: { Authorization: `Bearer ${plaintext}` },
+        },
+      },
+    },
+    null,
+    2,
+  );
+}
+
+function stdioConfigSnippet(plaintext: string): string {
   return JSON.stringify(
     {
       mcpServers: {
@@ -168,15 +194,29 @@ export function AgentKeyDialog({
                 <CopyButton value={plaintext} label="Copy key" />
               </div>
               <div className="grid gap-2">
-                <Label>MCP config (Claude Code / Claude Desktop)</Label>
-                <pre className="bg-muted overflow-x-auto rounded-md px-3 py-2 text-xs">
-                  {mcpSnippet(plaintext)}
+                <Label>Connect Claude Code</Label>
+                <pre className="bg-muted overflow-x-auto rounded-md px-3 py-2 text-xs whitespace-pre-wrap break-all">
+                  {claudeCodeSnippet(plaintext)}
                 </pre>
-                <CopyButton value={mcpSnippet(plaintext)} label="Copy config" />
+                <CopyButton value={claudeCodeSnippet(plaintext)} label="Copy command" />
+                {!MCP_URL && (
+                  <p className="text-muted-foreground text-xs">
+                    Replace {MCP_URL_PLACEHOLDER} with your instance&apos;s MCP endpoint.
+                  </p>
+                )}
+              </div>
+              <div className="grid gap-2">
+                <Label>Other MCP clients (HTTP)</Label>
+                <pre className="bg-muted overflow-x-auto rounded-md px-3 py-2 text-xs">
+                  {httpConfigSnippet(plaintext)}
+                </pre>
+                <CopyButton value={httpConfigSnippet(plaintext)} label="Copy config" />
                 <p className="text-muted-foreground text-xs">
-                  For a remote agent, point its MCP HTTP transport at the Palouse MCP endpoint
-                  and send this key as a Bearer token.
+                  Self-hosting next to the database? You can run the server locally instead:
+                  configure <code>palouse-mcp --stdio</code> with this key in{' '}
+                  <code>PALOUSE_API_KEY</code>.
                 </p>
+                <CopyButton value={stdioConfigSnippet(plaintext)} label="Copy stdio config" />
               </div>
             </div>
             <DialogFooter>
