@@ -29,26 +29,26 @@
   --ring: oklch(0.708 0 0);
 }
 
-/* Deep-blue-tinted dark theme (hue ~264) to set Palouse apart from neutral dark apps. */
+/* Deep-green-tinted dark theme (hue ~165) matching the brand's forest/teal greens. */
 .dark {
-  --background: oklch(0.17 0.025 264);
-  --foreground: oklch(0.97 0.01 264);
-  --card: oklch(0.21 0.03 264);
-  --card-foreground: oklch(0.97 0.01 264);
-  --popover: oklch(0.21 0.03 264);
-  --popover-foreground: oklch(0.97 0.01 264);
-  --primary: oklch(0.92 0.02 264);
-  --primary-foreground: oklch(0.21 0.03 264);
-  --secondary: oklch(0.27 0.03 264);
-  --secondary-foreground: oklch(0.97 0.01 264);
-  --muted: oklch(0.27 0.03 264);
-  --muted-foreground: oklch(0.72 0.025 264);
-  --accent: oklch(0.3 0.04 264);
-  --accent-foreground: oklch(0.97 0.01 264);
+  --background: oklch(0.17 0.025 165);
+  --foreground: oklch(0.97 0.01 165);
+  --card: oklch(0.21 0.03 165);
+  --card-foreground: oklch(0.97 0.01 165);
+  --popover: oklch(0.21 0.03 165);
+  --popover-foreground: oklch(0.97 0.01 165);
+  --primary: oklch(0.92 0.02 165);
+  --primary-foreground: oklch(0.21 0.03 165);
+  --secondary: oklch(0.27 0.03 165);
+  --secondary-foreground: oklch(0.97 0.01 165);
+  --muted: oklch(0.27 0.03 165);
+  --muted-foreground: oklch(0.72 0.025 165);
+  --accent: oklch(0.3 0.04 165);
+  --accent-foreground: oklch(0.97 0.01 165);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(0.6 0.04 264 / 22%);
-  --input: oklch(0.7 0.04 264 / 18%);
-  --ring: oklch(0.62 0.1 264);
+  --border: oklch(0.6 0.04 165 / 22%);
+  --input: oklch(0.7 0.04 165 / 18%);
+  --ring: oklch(0.62 0.1 165);
 }
 
 @theme inline {
