@@ -69,6 +69,8 @@ const envSchema = z.object({
   MICROSOFT_OAUTH_CLIENT_SECRET: z.string().optional(),
   ASANA_OAUTH_CLIENT_ID: z.string().optional(),
   ASANA_OAUTH_CLIENT_SECRET: z.string().optional(),
+  TODOIST_OAUTH_CLIENT_ID: z.string().optional(),
+  TODOIST_OAUTH_CLIENT_SECRET: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

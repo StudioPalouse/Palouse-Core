@@ -85,6 +85,13 @@
       "when": 1783179525319,
       "tag": "0011_first_wild_child",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1783198644562,
+      "tag": "0012_eminent_bloodscream",
+      "breakpoints": true
     }
   ]
 }

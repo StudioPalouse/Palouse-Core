@@ -9,6 +9,7 @@ export const externalSystem = z.enum([
   'ms_planner',
   'asana',
   'notion',
+  'todoist',
   'palouse',
 ]);
 export type ExternalSystem = z.infer<typeof externalSystem>;

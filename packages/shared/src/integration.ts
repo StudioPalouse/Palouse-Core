@@ -10,6 +10,7 @@ export const integrationProvider = z.enum([
   'ms_planner',
   'asana',
   'notion',
+  'todoist',
 ]);
 export type IntegrationProvider = z.infer<typeof integrationProvider>;
 
