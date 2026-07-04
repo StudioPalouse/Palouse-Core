@@ -199,6 +199,10 @@ export function AgentKeyDialog({
                   {claudeCodeSnippet(plaintext)}
                 </pre>
                 <CopyButton value={claudeCodeSnippet(plaintext)} label="Copy command" />
+                <p className="text-muted-foreground text-xs">
+                  Once connected, your agent can register work you give it directly in chat:
+                  it creates the task in Palouse and reports its steps, cost, and result here.
+                </p>
                 {!MCP_URL && (
                   <p className="text-muted-foreground text-xs">
                     Replace {MCP_URL_PLACEHOLDER} with your instance&apos;s MCP endpoint.

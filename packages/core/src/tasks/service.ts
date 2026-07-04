@@ -2,7 +2,6 @@ import { and, desc, eq, ilike, sql, type SQL } from 'drizzle-orm';
 import { auditEvents, taskComments, taskSources, tasks, type Database } from '@palouse/db';
 import {
   notFound,
-  userActor,
   type Actor,
   type CreateCommentInput,
   type CreateTaskInput,
@@ -10,6 +9,7 @@ import {
   type Task,
   type TaskComment,
   type TaskSource,
+  type TaskStatus,
   type UpdateTaskInput,
 } from '@palouse/shared';
 
@@ -24,6 +24,8 @@ function toDto(row: typeof tasks.$inferSelect): Task {
     dueAt: row.dueAt?.toISOString() ?? null,
     assigneeUserId: row.assigneeUserId,
     parentTaskId: row.parentTaskId,
+    origin: row.origin,
+    createdByAgentId: row.createdByAgentId,
     sourceOfTruth: row.sourceOfTruth,
     lastSyncedAt: row.lastSyncedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
@@ -99,8 +101,9 @@ export async function getTask(
 export async function createTask(
   db: Database,
   workspaceId: string,
-  actorUserId: string,
+  actor: Actor,
   input: CreateTaskInput,
+  opts: { status?: TaskStatus } = {},
 ): Promise<Task> {
   const [row] = await db
     .insert(tasks)
@@ -108,13 +111,17 @@ export async function createTask(
       workspaceId,
       title: input.title,
       descriptionMd: input.descriptionMd ?? null,
+      // Omit status when unset so the DB default ('open') applies.
+      ...(opts.status ? { status: opts.status } : {}),
       priority: input.priority,
       dueAt: input.dueAt ? new Date(input.dueAt) : null,
       assigneeUserId: input.assigneeUserId ?? null,
       parentTaskId: input.parentTaskId ?? null,
+      origin: actor.type,
+      createdByAgentId: actor.type === 'agent' ? actor.id : null,
     })
     .returning();
-  await audit(db, workspaceId, userActor(actorUserId), 'task.created', row!.id);
+  await audit(db, workspaceId, actor, 'task.created', row!.id);
   return toDto(row!);
 }
 

@@ -9,6 +9,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { agents } from './handoffs.js';
 import { users, workspaces } from './identity.js';
 
 const baseId = () => uuid('id').primaryKey().default(sql`gen_random_uuid()`);
@@ -24,6 +25,8 @@ export const taskStatus = pgEnum('task_status', [
 ]);
 
 export const sourceOfTruth = pgEnum('source_of_truth', ['palouse', 'external']);
+
+export const taskOrigin = pgEnum('task_origin', ['user', 'agent']);
 
 export const externalSystem = pgEnum('external_system', [
   'google_tasks',
@@ -48,6 +51,10 @@ export const tasks = pgTable(
     dueAt: timestamp('due_at', { withTimezone: true, mode: 'date' }),
     assigneeUserId: uuid('assignee_user_id').references(() => users.id, { onDelete: 'set null' }),
     parentTaskId: uuid('parent_task_id').references((): any => tasks.id, { onDelete: 'set null' }),
+    origin: taskOrigin('origin').notNull().default('user'),
+    createdByAgentId: uuid('created_by_agent_id').references(() => agents.id, {
+      onDelete: 'set null',
+    }),
     sourceOfTruth: sourceOfTruth('source_of_truth').notNull().default('palouse'),
     externalCanonicalId: text('external_canonical_id'),
     lastSyncedAt: timestamp('last_synced_at', { withTimezone: true, mode: 'date' }),
