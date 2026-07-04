@@ -9,6 +9,7 @@ export const TOOLS = [
   'list_tasks',
   'get_task',
   'create_task',
+  'start_task',
   'claim_task',
   'update_task',
   'add_comment',
@@ -75,6 +76,15 @@ export const TOOL_INPUTS = {
         'Set true if the person wants to review and approve the result before the work counts as complete. Defaults to false.',
       ),
   },
+  start_task: {
+    taskId,
+    reviewRequired: z
+      .boolean()
+      .optional()
+      .describe(
+        'Set true if the person wants to review and approve the result before the work counts as complete. Defaults to false.',
+      ),
+  },
   claim_task: {
     taskId: taskId
       .optional()
@@ -134,7 +144,9 @@ export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
   list_tasks: 'List tasks in your workspace, filterable by status and title search.',
   get_task: 'Fetch one task with its comments and full agent handoff history.',
   create_task:
-    'Register work you are starting in Palouse. Use this when a person hands you work directly in chat instead of queueing it in Palouse first. Creates the task in the workspace, marks it as agent-originated, and atomically opens a handoff already claimed by you. Returns the task, the handoff, and a claimToken: treat it exactly like a claim_task result, so log_step as you work, heartbeat at least every 60 seconds, and complete_task or fail_task when done. Set reviewRequired to true when the person wants to approve the result. Do not use this for tasks that already exist in Palouse; use claim_task for those.',
+    'Register work you are starting in Palouse. Use this when a person hands you work directly in chat instead of queueing it in Palouse first. Creates the task in the workspace, marks it as agent-originated, and atomically opens a handoff already claimed by you. Returns the task, the handoff, and a claimToken: treat it exactly like a claim_task result, so log_step as you work, heartbeat at least every 60 seconds, and complete_task or fail_task when done. Set reviewRequired to true when the person wants to approve the result. Do not use this for tasks that already exist in Palouse; use claim_task for queued work or start_task to begin an existing task.',
+  start_task:
+    'Start working on a task that already exists in Palouse when a person points you at it directly in chat instead of queueing a handoff. Atomically opens a handoff already claimed by you and returns it with a claimToken: treat it exactly like a claim_task result. Fails if the task already has an active handoff; call claim_task first in case the work was queued for you.',
   claim_task:
     'Atomically claim a queued handoff assigned to you. Returns the handoff, its deadline, and a claimToken you must present on heartbeat, request_review, complete_task, and fail_task. Exactly one claimer ever wins.',
   update_task: 'Update task fields (title, description, status, priority, due date).',

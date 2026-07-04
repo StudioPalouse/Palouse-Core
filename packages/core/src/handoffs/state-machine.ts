@@ -140,6 +140,13 @@ export async function openClaimedHandoff(
   const reviewRequired = opts.reviewRequired ?? false;
   const deadlineMinutes = opts.deadlineMinutes ?? 30;
 
+  const [task] = await db
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)))
+    .limit(1);
+  if (!task) throw notFound('Task not found');
+
   const [agent] = await db
     .select({ id: agents.id })
     .from(agents)
@@ -181,6 +188,7 @@ export async function openClaimedHandoff(
     selfOpened: true,
   });
   await audit(db, workspaceId, 'agent', agentId, 'handoff.claimed', row!.id, { taskId });
+  await syncTaskStatus(db, taskId, 'working');
   return { handoff: toDto(row!), claimToken: row!.claimToken! };
 }
 
@@ -254,6 +262,7 @@ export async function claimNext(
   await audit(db, row.workspaceId, 'agent', agentId, 'handoff.claimed', row.id, {
     taskId: row.taskId,
   });
+  await syncTaskStatus(db, row.taskId, 'working');
   return { handoff: toDto(row), claimToken: row.claimToken! };
 }
 
@@ -315,6 +324,8 @@ export async function complete(
   await audit(db, row.workspaceId, 'agent', row.actorAgentId, 'handoff.completed', row.id, {
     state: row.state,
   });
+  // needs_review keeps the task in_progress until a human approves.
+  if (row.state === 'completed') await syncTaskStatus(db, row.taskId, 'done');
   return toDto(row);
 }
 
@@ -336,6 +347,7 @@ export async function fail(
   await recordLifecycleUsage(db, row, usage);
   await recordEvent(db, row.id, 'failed', { reason });
   await audit(db, row.workspaceId, 'agent', row.actorAgentId, 'handoff.failed', row.id, { reason });
+  await syncTaskStatus(db, row.taskId, 'idle');
   return toDto(row);
 }
 
@@ -387,6 +399,10 @@ export async function review(
     note: input.note ?? null,
     resultState: row.state,
   });
+  // Approval finishes the task; a reject-to-fail frees it. Reject-to-retry
+  // keeps the handoff (and the task) in progress.
+  if (row.state === 'completed') await syncTaskStatus(db, row.taskId, 'done');
+  else if (row.state === 'failed') await syncTaskStatus(db, row.taskId, 'idle');
   return toDto(row);
 }
 
@@ -408,6 +424,7 @@ export async function cancel(
   const row = rawToRow(raw);
   await recordEvent(db, row.id, 'cancelled', { byUserId: userId });
   await audit(db, workspaceId, 'user', userId, 'handoff.cancelled', row.id, {});
+  await syncTaskStatus(db, row.taskId, 'idle');
   return toDto(row);
 }
 
@@ -498,20 +515,20 @@ export async function reapExpired(
       last_heartbeat_at = NULL, deadline_at = NULL,
       requeue_count = requeue_count + 1, updated_at = now()
     WHERE ${expired} AND requeue_count < ${MAX_REQUEUES}
-    RETURNING id, workspace_id, actor_agent_id;
+    RETURNING id, workspace_id, actor_agent_id, task_id;
   `);
   const failedRows = await db.execute<Record<string, unknown>>(sql`
     UPDATE agent_handoffs SET
       state = 'failed'::handoff_state, failure_reason = 'heartbeat_timeout',
       claim_token = NULL, updated_at = now()
     WHERE ${expired} AND requeue_count >= ${MAX_REQUEUES}
-    RETURNING id, workspace_id, actor_agent_id;
+    RETURNING id, workspace_id, actor_agent_id, task_id;
   `);
   const cancelledRows = await db.execute<Record<string, unknown>>(sql`
     UPDATE agent_handoffs SET
       state = 'cancelled'::handoff_state, failure_reason = 'claim_ttl_expired', updated_at = now()
     WHERE state = 'queued' AND created_at < now() - ${QUEUED_TTL_HOURS} * interval '1 hour'
-    RETURNING id, workspace_id, actor_agent_id;
+    RETURNING id, workspace_id, actor_agent_id, task_id;
   `);
 
   for (const r of requeuedRows) {
@@ -519,24 +536,50 @@ export async function reapExpired(
     await audit(db, r.workspace_id as string, 'system', null, 'handoff.requeued', r.id as string, {
       reason: 'heartbeat_timeout',
     });
+    // Requeued means nobody is working it; the next claim flips it back.
+    await syncTaskStatus(db, r.task_id as string, 'idle');
   }
   for (const r of failedRows) {
     await recordEvent(db, r.id as string, 'failed', { reason: 'heartbeat_timeout' });
     await audit(db, r.workspace_id as string, 'system', null, 'handoff.failed', r.id as string, {
       reason: 'heartbeat_timeout',
     });
+    await syncTaskStatus(db, r.task_id as string, 'idle');
   }
   for (const r of cancelledRows) {
     await recordEvent(db, r.id as string, 'cancelled', { reason: 'claim_ttl_expired' });
     await audit(db, r.workspace_id as string, 'system', null, 'handoff.cancelled', r.id as string, {
       reason: 'claim_ttl_expired',
     });
+    await syncTaskStatus(db, r.task_id as string, 'idle');
   }
   return {
     requeued: requeuedRows.length,
     failed: failedRows.length,
     cancelled: cancelledRows.length,
   };
+}
+
+/**
+ * Keep task.status in step with the handoff lifecycle so the board reflects
+ * reality: claim → in_progress, completion/approval → done, fail/cancel/
+ * requeue → open. Guarded from-states mean human-set blocked/archived (and an
+ * already-done task) are never clobbered.
+ */
+type TaskSync = 'working' | 'done' | 'idle';
+
+const TASK_SYNC: Record<TaskSync, { to: 'in_progress' | 'done' | 'open'; from: string[] }> = {
+  working: { to: 'in_progress', from: ['open'] },
+  done: { to: 'done', from: ['open', 'in_progress'] },
+  idle: { to: 'open', from: ['in_progress'] },
+};
+
+async function syncTaskStatus(db: Database, taskId: string, sync: TaskSync): Promise<void> {
+  const { to, from } = TASK_SYNC[sync];
+  await db
+    .update(tasks)
+    .set({ status: to, updatedAt: new Date() })
+    .where(and(eq(tasks.id, taskId), inArray(tasks.status, from as (typeof tasks.$inferSelect)['status'][])));
 }
 
 async function recordEvent(

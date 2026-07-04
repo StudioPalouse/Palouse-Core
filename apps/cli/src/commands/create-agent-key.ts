@@ -49,17 +49,22 @@ export function createAgentKeyCommand(): Command {
 
           console.log(`API key for ${agent.name} (key id ${key.id}). Shown once, store it now:`);
           console.log(`\n  ${plaintext}\n`);
+          // Distinct client alias per environment, so connecting staging and
+          // prod side by side does not collide in the local MCP config.
+          const alias = (env.PUBLIC_MCP_URL ?? '').includes('mcp-test.')
+            ? 'palouse-test'
+            : 'palouse';
           if (env.PUBLIC_MCP_URL) {
             console.log('Connect Claude Code:');
             console.log(
-              `\n  claude mcp add --transport http palouse ${env.PUBLIC_MCP_URL} --header "Authorization: Bearer ${plaintext}"\n`,
+              `\n  claude mcp add --transport http ${alias} ${env.PUBLIC_MCP_URL} --header "Authorization: Bearer ${plaintext}"\n`,
             );
             console.log('Other MCP clients (HTTP):');
             console.log(
               JSON.stringify(
                 {
                   mcpServers: {
-                    palouse: {
+                    [alias]: {
                       type: 'http',
                       url: env.PUBLIC_MCP_URL,
                       headers: { Authorization: `Bearer ${plaintext}` },
@@ -78,7 +83,7 @@ export function createAgentKeyCommand(): Command {
             JSON.stringify(
               {
                 mcpServers: {
-                  palouse: {
+                  [alias]: {
                     command: 'palouse-mcp',
                     args: ['--stdio'],
                     env: { PALOUSE_API_KEY: plaintext },

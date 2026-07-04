@@ -14,6 +14,7 @@ const SCOPES: Record<ToolName, AgentKeyScope> = {
   list_tasks: 'tasks:read',
   get_task: 'tasks:read',
   create_task: 'tasks:write',
+  start_task: 'handoffs:claim',
   claim_task: 'handoffs:claim',
   update_task: 'tasks:write',
   add_comment: 'tasks:write',
@@ -29,7 +30,7 @@ type ToolArgs<N extends ToolName> = z.objectOutputType<(typeof TOOL_INPUTS)[N], 
 
 /** Shown to the agent by MCP clients that surface server instructions. */
 const INSTRUCTIONS =
-  'Palouse tracks the work agents do for people: what was asked, what the agent did, what it cost, and the result. Workflow: when a person queues work for you in Palouse, call claim_task to pick it up. When a person hands you work directly in chat, register it with create_task, which creates the task and returns a claimed handoff plus a claimToken in one call. Either way, while you work: call log_step for each meaningful unit of work in plain English, call heartbeat at least every 60 seconds, and report token usage with report_usage after each LLM call. When you finish, call complete_task with a result summary, and if the work fully resolves the task, set its status to done with update_task. If you cannot finish, call fail_task with the reason. Never invent a claimToken; only use one returned by claim_task or create_task.';
+  'Palouse tracks the work agents do for people: what was asked, what the agent did, what it cost, and the result. Workflow: when a person queues work for you in Palouse, call claim_task to pick it up. When a person hands you work directly in chat, register it with create_task, which creates the task and returns a claimed handoff plus a claimToken in one call. When a person points you at a task that already exists in Palouse, call start_task with its taskId to begin working it. Either way, while you work: call log_step for each meaningful unit of work in plain English, call heartbeat at least every 60 seconds, and report token usage with report_usage after each LLM call. When you finish, call complete_task with a result summary, and if the work fully resolves the task, set its status to done with update_task. If you cannot finish, call fail_task with the reason. Never invent a claimToken; only use one returned by claim_task, create_task, or start_task.';
 
 /**
  * One McpServer per verified agent key. The server is a thin shell: every
@@ -97,6 +98,17 @@ export function buildServer(db: Database, key: VerifiedAgentKey): McpServer {
       args,
     );
     return { task, claimed: true, handoff, claimToken };
+  });
+
+  register('start_task', async (args) => {
+    const { handoff, claimToken } = await handoffService.openClaimedHandoff(
+      db,
+      key.workspaceId,
+      key.agentId,
+      args.taskId,
+      { reviewRequired: args.reviewRequired ?? false },
+    );
+    return { claimed: true, handoff, claimToken };
   });
 
   register('claim_task', async (args) => {
