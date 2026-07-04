@@ -15,8 +15,9 @@ Prod release history: `v0.1.0-alpha.1` → `v0.1.2` (auth: confirm-password + em
 → `v0.2.0` (team & access + account profile + E2E harness) → `v0.3.0` (workspace switcher +
 user/account management) → `v0.4.x` (nav/IA restructure + Context sections, dep bumps)
 → `v0.5.x` (Microsoft admin-consent hand-holding, brand identity, green dark mode)
-→ `v0.6.0` (handoff/review UX queue + multi-select bulk hand-off) → **`v0.7.0`** (hosted MCP
-endpoint + agent onboarding).
+→ `v0.6.0` (handoff/review UX queue + multi-select bulk hand-off) → `v0.7.0` (hosted MCP
+endpoint + agent onboarding) → **`v0.8.0`** (agent-originated tasks via `create_task` + live-ish
+task board polling).
 
 ## Shipped & live in prod
 
@@ -67,7 +68,7 @@ endpoint + agent onboarding).
   is the self-hosted fallback. `palouse create-agent-key` mirrors this when `PUBLIC_MCP_URL` is
   set. mcp is back in both deploy matrices with a `/healthz` smoke step. Verified live with an
   authenticated initialize / tools/list / list_tasks round-trip.
-- **Agent-originated tasks: `create_task` MCP tool** (unreleased, on `main`): agents can register
+- **Agent-originated tasks: `create_task` MCP tool** (#63, v0.8.0): agents can register
   work handed to them directly in chat. One call creates the task (starts `in_progress`) and
   atomically opens a handoff already claimed by the calling agent (`openClaimedHandoff` +
   `createAgentTask` in the handoff state machine, transactional), returning the `claimToken` so the
@@ -78,6 +79,10 @@ endpoint + agent onboarding).
   `claim_task` empty response. Scope: `tasks:write` plus `handoffs:claim` (checked in-handler).
   Deferred: UI provenance badge, `start_task` (self-claim on existing tasks), syncing task.status
   from handoff transitions.
+- **Task board keeps itself fresh** (v0.8.0): the Tasks page list refetches on the same 15s
+  cadence as the handoff badges (and on `handoffs-changed`), so agent-created tasks and status
+  changes appear without a manual reload. Real-time push (SSE over Redis pub/sub) deliberately
+  deferred until the live agent-activity/audit view needs it.
 
 ## Next / backlog
 
