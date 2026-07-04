@@ -1,14 +1,16 @@
 import { Hono } from 'hono';
 import {
+  capabilityKey,
   confirmWorkspaceDeletionInput,
   createInviteInput,
   createWorkspaceInput,
   requestWorkspaceDeletionInput,
+  setCapabilityInput,
   setMemberStatusInput,
   updateMemberRoleInput,
   validation,
 } from '@palouse/shared';
-import { workspaces } from '@palouse/core';
+import { capabilityService, workspaces } from '@palouse/core';
 import { loadEnv } from '@palouse/config';
 import { getDb } from '@palouse/db';
 import { renderBasicEmail, sendEmail } from '@palouse/mail';
@@ -79,6 +81,32 @@ workspaceRoutes.delete('/:workspaceId/members/:userId', async (c) => {
     c.req.param('userId'),
   );
   return c.body(null, 204);
+});
+
+workspaceRoutes.get('/:workspaceId/capabilities', async (c) => {
+  const db = getDb(loadEnv().DATABASE_URL);
+  const capabilities = await capabilityService.getCapabilities(
+    db,
+    c.req.param('workspaceId'),
+    c.get('userId'),
+  );
+  return c.json({ capabilities });
+});
+
+workspaceRoutes.patch('/:workspaceId/capabilities/:capability', async (c) => {
+  const key = capabilityKey.safeParse(c.req.param('capability'));
+  if (!key.success) throw validation('Unknown capability');
+  const parsed = setCapabilityInput.safeParse(await c.req.json());
+  if (!parsed.success) throw validation('Invalid capability input', parsed.error.flatten());
+  const db = getDb(loadEnv().DATABASE_URL);
+  const capabilities = await capabilityService.setCapability(
+    db,
+    c.req.param('workspaceId'),
+    c.get('userId'),
+    key.data,
+    parsed.data.enabled,
+  );
+  return c.json({ capabilities });
 });
 
 workspaceRoutes.get('/:workspaceId/invitations', async (c) => {

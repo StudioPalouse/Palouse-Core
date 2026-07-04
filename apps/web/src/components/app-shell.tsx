@@ -42,8 +42,12 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@palouse/ui';
+import type { CapabilityKey } from '@palouse/shared';
 import { BrandMark } from '@/components/brand-logo';
+import { CapabilityDisabled } from '@/components/capability-disabled';
 import { signOut, useSession } from '@/lib/auth-client';
+import { capabilityForPath, isCapabilityEnabled } from '@/lib/capabilities';
+import { canManage } from '@/lib/roles';
 import { WorkspaceProvider, useActiveWorkspace } from '@/lib/workspace-context';
 
 type NavItem = {
@@ -54,24 +58,27 @@ type NavItem = {
   match?: string[];
   /** Sub-items shown indented while the parent is active. */
   children?: NavItem[];
+  /** Hidden from the nav when this capability is disabled for the workspace. */
+  capability?: CapabilityKey;
 };
 
 const NAV: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/tasks', label: 'Tasks', icon: ListChecks, match: ['/reviews'] },
-  { href: '/decisions', label: 'Decisions', icon: Scale },
-  { href: '/projects', label: 'Projects', icon: KanbanSquare },
+  { href: '/tasks', label: 'Tasks', icon: ListChecks, match: ['/reviews'], capability: 'tasks' },
+  { href: '/decisions', label: 'Decisions', icon: Scale, capability: 'decisions' },
+  { href: '/projects', label: 'Projects', icon: KanbanSquare, capability: 'projects' },
   {
     href: '/context',
     label: 'Context',
     icon: BookOpen,
+    capability: 'context',
     children: [
       { href: '/context/process', label: 'Process', icon: Workflow },
       { href: '/context/systems', label: 'Systems', icon: Server },
       { href: '/context/architecture', label: 'Architecture', icon: Network },
     ],
   },
-  { href: '/objectives', label: 'Objectives', icon: Target },
+  { href: '/objectives', label: 'Objectives', icon: Target, capability: 'objectives' },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -162,13 +169,29 @@ function NavSection({ item, onNavigate }: { item: NavItem; onNavigate?: () => vo
 }
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+  const { capabilities } = useActiveWorkspace();
   return (
     <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4">
-      {NAV.map((item) => (
+      {NAV.filter((item) => isCapabilityEnabled(capabilities, item.capability)).map((item) => (
         <NavSection key={item.href} item={item} onNavigate={onNavigate} />
       ))}
     </nav>
   );
+}
+
+/**
+ * Swaps the page for a "turned off" state when someone navigates directly to a
+ * route whose capability an admin has disabled. Until the capability map loads,
+ * routes render normally; the gate only blocks a confirmed-disabled capability.
+ */
+function CapabilityGate({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const { workspace, capabilities } = useActiveWorkspace();
+  const capability = capabilityForPath(pathname);
+  if (capability && capabilities && !isCapabilityEnabled(capabilities, capability)) {
+    return <CapabilityDisabled capability={capability} canManage={canManage(workspace?.role)} />;
+  }
+  return <>{children}</>;
 }
 
 function Brand({ onNavigate }: { onNavigate?: () => void }) {
@@ -378,7 +401,9 @@ function AppShellInner({ children }: { children: ReactNode }) {
         </header>
 
         <main className="flex-1 px-4 py-6 sm:px-6">
-          <div className="mx-auto w-full max-w-6xl">{children}</div>
+          <div className="mx-auto w-full max-w-6xl">
+            <CapabilityGate>{children}</CapabilityGate>
+          </div>
         </main>
       </div>
     </div>

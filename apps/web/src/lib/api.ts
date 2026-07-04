@@ -3,6 +3,7 @@ import type {
   AgentApiKey,
   AgentKind,
   AgentKeyScope,
+  CapabilityKey,
   CreateTaskInput,
   Handoff,
   HandoffEvent,
@@ -24,6 +25,7 @@ import type {
   UpdateTaskInput,
   UsageSummaryRow,
   Workspace,
+  WorkspaceCapabilities,
   WorkspaceMember,
 } from '@palouse/shared';
 import { API_URL } from './auth-client';
@@ -74,6 +76,17 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ token }),
     }),
+
+  getCapabilities: (workspaceId: string) =>
+    request<{ capabilities: WorkspaceCapabilities }>(
+      `/v1/workspaces/${workspaceId}/capabilities`,
+    ),
+
+  setCapability: (workspaceId: string, capability: CapabilityKey, enabled: boolean) =>
+    request<{ capabilities: WorkspaceCapabilities }>(
+      `/v1/workspaces/${workspaceId}/capabilities/${capability}`,
+      { method: 'PATCH', body: JSON.stringify({ enabled }) },
+    ),
 
   listMembers: (workspaceId: string) =>
     request<{ members: WorkspaceMember[] }>(`/v1/workspaces/${workspaceId}/members`),

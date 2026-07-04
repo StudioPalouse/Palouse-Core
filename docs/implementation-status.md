@@ -1,6 +1,6 @@
 # Implementation status & next steps
 
-Updated 2026-07-03. Living status doc for the current build phase. The GitHub Project
+Updated 2026-07-04. Living status doc for the current build phase. The GitHub Project
 "Palouse Roadmap" is the issue tracker; this doc captures in-flight state and the resume plan.
 
 ## Where things stand
@@ -17,8 +17,8 @@ user/account management) → `v0.4.x` (nav/IA restructure + Context sections, de
 → `v0.5.x` (Microsoft admin-consent hand-holding, brand identity, green dark mode)
 → `v0.6.0` (handoff/review UX queue + multi-select bulk hand-off) → `v0.7.0` (hosted MCP
 endpoint + agent onboarding) → `v0.8.0` (agent-originated tasks via `create_task` + live-ish
-task board polling) → **`v0.9.0`** (`start_task` + task status sync + provenance badge +
-per-environment snippet alias).
+task board polling) → `v0.9.0` (per-workspace capability toggles with nav gating) → **`v0.10.0`**
+(`start_task` + task status sync + provenance badge + per-environment snippet alias).
 
 ## Shipped & live in prod
 
@@ -79,12 +79,12 @@ per-environment snippet alias).
   `instructions` on the McpServer, the create_task tool description, and a nudge in the
   `claim_task` empty response. Scope: `tasks:write` plus `handoffs:claim` (checked in-handler).
   Deferred at the time: UI provenance badge, `start_task`, task.status sync (all shipped in
-  v0.9.0 below).
+  v0.10.0 below).
 - **Task board keeps itself fresh** (v0.8.0): the Tasks page list refetches on the same 15s
   cadence as the handoff badges (and on `handoffs-changed`), so agent-created tasks and status
   changes appear without a manual reload. Real-time push (SSE over Redis pub/sub) deliberately
   deferred until the live agent-activity/audit view needs it.
-- **Agent workflow follow-ups** (v0.9.0): `start_task` MCP tool (self-claim on an existing task a
+- **Agent workflow follow-ups** (v0.10.0): `start_task` MCP tool (self-claim on an existing task a
   person points the agent at; scope `handoffs:claim`; `openClaimedHandoff` now validates the task
   and workspace). Task status follows the handoff lifecycle (user-confirmed full sync): claim →
   in_progress, completion or approved review → done, fail/cancel/requeue → open; human-set
@@ -93,6 +93,19 @@ per-environment snippet alias).
   Onboarding snippets use a per-environment client alias (`palouse-test` on staging, `palouse` on
   prod/self-hosted) in the key dialog and `palouse create-agent-key`, so both environments can be
   connected side by side. Still deferred: SSE real-time push, agent-name resolution in the UI.
+
+- **Per-workspace capability toggles** (v0.9.0): owners/admins turn product areas (Tasks,
+  Decisions, Projects, Context, Objectives) on or off per workspace from Settings > Workspace.
+  Disabled areas drop out of the sidebar for everyone and direct links render an elegant
+  turned-off state (`CapabilityDisabled`) with dashboard/settings actions. Dashboard and Settings
+  are deliberately not gateable (dashboard is the post-login landing; settings hosts the toggles).
+  Storage: `workspace_capabilities` table (migration 0011); rows are overrides, absence = enabled,
+  so existing workspaces need no backfill. `capabilityService` in `@palouse/core`
+  (`capabilitiesForWorkspace` is auth-free for key-carried callers); GET/PATCH
+  `/v1/workspaces/:id/capabilities` (writes gated to owner/admin via `requireRole`); the map rides
+  on `WorkspaceProvider` (module-cached, no nav flash); `CapabilityGate` in the app shell swaps
+  disabled routes; new no-dep ARIA `Switch` in `@palouse/ui`. Deferred: gate MCP tools (e.g. task
+  tools when Tasks is off) via `capabilitiesForWorkspace` inside `apps/mcp/src/server.ts`.
 
 ## Next / backlog
 
