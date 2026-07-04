@@ -5,6 +5,7 @@ import { microsoftTasksAdapter } from '@palouse/connector-microsoft-tasks';
 import { microsoftTodoAdapter } from '@palouse/connector-microsoft-todo';
 import { microsoftPlannerAdapter } from '@palouse/connector-microsoft-planner';
 import { notionAdapter } from '@palouse/connector-notion';
+import { todoistAdapter } from '@palouse/connector-todoist';
 import type { Env } from '@palouse/config';
 import { validation, type IntegrationProvider } from '@palouse/shared';
 
@@ -16,6 +17,7 @@ const ADAPTERS: Partial<Record<IntegrationProvider, ConnectorAdapter>> = {
   ms_todo: microsoftTodoAdapter,
   ms_planner: microsoftPlannerAdapter,
   notion: notionAdapter,
+  todoist: todoistAdapter,
 };
 
 export function adapterFor(provider: IntegrationProvider): ConnectorAdapter {
@@ -33,6 +35,7 @@ export function oauthConfigFor(env: Env, provider: IntegrationProvider): OAuthCl
     ms_todo: [env.MICROSOFT_OAUTH_CLIENT_ID, env.MICROSOFT_OAUTH_CLIENT_SECRET],
     ms_planner: [env.MICROSOFT_OAUTH_CLIENT_ID, env.MICROSOFT_OAUTH_CLIENT_SECRET],
     asana: [env.ASANA_OAUTH_CLIENT_ID, env.ASANA_OAUTH_CLIENT_SECRET],
+    todoist: [env.TODOIST_OAUTH_CLIENT_ID, env.TODOIST_OAUTH_CLIENT_SECRET],
   };
   const [clientId, clientSecret] = pair[provider] ?? [];
   if (!clientId || !clientSecret) {

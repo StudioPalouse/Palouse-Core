@@ -60,6 +60,9 @@ importers:
       '@palouse/connector-notion':
         specifier: workspace:^
         version: link:../../packages/connectors/notion
+      '@palouse/connector-todoist':
+        specifier: workspace:^
+        version: link:../../packages/connectors/todoist
       '@palouse/core':
         specifier: workspace:^
         version: link:../../packages/core
@@ -259,6 +262,9 @@ importers:
       '@palouse/connector-notion':
         specifier: workspace:^
         version: link:../../packages/connectors/notion
+      '@palouse/connector-todoist':
+        specifier: workspace:^
+        version: link:../../packages/connectors/todoist
       '@palouse/core':
         specifier: workspace:^
         version: link:../../packages/core
@@ -474,6 +480,19 @@ importers:
         version: 5.9.3
 
   packages/connectors/notion:
+    dependencies:
+      '@palouse/connector-core':
+        specifier: workspace:*
+        version: link:../core
+      '@palouse/shared':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/connectors/todoist:
     dependencies:
       '@palouse/connector-core':
         specifier: workspace:*

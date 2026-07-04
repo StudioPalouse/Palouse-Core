@@ -24,6 +24,7 @@ import { canManage } from '@/lib/roles';
 const PROVIDER_LABELS: Record<string, string> = {
   google_tasks: 'Google Tasks',
   asana: 'Asana',
+  todoist: 'Todoist',
   ms_tasks: 'Microsoft Tasks',
   // Legacy per-product Microsoft connections (pre-unification rows).
   ms_todo: 'Microsoft To Do',
@@ -47,6 +48,11 @@ const CATALOG: { provider: string; label: string; description: string }[] = [
     provider: 'asana',
     label: 'Asana',
     description: 'Tasks from your Asana workspace, updated as they change.',
+  },
+  {
+    provider: 'todoist',
+    label: 'Todoist',
+    description: 'Tasks from your Todoist account, checked every two minutes.',
   },
 ];
 

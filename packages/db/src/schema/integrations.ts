@@ -32,6 +32,7 @@ export const integrationProvider = pgEnum('integration_provider', [
   'ms_planner',
   'asana',
   'notion',
+  'todoist',
 ]);
 
 export const integrationStatus = pgEnum('integration_status', ['active', 'degraded', 'revoked']);

@@ -24,6 +24,7 @@
     "@palouse/connector-microsoft-tasks": "workspace:^",
     "@palouse/connector-microsoft-todo": "workspace:^",
     "@palouse/connector-notion": "workspace:^",
+    "@palouse/connector-todoist": "workspace:^",
     "@palouse/core": "workspace:^",
     "@palouse/db": "workspace:*",
     "@palouse/mail": "workspace:*",

@@ -34,6 +34,7 @@ export const externalSystem = pgEnum('external_system', [
   'ms_planner',
   'asana',
   'notion',
+  'todoist',
   'palouse',
 ]);
 
