@@ -8,6 +8,7 @@ import { handoffState, taskStatus } from '@palouse/shared';
 export const TOOLS = [
   'list_tasks',
   'get_task',
+  'create_task',
   'claim_task',
   'update_task',
   'add_comment',
@@ -58,6 +59,22 @@ export const TOOL_INPUTS = {
     offset: z.number().int().min(0).default(0).optional(),
   },
   get_task: { taskId },
+  create_task: {
+    title: z.string().min(1).max(500).describe('Short task title a human will read in their task list'),
+    descriptionMd: z
+      .string()
+      .max(20_000)
+      .optional()
+      .describe('What you were asked to do and any context (markdown)'),
+    priority: z.number().int().min(0).max(4).optional().describe('0 = urgent, 4 = none. Defaults to 2.'),
+    dueAt: z.string().datetime().optional(),
+    reviewRequired: z
+      .boolean()
+      .optional()
+      .describe(
+        'Set true if the person wants to review and approve the result before the work counts as complete. Defaults to false.',
+      ),
+  },
   claim_task: {
     taskId: taskId
       .optional()
@@ -116,6 +133,8 @@ export const TOOL_INPUTS = {
 export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
   list_tasks: 'List tasks in your workspace, filterable by status and title search.',
   get_task: 'Fetch one task with its comments and full agent handoff history.',
+  create_task:
+    'Register work you are starting in Palouse. Use this when a person hands you work directly in chat instead of queueing it in Palouse first. Creates the task in the workspace, marks it as agent-originated, and atomically opens a handoff already claimed by you. Returns the task, the handoff, and a claimToken: treat it exactly like a claim_task result, so log_step as you work, heartbeat at least every 60 seconds, and complete_task or fail_task when done. Set reviewRequired to true when the person wants to approve the result. Do not use this for tasks that already exist in Palouse; use claim_task for those.',
   claim_task:
     'Atomically claim a queued handoff assigned to you. Returns the handoff, its deadline, and a claimToken you must present on heartbeat, request_review, complete_task, and fail_task. Exactly one claimer ever wins.',
   update_task: 'Update task fields (title, description, status, priority, due date).',

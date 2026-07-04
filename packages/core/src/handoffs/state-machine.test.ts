@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   agentHandoffs,
   agents,
+  auditEvents,
   closeDb,
   getDb,
   organizations,
@@ -14,8 +15,18 @@ import {
   workspaces,
   type Database,
 } from '@palouse/db';
-import { listHandoffsQuery } from '@palouse/shared';
-import { claimNext, createHandoff, heartbeat, listHandoffs, reapExpired } from './state-machine.js';
+import { listHandoffsQuery, userActor } from '@palouse/shared';
+import { createTask } from '../tasks/service.js';
+import {
+  claimNext,
+  complete,
+  createAgentTask,
+  createHandoff,
+  heartbeat,
+  listHandoffs,
+  openClaimedHandoff,
+  reapExpired,
+} from './state-machine.js';
 
 const MIGRATIONS_DIR = fileURLToPath(new URL('../../../db/migrations', import.meta.url));
 
@@ -205,6 +216,121 @@ describe('reapExpired', () => {
     const row = await getRow(handoff.id);
     expect(row.state).toBe('cancelled');
     expect(row.failureReason).toBe('claim_ttl_expired');
+  });
+});
+
+describe('createAgentTask', () => {
+  it('creates an agent-origin task with a pre-claimed handoff in one call', async () => {
+    const ctx = await seed();
+    const { task, handoff, claimToken } = await createAgentTask(db, ctx.workspaceId, ctx.agentId, {
+      title: 'Direct work from chat',
+    });
+
+    expect(task.origin).toBe('agent');
+    expect(task.createdByAgentId).toBe(ctx.agentId);
+    expect(task.status).toBe('in_progress');
+    expect(handoff.state).toBe('claimed');
+    expect(handoff.actorAgentId).toBe(ctx.agentId);
+    expect(handoff.requestedByUserId).toBeNull();
+    expect(handoff.reviewRequired).toBe(false);
+    expect(claimToken).toBeTruthy();
+
+    const row = await getRow(handoff.id);
+    expect(row.claimToken).toBe(claimToken);
+    // Deadline is minted in the same insert: ~30 minutes out.
+    const minutesOut = (row.deadlineAt!.getTime() - Date.now()) / 60_000;
+    expect(minutesOut).toBeGreaterThan(28);
+    expect(minutesOut).toBeLessThanOrEqual(30.5);
+  });
+
+  it('returns a live claim token that drives the normal lifecycle', async () => {
+    const ctx = await seed();
+    const { handoff, claimToken } = await createAgentTask(db, ctx.workspaceId, ctx.agentId, {
+      title: 'Lifecycle check',
+    });
+
+    const afterBeat = await heartbeat(db, claimToken);
+    expect(afterBeat.id).toBe(handoff.id);
+    expect(afterBeat.state).toBe('in_progress');
+
+    const done = await complete(db, claimToken, 'All done.');
+    expect(done.state).toBe('completed');
+  });
+
+  it('honors reviewRequired: completion lands in needs_review', async () => {
+    const ctx = await seed();
+    const { claimToken } = await createAgentTask(db, ctx.workspaceId, ctx.agentId, {
+      title: 'Reviewed work',
+      reviewRequired: true,
+    });
+
+    const done = await complete(db, claimToken, 'Please review.');
+    expect(done.state).toBe('needs_review');
+  });
+
+  it('audits task and handoff creation with the agent as actor', async () => {
+    const ctx = await seed();
+    const { task, handoff } = await createAgentTask(db, ctx.workspaceId, ctx.agentId, {
+      title: 'Audited work',
+    });
+
+    const events = await db
+      .select()
+      .from(auditEvents)
+      .where(eq(auditEvents.workspaceId, ctx.workspaceId));
+    const byAction = (action: string) => events.filter((e) => e.action === action);
+
+    expect(byAction('task.created')).toMatchObject([
+      { actorType: 'agent', actorId: ctx.agentId, targetId: task.id },
+    ]);
+    expect(byAction('handoff.created')).toMatchObject([
+      { actorType: 'agent', actorId: ctx.agentId, targetId: handoff.id },
+    ]);
+    expect(byAction('handoff.claimed')).toMatchObject([
+      { actorType: 'agent', actorId: ctx.agentId, targetId: handoff.id },
+    ]);
+  });
+
+  it('rolls back the task when the handoff cannot be opened', async () => {
+    const ctxA = await seed();
+    const ctxB = await seed();
+
+    // Agent from workspace A cannot open a handoff in workspace B; the
+    // transaction must also discard the task it just created there.
+    await expect(
+      createAgentTask(db, ctxB.workspaceId, ctxA.agentId, { title: 'Orphan-to-be' }),
+    ).rejects.toThrow('Agent not found');
+
+    const orphans = await db
+      .select({ id: tasks.id })
+      .from(tasks)
+      .where(eq(tasks.workspaceId, ctxB.workspaceId));
+    expect(orphans).toHaveLength(0);
+  });
+});
+
+describe('openClaimedHandoff', () => {
+  it('rejects a task that already has an active handoff', async () => {
+    const ctx = await seed();
+    const queued = await queueHandoff(ctx);
+
+    await expect(
+      openClaimedHandoff(db, ctx.workspaceId, ctx.agentId, queued.taskId),
+    ).rejects.toThrow('Task already has an active handoff');
+  });
+});
+
+describe('createTask origin defaults', () => {
+  it('user-created tasks keep origin=user, no agent, DB-default status', async () => {
+    const ctx = await seed();
+    const task = await createTask(db, ctx.workspaceId, userActor(ctx.userId), {
+      title: 'Human work',
+      priority: 2,
+    });
+
+    expect(task.origin).toBe('user');
+    expect(task.createdByAgentId).toBeNull();
+    expect(task.status).toBe('open');
   });
 });
 

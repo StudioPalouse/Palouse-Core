@@ -8,18 +8,22 @@ import {
   type Database,
 } from '@palouse/db';
 import {
+  agentActor,
   conflict,
   handoffState,
   isTerminal,
   notFound,
   type CreateHandoffInput,
+  type CreateTaskInput,
   type Handoff,
   type HandoffEvent,
   type HandoffListItem,
   type ListHandoffsQuery,
   type ReviewHandoffInput,
+  type Task,
   type UsageReport,
 } from '@palouse/shared';
+import { createTask } from '../tasks/service.js';
 import { recordGeneration } from '../usage/service.js';
 
 const MAX_REQUEUES = 3;
@@ -118,6 +122,105 @@ export async function createHandoff(
     agentId: input.agentId,
   });
   return toDto(row!);
+}
+
+/**
+ * Open a handoff directly in the claimed state for an agent that is already
+ * working (agent-originated work registered via create_task). Skips the queue:
+ * the claim token is minted in the same insert, so the caller can heartbeat,
+ * log steps, and complete without a separate claim round trip.
+ */
+export async function openClaimedHandoff(
+  db: Database,
+  workspaceId: string,
+  agentId: string,
+  taskId: string,
+  opts: { reviewRequired?: boolean; deadlineMinutes?: number } = {},
+): Promise<ClaimedHandoff> {
+  const reviewRequired = opts.reviewRequired ?? false;
+  const deadlineMinutes = opts.deadlineMinutes ?? 30;
+
+  const [agent] = await db
+    .select({ id: agents.id })
+    .from(agents)
+    .where(and(eq(agents.id, agentId), eq(agents.workspaceId, workspaceId)))
+    .limit(1);
+  if (!agent) throw notFound('Agent not found');
+
+  const [existing] = await db
+    .select({ id: agentHandoffs.id })
+    .from(agentHandoffs)
+    .where(
+      and(
+        eq(agentHandoffs.taskId, taskId),
+        sql`${agentHandoffs.state} IN ('queued', 'claimed', 'in_progress', 'needs_review')`,
+      ),
+    )
+    .limit(1);
+  if (existing) throw conflict('Task already has an active handoff');
+
+  const [row] = await db
+    .insert(agentHandoffs)
+    .values({
+      taskId,
+      workspaceId,
+      actorAgentId: agentId,
+      state: 'claimed',
+      claimToken: sql`gen_random_uuid()`,
+      claimedAt: sql`now()`,
+      deadlineAt: sql`now() + (${deadlineMinutes} * interval '1 minute')`,
+      deadlineMinutes,
+      reviewRequired,
+      requestedByUserId: null,
+    })
+    .returning();
+  await recordEvent(db, row!.id, 'claimed', { agentId, selfOpened: true });
+  await audit(db, workspaceId, 'agent', agentId, 'handoff.created', row!.id, {
+    taskId,
+    agentId,
+    selfOpened: true,
+  });
+  await audit(db, workspaceId, 'agent', agentId, 'handoff.claimed', row!.id, { taskId });
+  return { handoff: toDto(row!), claimToken: row!.claimToken! };
+}
+
+// CreateTaskInput.priority is zod-defaulted (required post-parse); agents may omit it.
+export type CreateAgentTaskInput = Pick<CreateTaskInput, 'title' | 'descriptionMd' | 'dueAt'> & {
+  priority?: number;
+  reviewRequired?: boolean;
+};
+
+/**
+ * Agent-originated work: create the task (origin='agent') and open a claimed
+ * handoff for the calling agent in one transaction. Either both rows land or
+ * neither does.
+ */
+export async function createAgentTask(
+  db: Database,
+  workspaceId: string,
+  agentId: string,
+  input: CreateAgentTaskInput,
+): Promise<{ task: Task; handoff: Handoff; claimToken: string }> {
+  return db.transaction(async (rawTx) => {
+    const tx = rawTx as unknown as Database;
+    const task = await createTask(
+      tx,
+      workspaceId,
+      agentActor(agentId),
+      {
+        title: input.title,
+        descriptionMd: input.descriptionMd,
+        priority: input.priority ?? 2,
+        dueAt: input.dueAt,
+      },
+      // The agent is already working on it, so 'open' would misread as untouched.
+      { status: 'in_progress' },
+    );
+    const { handoff, claimToken } = await openClaimedHandoff(tx, workspaceId, agentId, task.id, {
+      reviewRequired: input.reviewRequired ?? false,
+    });
+    return { task, handoff, claimToken };
+  });
 }
 
 /**

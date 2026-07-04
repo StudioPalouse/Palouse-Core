@@ -35,7 +35,7 @@ taskRoutes.post('/', async (c) => {
     throw validation('Invalid task input', parsed.success ? undefined : parsed.error.flatten());
   const db = getDb(loadEnv().DATABASE_URL);
   await workspaces.requireMembership(db, workspaceId, c.get('userId'));
-  const task = await taskService.createTask(db, workspaceId, c.get('userId'), parsed.data);
+  const task = await taskService.createTask(db, workspaceId, userActor(c.get('userId')), parsed.data);
   return c.json({ task }, 201);
 });
 

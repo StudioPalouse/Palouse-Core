@@ -7,6 +7,9 @@ export type TaskStatus = z.infer<typeof taskStatus>;
 export const sourceOfTruth = z.enum(['palouse', 'external']);
 export type SourceOfTruth = z.infer<typeof sourceOfTruth>;
 
+export const taskOrigin = z.enum(['user', 'agent']);
+export type TaskOrigin = z.infer<typeof taskOrigin>;
+
 export const taskSchema = z.object({
   id: uuid,
   workspaceId: uuid,
@@ -17,6 +20,8 @@ export const taskSchema = z.object({
   dueAt: z.string().datetime().nullable(),
   assigneeUserId: uuid.nullable(),
   parentTaskId: uuid.nullable(),
+  origin: taskOrigin,
+  createdByAgentId: uuid.nullable(),
   sourceOfTruth,
   lastSyncedAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),

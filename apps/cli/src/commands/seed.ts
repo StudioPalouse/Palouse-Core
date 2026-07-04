@@ -48,7 +48,7 @@ export function seedCommand(): Command {
       });
       if (total === 0) {
         for (const t of DEMO_TASKS) {
-          const created = await taskService.createTask(db, ws.id, user.id, {
+          const created = await taskService.createTask(db, ws.id, userActor(user.id), {
             title: t.title,
             priority: t.priority,
           });

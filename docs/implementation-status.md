@@ -67,6 +67,17 @@ endpoint + agent onboarding).
   is the self-hosted fallback. `palouse create-agent-key` mirrors this when `PUBLIC_MCP_URL` is
   set. mcp is back in both deploy matrices with a `/healthz` smoke step. Verified live with an
   authenticated initialize / tools/list / list_tasks round-trip.
+- **Agent-originated tasks: `create_task` MCP tool** (unreleased, on `main`): agents can register
+  work handed to them directly in chat. One call creates the task (starts `in_progress`) and
+  atomically opens a handoff already claimed by the calling agent (`openClaimedHandoff` +
+  `createAgentTask` in the handoff state machine, transactional), returning the `claimToken` so the
+  existing log_step/heartbeat/complete rail works unchanged. Tasks gain provenance:
+  `origin` (`task_origin` enum) + `created_by_agent_id` (migration 0010), surfaced in the Task DTO.
+  `reviewRequired` is agent-settable per task, default false. Redundant agent guidance: server
+  `instructions` on the McpServer, the create_task tool description, and a nudge in the
+  `claim_task` empty response. Scope: `tasks:write` plus `handoffs:claim` (checked in-handler).
+  Deferred: UI provenance badge, `start_task` (self-claim on existing tasks), syncing task.status
+  from handoff transitions.
 
 ## Next / backlog
 
