@@ -50,6 +50,26 @@ async function syncRequest(
   return (await res.json()) as TodoistSyncResponse;
 }
 
+/**
+ * Todoist distinguishes all-day (floating) dates from timed ones: `due_date`
+ * takes a date-only `YYYY-MM-DD` and `due_datetime` takes an RFC3339 instant.
+ * Palouse stores both in one timestamp column, so a date-only Todoist due
+ * round-trips through midnight UTC (`new Date('2026-07-04')`). Sending that back
+ * as `due_datetime` pins it to a fixed instant, which Todoist then renders in
+ * the user's timezone as the *previous* evening for negative UTC offsets. So a
+ * midnight-UTC value is treated as the all-day date it originally was.
+ */
+function applyDue(body: Record<string, unknown>, dueAt: string | null): void {
+  if (dueAt === null) {
+    // Todoist's documented sentinel for clearing the due date.
+    body.due_string = 'no date';
+  } else if (/T00:00:00(?:\.0+)?Z$/.test(dueAt)) {
+    body.due_date = dueAt.slice(0, 10);
+  } else {
+    body.due_datetime = dueAt;
+  }
+}
+
 function normalize(item: TodoistItem): NormalizedExternalTask {
   return {
     externalSystem: 'todoist',
@@ -162,11 +182,7 @@ export const todoistAdapter: ConnectorAdapter = {
     const body: Record<string, unknown> = {};
     if (payload.title !== undefined) body.content = payload.title;
     if (payload.descriptionMd !== undefined) body.description = payload.descriptionMd ?? '';
-    if (payload.dueAt !== undefined) {
-      // 'no date' is Todoist's documented sentinel for clearing the due date.
-      if (payload.dueAt === null) body.due_string = 'no date';
-      else body.due_datetime = payload.dueAt;
-    }
+    if (payload.dueAt !== undefined) applyDue(body, payload.dueAt);
     if (Object.keys(body).length > 0) {
       await connectorFetch(`${API}/tasks/${payload.externalId}`, {
         method: 'POST',
