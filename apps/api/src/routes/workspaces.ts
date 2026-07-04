@@ -117,20 +117,10 @@ workspaceRoutes.get('/:workspaceId/invitations', async (c) => {
   return c.json({ invitations });
 });
 
-workspaceRoutes.post('/:workspaceId/invitations', async (c) => {
-  const parsed = createInviteInput.safeParse(await c.req.json());
-  if (!parsed.success) throw validation('Invalid invitation', parsed.error.flatten());
-  const env = loadEnv();
-  const db = getDb(env.DATABASE_URL);
-  const { invitation, token } = await workspaces.createInvite(
-    db,
-    c.req.param('workspaceId'),
-    c.get('userId'),
-    parsed.data,
-  );
-  const acceptUrl = `${env.WEB_BASE_URL}/invite?token=${encodeURIComponent(token)}`;
+async function sendInviteEmail(webBaseUrl: string, email: string, token: string): Promise<void> {
+  const acceptUrl = `${webBaseUrl}/invite?token=${encodeURIComponent(token)}`;
   await sendEmail({
-    to: invitation.email,
+    to: email,
     subject: 'You have been invited to a Palouse workspace',
     html: renderBasicEmail({
       heading: 'Join the workspace on Palouse',
@@ -142,7 +132,35 @@ workspaceRoutes.post('/:workspaceId/invitations', async (c) => {
       ctaUrl: acceptUrl,
     }),
   });
+}
+
+workspaceRoutes.post('/:workspaceId/invitations', async (c) => {
+  const parsed = createInviteInput.safeParse(await c.req.json());
+  if (!parsed.success) throw validation('Invalid invitation', parsed.error.flatten());
+  const env = loadEnv();
+  const db = getDb(env.DATABASE_URL);
+  const { invitation, token } = await workspaces.createInvite(
+    db,
+    c.req.param('workspaceId'),
+    c.get('userId'),
+    parsed.data,
+  );
+  await sendInviteEmail(env.WEB_BASE_URL, invitation.email, token);
   return c.json({ invitation }, 201);
+});
+
+// Rotates the invite token and expiry, then emails a fresh accept link.
+workspaceRoutes.post('/:workspaceId/invitations/:inviteId/resend', async (c) => {
+  const env = loadEnv();
+  const db = getDb(env.DATABASE_URL);
+  const { invitation, token } = await workspaces.resendInvite(
+    db,
+    c.req.param('workspaceId'),
+    c.get('userId'),
+    c.req.param('inviteId'),
+  );
+  await sendInviteEmail(env.WEB_BASE_URL, invitation.email, token);
+  return c.json({ invitation });
 });
 
 workspaceRoutes.delete('/:workspaceId/invitations/:inviteId', async (c) => {

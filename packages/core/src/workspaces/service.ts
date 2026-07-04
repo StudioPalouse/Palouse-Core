@@ -1,10 +1,11 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { and, count, desc, eq, gt, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
 import {
   workspaceDeletionTokens,
   invitations,
   memberships,
   organizations,
+  sessions,
   usageRollupsDaily,
   users,
   workspaces,
@@ -116,14 +117,17 @@ export async function requireRole(
   return role;
 }
 
-function memberToDto(r: {
-  userId: string;
-  email: string;
-  name: string | null;
-  role: MemberRole;
-  status: MembershipStatus;
-  joinedAt: Date;
-}): WorkspaceMember {
+function memberToDto(
+  r: {
+    userId: string;
+    email: string;
+    name: string | null;
+    role: MemberRole;
+    status: MembershipStatus;
+    joinedAt: Date;
+  },
+  lastActiveAt: Date | null = null,
+): WorkspaceMember {
   return {
     userId: r.userId,
     email: r.email,
@@ -131,10 +135,11 @@ function memberToDto(r: {
     role: r.role,
     status: r.status,
     joinedAt: r.joinedAt.toISOString(),
+    lastActiveAt: lastActiveAt?.toISOString() ?? null,
   };
 }
 
-/** All members of a workspace with their user info and role. */
+/** All members of a workspace with their user info, role and last session activity. */
 export async function listMembers(db: Database, workspaceId: string): Promise<WorkspaceMember[]> {
   const rows = await db
     .select({
@@ -149,7 +154,27 @@ export async function listMembers(db: Database, workspaceId: string): Promise<Wo
     .innerJoin(users, eq(memberships.userId, users.id))
     .where(eq(memberships.workspaceId, workspaceId))
     .orderBy(memberships.createdAt);
-  return rows.map(memberToDto);
+  if (rows.length === 0) return [];
+
+  // Sessions are updated as they are refreshed, so the newest one per user is a
+  // good proxy for "last active" without tracking per-request timestamps.
+  const activity = await db
+    .select({
+      userId: sessions.userId,
+      lastActiveAt: sql<Date>`max(${sessions.updatedAt})`.mapWith(
+        (v: string | Date) => new Date(v),
+      ),
+    })
+    .from(sessions)
+    .where(
+      inArray(
+        sessions.userId,
+        rows.map((r) => r.userId),
+      ),
+    )
+    .groupBy(sessions.userId);
+  const lastActiveByUser = new Map(activity.map((a) => [a.userId, a.lastActiveAt]));
+  return rows.map((r) => memberToDto(r, lastActiveByUser.get(r.userId) ?? null));
 }
 
 async function getMember(
@@ -371,6 +396,36 @@ export async function revokeInvite(
     .update(invitations)
     .set({ status: 'revoked', updatedAt: new Date() })
     .where(eq(invitations.id, inviteId));
+}
+
+/**
+ * Re-issue a pending invitation: rotates the token and restarts the expiry
+ * window, invalidating the previously emailed link. Requires owner/admin.
+ * Returns the fresh raw token so the caller can email it.
+ */
+export async function resendInvite(
+  db: Database,
+  workspaceId: string,
+  actorUserId: string,
+  inviteId: string,
+): Promise<{ invitation: Invitation; token: string }> {
+  await requireRole(db, workspaceId, actorUserId, ADMIN_ROLES);
+  const [invite] = await db
+    .select()
+    .from(invitations)
+    .where(and(eq(invitations.id, inviteId), eq(invitations.workspaceId, workspaceId)))
+    .limit(1);
+  if (!invite) throw notFound('Invitation not found');
+  if (invite.status !== 'pending') throw conflict('Only pending invitations can be resent');
+
+  const token = randomBytes(32).toString('base64url');
+  const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 86_400_000);
+  const [row] = await db
+    .update(invitations)
+    .set({ tokenHash: hashToken(token), expiresAt, updatedAt: new Date() })
+    .where(eq(invitations.id, inviteId))
+    .returning();
+  return { invitation: inviteToDto(row!), token };
 }
 
 /**

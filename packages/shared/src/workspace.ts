@@ -24,6 +24,8 @@ export const workspaceMemberSchema = z.object({
   role: memberRole,
   status: membershipStatus,
   joinedAt: z.string().datetime(),
+  // Most recent session activity; null when the user has no sessions on record.
+  lastActiveAt: z.string().datetime().nullable(),
 });
 export type WorkspaceMember = z.infer<typeof workspaceMemberSchema>;
 
