@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Workspace } from '@palouse/shared';
+import type { Workspace, WorkspaceCapabilities } from '@palouse/shared';
 import { api, ApiError } from '@/lib/api';
 
 const STORAGE_KEY = 'palouse.activeWorkspaceId';
@@ -25,6 +25,9 @@ const STORAGE_KEY = 'palouse.activeWorkspaceId';
  */
 let cachedWorkspaces: Workspace[] | null = null;
 
+/** Same idea, for each workspace's capability map (keyed by workspace id). */
+const cachedCapabilities = new Map<string, WorkspaceCapabilities>();
+
 type WorkspaceContextValue = {
   /** All workspaces the signed-in user belongs to. */
   workspaces: Workspace[];
@@ -36,6 +39,14 @@ type WorkspaceContextValue = {
   setWorkspaceId: (id: string) => void;
   /** Refetch the workspace list (e.g. after creating or leaving one). */
   refreshWorkspaces: () => void;
+  /**
+   * Capability map for the active workspace, or null until the first load
+   * resolves. Consumers should treat unknown (null) as "everything enabled" so
+   * the nav does not flash empty.
+   */
+  capabilities: WorkspaceCapabilities | null;
+  /** Refetch the capability map (e.g. after toggling one in settings). */
+  refreshCapabilities: () => void;
 };
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -96,6 +107,30 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (workspace && workspace.id !== activeId) persist(workspace.id);
   }, [workspace, activeId, persist]);
 
+  const workspaceId = workspace?.id ?? null;
+  const [capabilities, setCapabilities] = useState<WorkspaceCapabilities | null>(
+    workspaceId ? (cachedCapabilities.get(workspaceId) ?? null) : null,
+  );
+
+  const loadCapabilities = useCallback(() => {
+    if (!workspaceId) return;
+    api
+      .getCapabilities(workspaceId)
+      .then(({ capabilities }) => {
+        cachedCapabilities.set(workspaceId, capabilities);
+        setCapabilities(capabilities);
+      })
+      .catch(() => {
+        // Leave the last known map in place; unknown reads as all-enabled.
+      });
+  }, [workspaceId]);
+
+  // Hydrate from cache synchronously on workspace switch, then refresh.
+  useEffect(() => {
+    setCapabilities(workspaceId ? (cachedCapabilities.get(workspaceId) ?? null) : null);
+    loadCapabilities();
+  }, [workspaceId, loadCapabilities]);
+
   const value = useMemo<WorkspaceContextValue>(
     () => ({
       workspaces: workspaces ?? [],
@@ -103,8 +138,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       loading: workspaces === null,
       setWorkspaceId: persist,
       refreshWorkspaces: load,
+      capabilities,
+      refreshCapabilities: loadCapabilities,
     }),
-    [workspaces, workspace, persist, load],
+    [workspaces, workspace, persist, load, capabilities, loadCapabilities],
   );
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;

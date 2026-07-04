@@ -78,6 +78,13 @@
       "when": 1783176666227,
       "tag": "0010_remarkable_unicorn",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1783179525319,
+      "tag": "0011_first_wild_child",
+      "breakpoints": true
     }
   ]
 }
