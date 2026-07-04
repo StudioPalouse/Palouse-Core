@@ -93,6 +93,19 @@ function TasksContent() {
     return () => clearTimeout(t);
   }, [refresh, search]);
 
+  // Agent work (create_task, status updates, completions) lands server-side
+  // with nothing to signal the client, so the list itself polls on the same
+  // cadence as the handoff badges. In-app hand-off actions refetch immediately
+  // via the handoffs-changed event.
+  useEffect(() => {
+    const t = setInterval(refresh, HANDOFF_POLL_MS);
+    window.addEventListener(HANDOFFS_CHANGED_EVENT, refresh);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener(HANDOFFS_CHANGED_EVENT, refresh);
+    };
+  }, [refresh]);
+
   // Active agent handoffs, so rows can show what agents are up to. Kept
   // fresh with a light poll plus the handoffs-changed signal from actions
   // taken in the detail sheet.
