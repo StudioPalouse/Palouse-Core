@@ -118,6 +118,12 @@ export const api = {
   revokeInvite: (workspaceId: string, inviteId: string) =>
     request<void>(`/v1/workspaces/${workspaceId}/invitations/${inviteId}`, { method: 'DELETE' }),
 
+  resendInvite: (workspaceId: string, inviteId: string) =>
+    request<{ invitation: Invitation }>(
+      `/v1/workspaces/${workspaceId}/invitations/${inviteId}/resend`,
+      { method: 'POST' },
+    ),
+
   acceptInvite: (token: string) =>
     request<{ workspaceId: string }>('/v1/invitations/accept', {
       method: 'POST',

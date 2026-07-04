@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import type {
   Invitation,
@@ -23,6 +23,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  Input,
   Select,
   SelectContent,
   SelectItem,
@@ -42,12 +43,27 @@ import { canManage, ROLE_LABELS } from '@/lib/roles';
 import { ConfirmDialog, type ConfirmRequest } from '@/components/confirm-dialog';
 import { InviteMemberDialog } from '@/components/settings/invite-member-dialog';
 
+const PAGE_SIZE = 25;
+
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+function formatLastActive(iso: string | null): string {
+  if (!iso) return '–';
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(diffMs / 60_000);
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return formatDate(iso);
 }
 
 function initials(name: string | null, email: string): string {
@@ -73,6 +89,10 @@ function MemberAvatar({ name, email, muted }: { name: string | null; email: stri
   );
 }
 
+type Row =
+  | { kind: 'member'; key: string; member: WorkspaceMember }
+  | { kind: 'invite'; key: string; invite: Invitation };
+
 export function TeamCard({ workspace }: { workspace: Workspace }) {
   const { data: session } = useSession();
   const myId = session?.user.id;
@@ -80,7 +100,11 @@ export function TeamCard({ workspace }: { workspace: Workspace }) {
   const [members, setMembers] = useState<WorkspaceMember[] | null>(null);
   const [invites, setInvites] = useState<Invitation[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
+  const [query, setQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<MemberRole | 'all'>('all');
+  const [page, setPage] = useState(0);
 
   const refresh = useCallback(() => {
     api.listMembers(workspace.id).then(({ members }) => setMembers(members));
@@ -91,11 +115,13 @@ export function TeamCard({ workspace }: { workspace: Workspace }) {
 
   useEffect(refresh, [refresh]);
 
-  async function run(action: () => Promise<unknown>, failMessage: string) {
+  async function run(action: () => Promise<unknown>, failMessage: string, successNotice?: string) {
     setError(null);
+    setNotice(null);
     try {
       await action();
       refresh();
+      if (successNotice) setNotice(successNotice);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : failMessage);
     }
@@ -136,6 +162,14 @@ export function TeamCard({ workspace }: { workspace: Workspace }) {
     });
   }
 
+  function resendInvite(invite: Invitation) {
+    void run(
+      () => api.resendInvite(workspace.id, invite.id),
+      'Failed to resend invite',
+      `Invite resent to ${invite.email}. The previous link no longer works.`,
+    );
+  }
+
   function revokeInvite(invite: Invitation) {
     setConfirm({
       title: 'Revoke invitation?',
@@ -146,9 +180,38 @@ export function TeamCard({ workspace }: { workspace: Workspace }) {
     });
   }
 
+  const rows = useMemo<Row[]>(() => {
+    const memberRows: Row[] = (members ?? []).map((m) => ({
+      kind: 'member',
+      key: `m-${m.userId}`,
+      member: m,
+    }));
+    const inviteRows: Row[] = manage
+      ? (invites ?? []).map((inv) => ({ kind: 'invite', key: `i-${inv.id}`, invite: inv }))
+      : [];
+    return [...memberRows, ...inviteRows];
+  }, [members, invites, manage]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return rows.filter((row) => {
+      const name = row.kind === 'member' ? (row.member.name ?? '') : '';
+      const email = row.kind === 'member' ? row.member.email : row.invite.email;
+      const role = row.kind === 'member' ? row.member.role : row.invite.role;
+      if (roleFilter !== 'all' && role !== roleFilter) return false;
+      if (q && !name.toLowerCase().includes(q) && !email.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [rows, query, roleFilter]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount - 1);
+  const paged = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+
   const loading = members === null;
   const activeCount = members?.filter((m) => m.status === 'active').length ?? 0;
   const pendingCount = invites?.length ?? 0;
+  const columnCount = manage ? 6 : 5;
 
   return (
     <Card>
@@ -169,6 +232,38 @@ export function TeamCard({ workspace }: { workspace: Workspace }) {
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {error && <p className="text-destructive text-sm">{error}</p>}
+        {notice && <p className="text-muted-foreground text-sm">{notice}</p>}
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            type="search"
+            placeholder="Search by name or email…"
+            className="h-8 w-64"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setPage(0);
+            }}
+          />
+          <Select
+            value={roleFilter}
+            onValueChange={(v) => {
+              setRoleFilter(v as MemberRole | 'all');
+              setPage(0);
+            }}
+          >
+            <SelectTrigger size="sm" className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All roles</SelectItem>
+              {memberRole.options.map((r) => (
+                <SelectItem key={r} value={r}>
+                  {ROLE_LABELS[r]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <div className="rounded-md border">
           <Table>
             <TableHeader>
@@ -177,6 +272,7 @@ export function TeamCard({ workspace }: { workspace: Workspace }) {
                 <TableHead className="w-36">Role</TableHead>
                 <TableHead className="w-24">Status</TableHead>
                 <TableHead className="w-32">Joined</TableHead>
+                <TableHead className="w-32">Last active</TableHead>
                 {manage && <TableHead className="w-12" />}
               </TableRow>
             </TableHeader>
@@ -202,87 +298,103 @@ export function TeamCard({ workspace }: { workspace: Workspace }) {
                     <TableCell>
                       <Skeleton className="h-4 w-20" />
                     </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-16" />
+                    </TableCell>
                     {manage && <TableCell />}
                   </TableRow>
                 ))}
 
-              {members?.map((m) => {
-                const isSelf = m.userId === myId;
-                const inactive = m.status === 'inactive';
-                return (
-                  <TableRow key={m.userId} className={cn(inactive && 'opacity-60')}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <MemberAvatar name={m.name} email={m.email} />
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-medium">
-                            {m.name ?? m.email}
-                            {isSelf && <span className="text-muted-foreground"> (you)</span>}
+              {!loading && paged.length === 0 && (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={columnCount} className="text-muted-foreground py-8 text-center">
+                    No members match your search.
+                  </TableCell>
+                </TableRow>
+              )}
+
+              {paged.map((row) => {
+                if (row.kind === 'member') {
+                  const m = row.member;
+                  const isSelf = m.userId === myId;
+                  const inactive = m.status === 'inactive';
+                  return (
+                    <TableRow key={row.key} className={cn(inactive && 'opacity-60')}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <MemberAvatar name={m.name} email={m.email} />
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium">
+                              {m.name ?? m.email}
+                              {isSelf && <span className="text-muted-foreground"> (you)</span>}
+                            </div>
+                            {m.name && (
+                              <div className="text-muted-foreground truncate text-xs">{m.email}</div>
+                            )}
                           </div>
-                          {m.name && (
-                            <div className="text-muted-foreground truncate text-xs">{m.email}</div>
-                          )}
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {manage && !isSelf ? (
-                        <Select
-                          value={m.role}
-                          onValueChange={(v) => changeRole(m.userId, v as MemberRole)}
-                        >
-                          <SelectTrigger size="sm" className="w-28">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {memberRole.options.map((r) => (
-                              <SelectItem key={r} value={r}>
-                                {ROLE_LABELS[r]}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Badge variant="outline">{ROLE_LABELS[m.role]}</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={inactive ? 'outline' : 'secondary'}>
-                        {inactive ? 'Inactive' : 'Active'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{formatDate(m.joinedAt)}</TableCell>
-                    {manage && (
-                      <TableCell className="text-right">
-                        {!isSelf && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="size-8">
-                                <MoreHorizontal />
-                                <span className="sr-only">Member actions</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onSelect={() => setStatus(m, inactive ? 'active' : 'inactive')}
-                              >
-                                {inactive ? 'Reactivate' : 'Deactivate'}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem variant="destructive" onSelect={() => remove(m)}>
-                                Remove from workspace
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                      </TableCell>
+                      <TableCell>
+                        {manage && !isSelf ? (
+                          <Select
+                            value={m.role}
+                            onValueChange={(v) => changeRole(m.userId, v as MemberRole)}
+                          >
+                            <SelectTrigger size="sm" className="w-28">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {memberRole.options.map((r) => (
+                                <SelectItem key={r} value={r}>
+                                  {ROLE_LABELS[r]}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge variant="outline">{ROLE_LABELS[m.role]}</Badge>
                         )}
                       </TableCell>
-                    )}
-                  </TableRow>
-                );
-              })}
+                      <TableCell>
+                        <Badge variant={inactive ? 'outline' : 'secondary'}>
+                          {inactive ? 'Inactive' : 'Active'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{formatDate(m.joinedAt)}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatLastActive(m.lastActiveAt)}
+                      </TableCell>
+                      {manage && (
+                        <TableCell className="text-right">
+                          {!isSelf && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="size-8">
+                                  <MoreHorizontal />
+                                  <span className="sr-only">Member actions</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onSelect={() => setStatus(m, inactive ? 'active' : 'inactive')}
+                                >
+                                  {inactive ? 'Reactivate' : 'Deactivate'}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem variant="destructive" onSelect={() => remove(m)}>
+                                  Remove from workspace
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                }
 
-              {manage &&
-                invites?.map((inv) => (
-                  <TableRow key={inv.id}>
+                const inv = row.invite;
+                return (
+                  <TableRow key={row.key}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <MemberAvatar name={null} email={inv.email} muted />
@@ -301,6 +413,7 @@ export function TeamCard({ workspace }: { workspace: Workspace }) {
                       <Badge variant="outline">Invited</Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">–</TableCell>
+                    <TableCell className="text-muted-foreground">–</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -310,6 +423,9 @@ export function TeamCard({ workspace }: { workspace: Workspace }) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onSelect={() => resendInvite(inv)}>
+                            Resend invite
+                          </DropdownMenuItem>
                           <DropdownMenuItem variant="destructive" onSelect={() => revokeInvite(inv)}>
                             Revoke invitation
                           </DropdownMenuItem>
@@ -317,10 +433,38 @@ export function TeamCard({ workspace }: { workspace: Workspace }) {
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                ))}
+                );
+              })}
             </TableBody>
           </Table>
         </div>
+        {filtered.length > PAGE_SIZE && (
+          <div className="flex items-center justify-between">
+            <p className="text-muted-foreground text-sm">
+              Showing {currentPage * PAGE_SIZE + 1}
+              {'–'}
+              {Math.min((currentPage + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === 0}
+                onClick={() => setPage(currentPage - 1)}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage >= pageCount - 1}
+                onClick={() => setPage(currentPage + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
       <ConfirmDialog request={confirm} onClose={() => setConfirm(null)} />
     </Card>
