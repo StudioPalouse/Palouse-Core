@@ -23,17 +23,20 @@ import { SCOPE_LABELS } from '@/lib/agent-meta';
 // that have not set NEXT_PUBLIC_MCP_URL; the UI shows a placeholder then.
 const MCP_URL = process.env.NEXT_PUBLIC_MCP_URL ?? '';
 const MCP_URL_PLACEHOLDER = 'https://your-palouse-host/mcp';
+// Distinct client alias per environment, so connecting staging and prod side
+// by side does not collide in the local MCP config.
+const MCP_ALIAS = MCP_URL.includes('mcp-test.') ? 'palouse-test' : 'palouse';
 
 function claudeCodeSnippet(plaintext: string): string {
   const url = MCP_URL || MCP_URL_PLACEHOLDER;
-  return `claude mcp add --transport http palouse ${url} --header "Authorization: Bearer ${plaintext}"`;
+  return `claude mcp add --transport http ${MCP_ALIAS} ${url} --header "Authorization: Bearer ${plaintext}"`;
 }
 
 function httpConfigSnippet(plaintext: string): string {
   return JSON.stringify(
     {
       mcpServers: {
-        palouse: {
+        [MCP_ALIAS]: {
           type: 'http',
           url: MCP_URL || MCP_URL_PLACEHOLDER,
           headers: { Authorization: `Bearer ${plaintext}` },
@@ -49,7 +52,7 @@ function stdioConfigSnippet(plaintext: string): string {
   return JSON.stringify(
     {
       mcpServers: {
-        palouse: {
+        [MCP_ALIAS]: {
           command: 'palouse-mcp',
           args: ['--stdio'],
           env: { PALOUSE_API_KEY: plaintext },

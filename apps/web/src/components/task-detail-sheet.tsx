@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { Task, TaskComment, TaskSource, TaskStatus } from '@palouse/shared';
+import { Bot } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -123,6 +124,12 @@ export function TaskDetailSheet({
                     ))}
                   </SelectContent>
                 </Select>
+                {task.origin === 'agent' && (
+                  <Badge variant="outline" className="gap-1">
+                    <Bot className="size-3" />
+                    Agent created
+                  </Badge>
+                )}
                 {sources.length === 0 ? (
                   <Badge variant="outline">Native</Badge>
                 ) : (

@@ -68,6 +68,12 @@ export function TaskRow({
           {STATUS_LABELS[task.status]}
         </Badge>
         <span className="min-w-0 flex-1 truncate text-sm">{task.title}</span>
+        {task.origin === 'agent' && (
+          <Badge variant="outline" className="gap-1">
+            <Bot className="size-3" />
+            Agent
+          </Badge>
+        )}
         {handoffState && (
           <Badge variant={HANDOFF_STATE_BADGE[handoffState]}>
             {HANDOFF_STATE_LABELS[handoffState]}
