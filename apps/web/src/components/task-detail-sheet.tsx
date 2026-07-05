@@ -98,7 +98,7 @@ export function TaskDetailSheet({
                   value={task.status}
                   onValueChange={(v) => void patch({ status: v as TaskStatus })}
                 >
-                  <SelectTrigger size="sm">
+                  <SelectTrigger size="sm" variant="ghost">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -113,7 +113,7 @@ export function TaskDetailSheet({
                   value={String(task.priority)}
                   onValueChange={(v) => void patch({ priority: Number(v) })}
                 >
-                  <SelectTrigger size="sm">
+                  <SelectTrigger size="sm" variant="ghost">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
