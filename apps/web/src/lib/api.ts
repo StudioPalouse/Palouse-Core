@@ -3,8 +3,18 @@ import type {
   AgentApiKey,
   AgentKind,
   AgentKeyScope,
+  AddRelationInput,
+  AddResourceInput,
   CapabilityKey,
+  CreateDecisionInput,
   CreateTaskInput,
+  Decision,
+  DecisionComment,
+  DecisionDetail,
+  DecisionListItem,
+  DecisionRelation,
+  DecisionResource,
+  DecisionStakeholder,
   Handoff,
   HandoffEvent,
   HandoffListItem,
@@ -19,10 +29,12 @@ import type {
   ReviewDecision,
   MemberRole,
   MembershipStatus,
+  StakeholderAssignment,
   Task,
   TaskComment,
   TaskListItem,
   TaskSource,
+  UpdateDecisionInput,
   UpdateTaskInput,
   UsageSummaryRow,
   Workspace,
@@ -79,9 +91,7 @@ export const api = {
     }),
 
   getCapabilities: (workspaceId: string) =>
-    request<{ capabilities: WorkspaceCapabilities }>(
-      `/v1/workspaces/${workspaceId}/capabilities`,
-    ),
+    request<{ capabilities: WorkspaceCapabilities }>(`/v1/workspaces/${workspaceId}/capabilities`),
 
   setCapability: (workspaceId: string, capability: CapabilityKey, enabled: boolean) =>
     request<{ capabilities: WorkspaceCapabilities }>(
@@ -164,6 +174,73 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ workspaceId, bodyMd }),
     }),
+
+  listDecisions: (
+    workspaceId: string,
+    params?: { status?: string; area?: string; search?: string; limit?: number },
+  ) => {
+    const qs = new URLSearchParams({ workspaceId });
+    if (params?.status) qs.set('status', params.status);
+    if (params?.area) qs.set('area', params.area);
+    if (params?.search) qs.set('search', params.search);
+    if (params?.limit != null) qs.set('limit', String(params.limit));
+    return request<{ decisions: DecisionListItem[]; total: number }>(`/v1/decisions?${qs}`);
+  },
+
+  getDecision: (workspaceId: string, decisionId: string) =>
+    request<DecisionDetail>(`/v1/decisions/${decisionId}?workspaceId=${workspaceId}`),
+
+  createDecision: (workspaceId: string, input: CreateDecisionInput) =>
+    request<{ decision: Decision }>('/v1/decisions', {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId, ...input }),
+    }),
+
+  updateDecision: (workspaceId: string, decisionId: string, input: UpdateDecisionInput) =>
+    request<{ decision: Decision }>(`/v1/decisions/${decisionId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ workspaceId, ...input }),
+    }),
+
+  addDecisionComment: (workspaceId: string, decisionId: string, bodyMd: string) =>
+    request<{ comment: DecisionComment }>(`/v1/decisions/${decisionId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId, bodyMd }),
+    }),
+
+  setDecisionStakeholders: (
+    workspaceId: string,
+    decisionId: string,
+    stakeholders: StakeholderAssignment[],
+  ) =>
+    request<{ stakeholders: DecisionStakeholder[] }>(`/v1/decisions/${decisionId}/stakeholders`, {
+      method: 'PUT',
+      body: JSON.stringify({ workspaceId, stakeholders }),
+    }),
+
+  addDecisionResource: (workspaceId: string, decisionId: string, input: AddResourceInput) =>
+    request<{ resource: DecisionResource }>(`/v1/decisions/${decisionId}/resources`, {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId, ...input }),
+    }),
+
+  removeDecisionResource: (workspaceId: string, decisionId: string, resourceId: string) =>
+    request<void>(
+      `/v1/decisions/${decisionId}/resources/${resourceId}?workspaceId=${workspaceId}`,
+      { method: 'DELETE' },
+    ),
+
+  addDecisionRelation: (workspaceId: string, decisionId: string, input: AddRelationInput) =>
+    request<{ relation: DecisionRelation }>(`/v1/decisions/${decisionId}/relations`, {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId, ...input }),
+    }),
+
+  removeDecisionRelation: (workspaceId: string, decisionId: string, relationId: string) =>
+    request<void>(
+      `/v1/decisions/${decisionId}/relations/${relationId}?workspaceId=${workspaceId}`,
+      { method: 'DELETE' },
+    ),
 
   listAgents: (workspaceId: string) =>
     request<{ agents: Agent[] }>(`/v1/agents?workspaceId=${workspaceId}`),

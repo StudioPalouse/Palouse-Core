@@ -3,7 +3,12 @@ import { and, eq, or } from 'drizzle-orm';
 import { loadEnv } from '@palouse/config';
 import { agents, closeDb, getDb } from '@palouse/db';
 import { agentService } from '@palouse/core';
-import { agentKeyScope, ALL_AGENT_KEY_SCOPES, uuid as uuidSchema } from '@palouse/shared';
+import {
+  agentKeyScope,
+  ALL_AGENT_KEY_SCOPES,
+  WILDCARD_SCOPE,
+  uuid as uuidSchema,
+} from '@palouse/shared';
 import { resolveWorkspaceAndActor } from './create-agent.js';
 
 export function createAgentKeyCommand(): Command {
@@ -11,13 +16,19 @@ export function createAgentKeyCommand(): Command {
     .description('Mint an API key for an agent (plaintext shown exactly once)')
     .argument('<agent>', 'agent id or name')
     .requiredOption('-w, --workspace <slug>', 'workspace slug')
-    .option('-s, --scopes <scopes>', `comma-separated: ${ALL_AGENT_KEY_SCOPES.join(',')}`)
+    .option(
+      '-s, --scopes <scopes>',
+      `comma-separated granular scopes (${ALL_AGENT_KEY_SCOPES.join(',')}); omit for full access ('*', all current and future scopes)`,
+    )
     .option('--actor-email <email>', 'user recorded as creator in the audit log')
     .action(
-      async (agentRef: string, opts: { workspace: string; scopes?: string; actorEmail?: string }) => {
+      async (
+        agentRef: string,
+        opts: { workspace: string; scopes?: string; actorEmail?: string },
+      ) => {
         const scopes = opts.scopes
           ? opts.scopes.split(',').map((s) => agentKeyScope.parse(s.trim()))
-          : [...ALL_AGENT_KEY_SCOPES];
+          : [WILDCARD_SCOPE];
         const env = loadEnv();
         const db = getDb(env.DATABASE_URL);
         try {
@@ -33,7 +44,9 @@ export function createAgentKeyCommand(): Command {
             .where(
               and(
                 eq(agents.workspaceId, workspaceId),
-                byId ? or(eq(agents.id, agentRef), eq(agents.name, agentRef)) : eq(agents.name, agentRef),
+                byId
+                  ? or(eq(agents.id, agentRef), eq(agents.name, agentRef))
+                  : eq(agents.name, agentRef),
               ),
             )
             .limit(1);

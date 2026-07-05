@@ -4,6 +4,7 @@ import { PalouseError } from '@palouse/shared';
 import { getAuth } from '@palouse/auth';
 import { loadEnv } from '@palouse/config';
 import { agentRoutes } from './routes/agents.js';
+import { decisionRoutes } from './routes/decisions.js';
 import { handoffRoutes } from './routes/handoffs.js';
 import { health } from './routes/health.js';
 import { integrationRoutes } from './routes/integrations.js';
@@ -45,6 +46,7 @@ export function buildApp() {
   app.get('/v1', (c) => c.json({ name: 'palouse', version: '0.0.0' }));
   app.route('/v1/workspaces', workspaceRoutes);
   app.route('/v1/tasks', taskRoutes);
+  app.route('/v1/decisions', decisionRoutes);
   app.route('/v1/agents', agentRoutes);
   app.route('/v1', handoffRoutes); // /v1/tasks/:id/handoff + /v1/handoffs/*
   app.route('/v1', usageRoutes); // /v1/usage/* + /v1/model-prices*
