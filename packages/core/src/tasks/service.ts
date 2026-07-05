@@ -1,13 +1,15 @@
-import { and, desc, eq, ilike, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray, sql, type SQL } from 'drizzle-orm';
 import { auditEvents, taskComments, taskSources, tasks, type Database } from '@palouse/db';
 import {
   notFound,
   type Actor,
   type CreateCommentInput,
   type CreateTaskInput,
+  type ExternalSystem,
   type ListTasksQuery,
   type Task,
   type TaskComment,
+  type TaskListItem,
   type TaskSource,
   type TaskStatus,
   type UpdateTaskInput,
@@ -59,7 +61,7 @@ function sourceToDto(row: typeof taskSources.$inferSelect): TaskSource {
 export async function listTasks(
   db: Database,
   query: ListTasksQuery,
-): Promise<{ tasks: Task[]; total: number }> {
+): Promise<{ tasks: TaskListItem[]; total: number }> {
   const conditions: SQL[] = [eq(tasks.workspaceId, query.workspaceId)];
   if (query.status) conditions.push(eq(tasks.status, query.status));
   if (query.assigneeUserId) conditions.push(eq(tasks.assigneeUserId, query.assigneeUserId));
@@ -76,7 +78,28 @@ export async function listTasks(
       .offset(query.offset),
     db.select({ total: sql<number>`count(*)::int` }).from(tasks).where(where),
   ]);
-  return { tasks: rows.map(toDto), total: count?.total ?? 0 };
+
+  // Attach the external systems each task is linked to (empty = native). Fetched
+  // in one query keyed by this page's task ids to avoid a join that fans out
+  // rows for tasks with multiple sources.
+  const ids = rows.map((r) => r.id);
+  const providersByTask = new Map<string, ExternalSystem[]>();
+  if (ids.length > 0) {
+    const sources = await db
+      .select({ taskId: taskSources.taskId, externalSystem: taskSources.externalSystem })
+      .from(taskSources)
+      .where(inArray(taskSources.taskId, ids));
+    for (const s of sources) {
+      const list = providersByTask.get(s.taskId);
+      if (list) list.push(s.externalSystem);
+      else providersByTask.set(s.taskId, [s.externalSystem]);
+    }
+  }
+
+  return {
+    tasks: rows.map((r) => ({ ...toDto(r), providers: providersByTask.get(r.id) ?? [] })),
+    total: count?.total ?? 0,
+  };
 }
 
 export async function getTask(

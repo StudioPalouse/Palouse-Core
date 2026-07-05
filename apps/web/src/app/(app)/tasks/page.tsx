@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { HandoffState, Task } from '@palouse/shared';
+import type { HandoffState, TaskListItem } from '@palouse/shared';
 import {
   Button,
   cn,
@@ -22,7 +22,7 @@ import { TaskDisplayMenu } from '@/components/task-display-menu';
 import { api } from '@/lib/api';
 import { HANDOFFS_CHANGED_EVENT } from '@/lib/handoff-meta';
 import { useActiveWorkspace } from '@/lib/workspace-context';
-import { isCompletedStatus, STATUS_LABELS, STATUS_ORDER } from '@/lib/task-meta';
+import { isCompletedStatus, providerLabel, STATUS_LABELS, STATUS_ORDER } from '@/lib/task-meta';
 import { DEFAULT_DISPLAY, PRESETS, type DisplayConfig } from '@/lib/task-views';
 
 // Bumped to v2 when the default view changed to group-by-status; the old key is
@@ -47,8 +47,9 @@ export default function TasksPage() {
 
 function TasksContent() {
   const { workspace } = useActiveWorkspace();
-  const [tasks, setTasks] = useState<Task[] | null>(null);
+  const [tasks, setTasks] = useState<TaskListItem[] | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   // Tasks being handed off via the picker: one from a row's quick action,
@@ -105,13 +106,47 @@ function TasksContent() {
     [workspace, refresh],
   );
 
-  // Hide completed (done/archived) tasks unless the Display toggle is on, or the
-  // user has explicitly filtered to a specific status (then honour that choice).
+  // Provider filter options, derived from the tasks actually present so the
+  // dropdown only offers providers in use ("Native" = tasks with no external
+  // source). Shown only when there is a real choice between two or more.
+  const providerOptions = useMemo(() => {
+    const slugs = new Set<string>();
+    let hasNative = false;
+    for (const t of tasks ?? []) {
+      if (t.providers.length === 0) hasNative = true;
+      else for (const p of t.providers) slugs.add(p);
+    }
+    const opts = hasNative ? [{ value: 'native', label: providerLabel('native') }] : [];
+    for (const slug of [...slugs].sort()) opts.push({ value: slug, label: providerLabel(slug) });
+    return opts;
+  }, [tasks]);
+
+  // Drop a provider filter that is no longer available (e.g. its last task synced
+  // away), so the control never points at a hidden value.
+  useEffect(() => {
+    if (sourceFilter !== 'all' && !providerOptions.some((o) => o.value === sourceFilter)) {
+      setSourceFilter('all');
+    }
+  }, [sourceFilter, providerOptions]);
+
+  // Apply the client-side filters: provider, then completed. Completed (done or
+  // archived) tasks are hidden unless the Display toggle is on or a specific
+  // status is filtered (then honour that choice).
   const visibleTasks = useMemo(() => {
     if (tasks === null) return null;
-    if (display.showCompleted || statusFilter !== 'all') return tasks;
-    return tasks.filter((t) => !isCompletedStatus(t.status));
-  }, [tasks, display.showCompleted, statusFilter]);
+    let list = tasks;
+    if (sourceFilter !== 'all') {
+      list = list.filter((t) =>
+        sourceFilter === 'native'
+          ? t.providers.length === 0
+          : (t.providers as string[]).includes(sourceFilter),
+      );
+    }
+    if (!display.showCompleted && statusFilter === 'all') {
+      list = list.filter((t) => !isCompletedStatus(t.status));
+    }
+    return list;
+  }, [tasks, sourceFilter, display.showCompleted, statusFilter]);
 
   useEffect(() => {
     const t = setTimeout(refresh, search ? 250 : 0);
@@ -220,6 +255,21 @@ function TasksContent() {
               ))}
             </SelectContent>
           </Select>
+          {providerOptions.length > 1 && (
+            <Select value={sourceFilter} onValueChange={setSourceFilter}>
+              <SelectTrigger size="sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All providers</SelectItem>
+                {providerOptions.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <TaskDisplayMenu config={display} onChange={updateDisplay} />
           <div className="ml-auto">
             {workspace && <NewTaskDialog workspaceId={workspace.id} onCreated={refresh} />}
@@ -255,8 +305,8 @@ function TasksContent() {
             </p>
           ) : visibleTasks && visibleTasks.length === 0 ? (
             <p className="text-muted-foreground p-8 text-center text-sm">
-              Every task here is completed. Turn on &ldquo;Show completed&rdquo; in Display to see
-              them.
+              No tasks match these filters. Adjust the provider or status filter, or turn on
+              &ldquo;Show completed&rdquo; in Display.
             </p>
           ) : (
             <TaskList
