@@ -28,6 +28,26 @@ export function isCompletedStatus(status: TaskStatus): boolean {
   return status === 'done' || status === 'archived';
 }
 
+/**
+ * Human labels for a task's provider (the external system it syncs from).
+ * "native" is the synthetic provider for tasks with no external source.
+ */
+export const PROVIDER_LABELS: Record<string, string> = {
+  native: 'Native',
+  todoist: 'Todoist',
+  google_tasks: 'Google Tasks',
+  ms_todo: 'Microsoft To Do',
+  ms_planner: 'Microsoft Planner',
+  asana: 'Asana',
+  notion: 'Notion',
+  palouse: 'Native',
+};
+
+/** Pretty label for a provider slug, falling back to the raw slug. */
+export function providerLabel(slug: string): string {
+  return PROVIDER_LABELS[slug] ?? slug;
+}
+
 export const PRIORITY_LABELS: Record<number, string> = {
   0: 'Urgent',
   1: 'High',

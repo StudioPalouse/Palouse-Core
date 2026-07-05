@@ -29,6 +29,16 @@ export const taskSchema = z.object({
 });
 export type Task = z.infer<typeof taskSchema>;
 
+/**
+ * A task as returned by the list endpoint, enriched with the external systems it
+ * is linked to. An empty `providers` array means the task is native (Palouse
+ * only, with no external source).
+ */
+export const taskListItemSchema = taskSchema.extend({
+  providers: z.array(externalSystem),
+});
+export type TaskListItem = z.infer<typeof taskListItemSchema>;
+
 export const taskSourceSchema = z.object({
   id: uuid,
   taskId: uuid,

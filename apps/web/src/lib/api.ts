@@ -21,6 +21,7 @@ import type {
   MembershipStatus,
   Task,
   TaskComment,
+  TaskListItem,
   TaskSource,
   UpdateTaskInput,
   UsageSummaryRow,
@@ -138,7 +139,7 @@ export const api = {
     if (params?.status) qs.set('status', params.status);
     if (params?.search) qs.set('search', params.search);
     if (params?.limit != null) qs.set('limit', String(params.limit));
-    return request<{ tasks: Task[]; total: number }>(`/v1/tasks?${qs}`);
+    return request<{ tasks: TaskListItem[]; total: number }>(`/v1/tasks?${qs}`);
   },
 
   getTask: (workspaceId: string, taskId: string) =>
