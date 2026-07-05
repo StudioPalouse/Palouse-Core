@@ -27,8 +27,10 @@ export function capabilityForPath(pathname: string): CapabilityKey | null {
 }
 
 /**
- * Whether a capability is enabled. A null map (still loading) or a missing key
- * reads as enabled, so nothing disappears before the first load resolves.
+ * Whether a capability is enabled on a loaded map. A missing key reads as
+ * enabled (capabilities default on). A null map means the map has not loaded
+ * yet; callers that must not reveal a disabled capability (the nav, the route
+ * gate) check for a loaded map before calling so they can fail closed.
  */
 export function isCapabilityEnabled(
   capabilities: WorkspaceCapabilities | null,

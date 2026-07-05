@@ -27,28 +27,40 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
+  /* Sidebar surface: a hair off the white content area, with a firmer divider. */
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.9 0 0);
+  --sidebar-accent: oklch(0.94 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
 }
 
 /* Deep-green-tinted dark theme (hue ~165) matching the brand's forest/teal greens. */
 .dark {
-  --background: oklch(0.17 0.025 165);
+  --background: oklch(0.155 0.024 165);
   --foreground: oklch(0.97 0.01 165);
-  --card: oklch(0.21 0.03 165);
+  --card: oklch(0.215 0.03 165);
   --card-foreground: oklch(0.97 0.01 165);
-  --popover: oklch(0.21 0.03 165);
+  --popover: oklch(0.215 0.03 165);
   --popover-foreground: oklch(0.97 0.01 165);
   --primary: oklch(0.92 0.02 165);
   --primary-foreground: oklch(0.21 0.03 165);
   --secondary: oklch(0.27 0.03 165);
   --secondary-foreground: oklch(0.97 0.01 165);
   --muted: oklch(0.27 0.03 165);
-  --muted-foreground: oklch(0.72 0.025 165);
+  --muted-foreground: oklch(0.75 0.025 165);
   --accent: oklch(0.3 0.04 165);
   --accent-foreground: oklch(0.97 0.01 165);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(0.6 0.04 165 / 22%);
+  --border: oklch(0.62 0.04 165 / 32%);
   --input: oklch(0.7 0.04 165 / 18%);
   --ring: oklch(0.62 0.1 165);
+  /* Sidebar surface: lifted above the deeper content bg, with a firmer divider. */
+  --sidebar: oklch(0.2 0.03 165);
+  --sidebar-foreground: oklch(0.97 0.01 165);
+  --sidebar-border: oklch(0.62 0.04 165 / 32%);
+  --sidebar-accent: oklch(0.32 0.045 165);
+  --sidebar-accent-foreground: oklch(0.98 0.01 165);
 }
 
 @theme inline {
@@ -70,6 +82,11 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -79,6 +96,12 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+  }
+  /* Nudge the whole UI up ~3%. Root font-size scales both type and Tailwind's
+     rem-based spacing, so the app reads a touch larger without feeling zoomed.
+     Tune this one value (100% = browser default 16px) to adjust overall scale. */
+  html {
+    font-size: 103%;
   }
   body {
     @apply bg-background text-foreground;
