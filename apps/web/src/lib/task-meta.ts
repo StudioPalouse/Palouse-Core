@@ -10,6 +10,24 @@ export const STATUS_LABELS: Record<TaskStatus, string> = {
 
 export const STATUS_ORDER: TaskStatus[] = ['open', 'in_progress', 'blocked', 'done', 'archived'];
 
+/**
+ * Soft tonal classes for the status label pill. Filled tints (no border) so a
+ * status reads as a passive tag, not a button. Colours are semantic: open =
+ * neutral blue, in progress = amber, blocked = red, done = green.
+ */
+export const STATUS_TONE: Record<TaskStatus, string> = {
+  open: 'bg-sky-500/15 text-sky-700 dark:text-sky-300',
+  in_progress: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
+  blocked: 'bg-rose-500/15 text-rose-700 dark:text-rose-300',
+  done: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+  archived: 'bg-muted text-muted-foreground',
+};
+
+/** Terminal statuses treated as "completed" and hidden from the list by default. */
+export function isCompletedStatus(status: TaskStatus): boolean {
+  return status === 'done' || status === 'archived';
+}
+
 export const PRIORITY_LABELS: Record<number, string> = {
   0: 'Urgent',
   1: 'High',

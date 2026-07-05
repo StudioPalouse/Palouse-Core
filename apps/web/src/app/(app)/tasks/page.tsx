@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { HandoffState, Task } from '@palouse/shared';
 import {
   Button,
@@ -22,10 +22,12 @@ import { TaskDisplayMenu } from '@/components/task-display-menu';
 import { api } from '@/lib/api';
 import { HANDOFFS_CHANGED_EVENT } from '@/lib/handoff-meta';
 import { useActiveWorkspace } from '@/lib/workspace-context';
-import { STATUS_LABELS, STATUS_ORDER } from '@/lib/task-meta';
+import { isCompletedStatus, STATUS_LABELS, STATUS_ORDER } from '@/lib/task-meta';
 import { DEFAULT_DISPLAY, PRESETS, type DisplayConfig } from '@/lib/task-views';
 
-const DISPLAY_STORAGE_KEY = 'palouse.tasks.display';
+// Bumped to v2 when the default view changed to group-by-status; the old key is
+// ignored so existing users pick up the new default instead of their saved one.
+const DISPLAY_STORAGE_KEY = 'palouse.tasks.display.v2';
 const HANDOFF_POLL_MS = 15_000;
 
 function loadDisplay(): DisplayConfig {
@@ -87,6 +89,29 @@ function TasksContent() {
     if (search.trim()) params.search = search.trim();
     api.listTasks(workspace.id, params).then(({ tasks }) => setTasks(tasks));
   }, [workspace, statusFilter, search]);
+
+  // Complete or reopen a task inline. Optimistically update the local list so
+  // the row responds instantly, then refetch to reconcile.
+  const completeTask = useCallback(
+    (id: string, done: boolean) => {
+      if (!workspace) return;
+      const status = done ? 'done' : 'open';
+      setTasks((prev) => prev?.map((t) => (t.id === id ? { ...t, status } : t)) ?? prev);
+      api
+        .updateTask(workspace.id, id, { status })
+        .then(refresh)
+        .catch(refresh);
+    },
+    [workspace, refresh],
+  );
+
+  // Hide completed (done/archived) tasks unless the Display toggle is on, or the
+  // user has explicitly filtered to a specific status (then honour that choice).
+  const visibleTasks = useMemo(() => {
+    if (tasks === null) return null;
+    if (display.showCompleted || statusFilter !== 'all') return tasks;
+    return tasks.filter((t) => !isCompletedStatus(t.status));
+  }, [tasks, display.showCompleted, statusFilter]);
 
   useEffect(() => {
     const t = setTimeout(refresh, search ? 250 : 0);
@@ -168,7 +193,7 @@ function TasksContent() {
               variant={activePreset === preset.id ? 'secondary' : 'ghost'}
               size="sm"
               className={cn(activePreset !== preset.id && 'text-muted-foreground')}
-              onClick={() => updateDisplay(preset.config)}
+              onClick={() => updateDisplay({ ...display, ...preset.config })}
             >
               {preset.label}
             </Button>
@@ -228,14 +253,20 @@ function TasksContent() {
             <p className="text-muted-foreground p-8 text-center text-sm">
               No tasks yet. Create one, or connect an integration in Settings to start syncing.
             </p>
+          ) : visibleTasks && visibleTasks.length === 0 ? (
+            <p className="text-muted-foreground p-8 text-center text-sm">
+              Every task here is completed. Turn on &ldquo;Show completed&rdquo; in Display to see
+              them.
+            </p>
           ) : (
             <TaskList
-              tasks={tasks}
+              tasks={visibleTasks ?? []}
               config={display}
               handoffStates={handoffStates}
               selectedIds={selectedIds}
               onToggleSelect={toggleSelect}
               onSelect={setSelectedTaskId}
+              onComplete={completeTask}
               onHandOff={(id) => setPickerTaskIds([id])}
             />
           )}

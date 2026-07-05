@@ -14,6 +14,7 @@ export function TaskList({
   selectedIds,
   onToggleSelect,
   onSelect,
+  onComplete,
   onHandOff,
 }: {
   tasks: Task[];
@@ -24,6 +25,8 @@ export function TaskList({
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
   onSelect: (id: string) => void;
+  /** Inline complete/reopen action on each row. */
+  onComplete?: (id: string, done: boolean) => void;
   /** Quick hand-off action on rows without an active handoff. */
   onHandOff?: (id: string) => void;
 }) {
@@ -44,6 +47,7 @@ export function TaskList({
               selectionActive={selectionActive}
               onToggleSelect={onToggleSelect}
               onSelect={onSelect}
+              onComplete={onComplete}
               onHandOff={onHandOff}
             />
           </li>
@@ -95,6 +99,7 @@ export function TaskList({
                       selectionActive={selectionActive}
                       onToggleSelect={onToggleSelect}
                       onSelect={onSelect}
+                      onComplete={onComplete}
                       onHandOff={onHandOff}
                     />
                   </li>
