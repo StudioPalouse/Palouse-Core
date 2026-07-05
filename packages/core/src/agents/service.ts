@@ -5,6 +5,7 @@ import { agentApiKeys, agents, auditEvents, type Database } from '@palouse/db';
 import {
   notFound,
   unauthorized,
+  WILDCARD_SCOPE,
   type Agent,
   type AgentApiKey,
   type AgentKeyScope,
@@ -108,13 +109,19 @@ export async function createApiKey(
   const plaintext = `${KEY_PREFIX}_${prefix}_${secret}`;
   const digest = await argon2Hash(secret);
 
+  // A wildcard grant subsumes any granular scopes, so store it alone to keep the
+  // row unambiguous ('*' means all current and future scopes).
+  const scopes: AgentKeyScope[] = input.scopes.includes(WILDCARD_SCOPE)
+    ? [WILDCARD_SCOPE]
+    : input.scopes;
+
   const [row] = await db
     .insert(agentApiKeys)
-    .values({ agentId, prefix, hash: digest, scopes: input.scopes })
+    .values({ agentId, prefix, hash: digest, scopes })
     .returning();
   await audit(db, workspaceId, actorUserId, 'agent.key_created', agentId, {
     keyId: row!.id,
-    scopes: input.scopes,
+    scopes,
   });
   return { key: keyToDto(row!), plaintext };
 }
@@ -129,7 +136,13 @@ export async function revokeApiKey(
   const [row] = await db
     .update(agentApiKeys)
     .set({ revokedAt: new Date() })
-    .where(and(eq(agentApiKeys.id, keyId), eq(agentApiKeys.agentId, agentId), isNull(agentApiKeys.revokedAt)))
+    .where(
+      and(
+        eq(agentApiKeys.id, keyId),
+        eq(agentApiKeys.agentId, agentId),
+        isNull(agentApiKeys.revokedAt),
+      ),
+    )
     .returning({ id: agentApiKeys.id, agentId: agentApiKeys.agentId });
   if (!row) throw notFound('API key not found');
   const [agent] = await db
@@ -198,8 +211,13 @@ export async function verifyApiKey(db: Database, rawKey: string): Promise<Verifi
   throw unauthorized('Invalid agent API key');
 }
 
+/** Whether a key satisfies a scope, honouring the wildcard (full-access) grant. */
+export function hasScope(key: VerifiedAgentKey, scope: AgentKeyScope): boolean {
+  return key.scopes.includes(WILDCARD_SCOPE) || key.scopes.includes(scope);
+}
+
 export function requireScope(key: VerifiedAgentKey, scope: AgentKeyScope): void {
-  if (!key.scopes.includes(scope)) {
+  if (!hasScope(key, scope)) {
     throw unauthorized(`Agent key missing required scope: ${scope}`);
   }
 }

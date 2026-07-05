@@ -7,13 +7,27 @@ export type AgentKind = z.infer<typeof agentKind>;
 export const agentKeyScope = z.enum([
   'tasks:read',
   'tasks:write',
+  'decisions:read',
+  'decisions:write',
   'handoffs:claim',
   'handoffs:complete',
   'usage:write',
+  // Wildcard grant: a key holding it satisfies every current AND future scope,
+  // so new capabilities/tools become usable on the existing key with no
+  // re-mint. Granted as "full access", not offered as a granular checkbox.
+  '*',
 ]);
 export type AgentKeyScope = z.infer<typeof agentKeyScope>;
 
-export const ALL_AGENT_KEY_SCOPES = agentKeyScope.options;
+export const WILDCARD_SCOPE = '*' as const;
+
+/**
+ * Granular scopes offered in the key-creation picker. Excludes the wildcard,
+ * which is granted as full access rather than picked à la carte.
+ */
+export const ALL_AGENT_KEY_SCOPES = agentKeyScope.options.filter(
+  (s): s is Exclude<AgentKeyScope, typeof WILDCARD_SCOPE> => s !== WILDCARD_SCOPE,
+);
 
 export const agentSchema = z.object({
   id: uuid,
@@ -45,7 +59,9 @@ export const createAgentInput = z.object({
 export type CreateAgentInput = z.infer<typeof createAgentInput>;
 
 export const createAgentKeyInput = z.object({
-  scopes: z.array(agentKeyScope).min(1).default([...ALL_AGENT_KEY_SCOPES]),
+  // Default to full access so a key minted today keeps working as we ship new
+  // capabilities. Callers wanting a narrow key pass an explicit granular list.
+  scopes: z.array(agentKeyScope).min(1).default([WILDCARD_SCOPE]),
 });
 export type CreateAgentKeyInput = z.infer<typeof createAgentKeyInput>;
 

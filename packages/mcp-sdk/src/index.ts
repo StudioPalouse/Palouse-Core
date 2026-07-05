@@ -3,7 +3,13 @@
 // description agents see. Keeping these here guarantees server and client
 // SDKs never drift.
 import { z } from 'zod';
-import { handoffState, taskStatus } from '@palouse/shared';
+import {
+  decisionEntityType,
+  decisionStatus,
+  handoffState,
+  raciRole,
+  taskStatus,
+} from '@palouse/shared';
 
 export const TOOLS = [
   'list_tasks',
@@ -19,11 +25,27 @@ export const TOOLS = [
   'request_review',
   'complete_task',
   'fail_task',
+  'list_decisions',
+  'get_decision',
+  'create_decision',
+  'update_decision',
+  'add_decision_comment',
+  'set_decision_stakeholders',
+  'add_decision_relation',
 ] as const;
 
 export type ToolName = (typeof TOOLS)[number];
 
 const taskId = z.string().uuid().describe('Palouse task id (uuid)');
+const decisionId = z.string().uuid().describe('Palouse decision id (uuid)');
+const stakeholderAssignment = z.object({
+  userId: z.string().uuid().describe('Palouse user id of the stakeholder'),
+  role: raciRole.describe('RACI role: responsible, accountable, consulted, or informed'),
+});
+const relationRef = z.object({
+  entityType: decisionEntityType.describe("Related entity kind; only 'task' is resolvable today"),
+  entityId: z.string().uuid(),
+});
 const claimToken = z
   .string()
   .uuid()
@@ -35,7 +57,11 @@ const claimToken = z
  * re-send cumulative totals.
  */
 const usageInput = z.object({
-  model: z.string().min(1).max(200).describe("Model id as the provider reports it, e.g. 'claude-opus-4-8'"),
+  model: z
+    .string()
+    .min(1)
+    .max(200)
+    .describe("Model id as the provider reports it, e.g. 'claude-opus-4-8'"),
   inputTokens: z.number().int().nonnegative(),
   outputTokens: z.number().int().nonnegative(),
   cacheReadTokens: z.number().int().nonnegative().optional(),
@@ -44,7 +70,9 @@ const usageInput = z.object({
     .number()
     .nonnegative()
     .optional()
-    .describe('Your own cost estimate, if you have one. Stored separately; Palouse computes the official cost from its price catalog.'),
+    .describe(
+      'Your own cost estimate, if you have one. Stored separately; Palouse computes the official cost from its price catalog.',
+    ),
 });
 
 const optionalUsage = usageInput
@@ -61,13 +89,23 @@ export const TOOL_INPUTS = {
   },
   get_task: { taskId },
   create_task: {
-    title: z.string().min(1).max(500).describe('Short task title a human will read in their task list'),
+    title: z
+      .string()
+      .min(1)
+      .max(500)
+      .describe('Short task title a human will read in their task list'),
     descriptionMd: z
       .string()
       .max(20_000)
       .optional()
       .describe('What you were asked to do and any context (markdown)'),
-    priority: z.number().int().min(0).max(4).optional().describe('0 = urgent, 4 = none. Defaults to 2.'),
+    priority: z
+      .number()
+      .int()
+      .min(0)
+      .max(4)
+      .optional()
+      .describe('0 = urgent, 4 = none. Defaults to 2.'),
     dueAt: z.string().datetime().optional(),
     reviewRequired: z
       .boolean()
@@ -109,9 +147,14 @@ export const TOOL_INPUTS = {
       .string()
       .min(1)
       .max(300)
-      .describe("Plain-English step title a business user will read, e.g. 'Drafted the Q2 summary'"),
+      .describe(
+        "Plain-English step title a business user will read, e.g. 'Drafted the Q2 summary'",
+      ),
     detail: z.string().max(20_000).optional().describe('Optional detail (markdown)'),
-    status: z.enum(['started', 'completed', 'failed']).optional().describe("Defaults to 'completed'"),
+    status: z
+      .enum(['started', 'completed', 'failed'])
+      .optional()
+      .describe("Defaults to 'completed'"),
     usage: optionalUsage,
   },
   report_usage: {
@@ -126,11 +169,19 @@ export const TOOL_INPUTS = {
   },
   request_review: {
     claimToken,
-    summary: z.string().min(1).max(20_000).describe('What you did and what the reviewer should check (markdown)'),
+    summary: z
+      .string()
+      .min(1)
+      .max(20_000)
+      .describe('What you did and what the reviewer should check (markdown)'),
   },
   complete_task: {
     claimToken,
-    resultSummaryMd: z.string().min(1).max(20_000).describe('Plain-English summary of the result (markdown)'),
+    resultSummaryMd: z
+      .string()
+      .min(1)
+      .max(20_000)
+      .describe('Plain-English summary of the result (markdown)'),
     usage: optionalUsage,
   },
   fail_task: {
@@ -138,11 +189,70 @@ export const TOOL_INPUTS = {
     reason: z.string().min(1).max(4000).describe('Why the task could not be finished'),
     usage: optionalUsage,
   },
+  list_decisions: {
+    status: decisionStatus.optional().describe('Filter by decision stage'),
+    area: z.string().max(200).optional().describe('Filter by the free-text area/grouping'),
+    search: z.string().max(200).optional().describe('Substring match on the decision title'),
+    limit: z.number().int().min(1).max(200).default(50).optional(),
+    offset: z.number().int().min(0).default(0).optional(),
+  },
+  get_decision: { decisionId },
+  create_decision: {
+    title: z.string().min(1).max(500).describe('Short statement of what is being decided'),
+    descriptionMd: z
+      .string()
+      .max(50_000)
+      .optional()
+      .describe('Background, the options weighed, and the reasoning (markdown)'),
+    area: z
+      .string()
+      .max(200)
+      .optional()
+      .describe('Optional grouping, e.g. "Billing" or a project name'),
+    status: decisionStatus.optional().describe("Defaults to 'proposed'"),
+    stakeholders: z
+      .array(stakeholderAssignment)
+      .max(100)
+      .optional()
+      .describe('Initial RACI roster. At most one accountable.'),
+    relations: z
+      .array(relationRef)
+      .max(100)
+      .optional()
+      .describe('Entities this decision relates to (only task links resolve today)'),
+  },
+  update_decision: {
+    decisionId,
+    title: z.string().min(1).max(500).optional(),
+    descriptionMd: z.string().max(50_000).nullable().optional(),
+    area: z.string().max(200).nullable().optional(),
+    status: decisionStatus
+      .optional()
+      .describe('Advance the stage. Accepting requires exactly one accountable stakeholder.'),
+  },
+  add_decision_comment: {
+    decisionId,
+    bodyMd: z.string().min(1).max(50_000).describe('Comment body (markdown)'),
+  },
+  set_decision_stakeholders: {
+    decisionId,
+    stakeholders: z
+      .array(stakeholderAssignment)
+      .max(100)
+      .describe('Full replacement RACI roster. At most one accountable.'),
+  },
+  add_decision_relation: {
+    decisionId,
+    entityType: decisionEntityType,
+    entityId: z.string().uuid(),
+  },
 } satisfies Record<ToolName, z.ZodRawShape>;
 
 export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
-  list_tasks: 'List tasks in your workspace, filterable by status and title search.',
-  get_task: 'Fetch one task with its comments and full agent handoff history.',
+  list_tasks:
+    'List tasks in your workspace, filterable by status and title search. Call this whenever the person refers to their tasks, their work, or what to do next, to see what is already queued for them before asking them to restate it.',
+  get_task:
+    "Fetch one task with its comments and full agent handoff history. Read a task's full description and comments with this before you start acting on it, so you don't ask the person for context Palouse already has.",
   create_task:
     'Register work you are starting in Palouse. Use this when a person hands you work directly in chat instead of queueing it in Palouse first. Creates the task in the workspace, marks it as agent-originated, and atomically opens a handoff already claimed by you. Returns the task, the handoff, and a claimToken: treat it exactly like a claim_task result, so log_step as you work, heartbeat at least every 60 seconds, and complete_task or fail_task when done. Set reviewRequired to true when the person wants to approve the result. Do not use this for tasks that already exist in Palouse; use claim_task for queued work or start_task to begin an existing task.',
   start_task:
@@ -162,6 +272,20 @@ export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
   complete_task:
     'Finish the handoff with a result summary. If the handoff requires review it moves to needs_review instead of completed.',
   fail_task: 'Give up on the handoff with a reason. Terminal — the claim token stops working.',
+  list_decisions:
+    'List decision-log records in your workspace, filterable by stage, area, and title search. Use this to find an existing decision before creating a new one (e.g. when a meeting revisited a decision already on record).',
+  get_decision:
+    'Fetch one decision with its RACI stakeholders, supporting resources, related entities, and full comment thread.',
+  create_decision:
+    'Create a decision-log record on behalf of the team. Use this when a discussion (for example a meeting transcript you were asked to review) produced a decision worth tracking. Capture what is being decided in the title, the options weighed and reasoning in the description, and set the area to the project or topic. It is marked as agent-originated. If you can identify the people involved, pass the RACI stakeholders; otherwise leave them for a human to fill in. Search first with list_decisions so you update an existing record instead of duplicating it.',
+  update_decision:
+    'Update a decision record: refine its title/description/area or advance its stage (proposed → under_review → accepted → rejected → deprecated → superseded). Use this when a later discussion moved an existing decision forward. Moving to accepted requires exactly one accountable stakeholder.',
+  add_decision_comment:
+    'Append a comment to a decision. Use it to record team feedback or a summary of what a discussion added to the decision, so the thread reflects how thinking evolved.',
+  set_decision_stakeholders:
+    "Replace a decision's RACI roster in full (responsible, accountable, consulted, informed). At most one accountable is allowed. Pass Palouse user ids.",
+  add_decision_relation:
+    'Link a decision to a related entity so the record sits alongside the work it concerns. Only task links resolve today; project/goal/context are reserved for when those capabilities ship.',
 };
 
 /** `palouse://` resource URI templates exposed by the MCP server. */

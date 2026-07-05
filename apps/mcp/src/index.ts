@@ -8,8 +8,7 @@ import { PalouseError } from '@palouse/shared';
 import { verifyKeyFromEnv, verifyKeyFromHeader } from './auth.js';
 import { buildServer } from './server.js';
 
-const useStdio =
-  process.argv.includes('--stdio') || process.env.PALOUSE_MCP_TRANSPORT === 'stdio';
+const useStdio = process.argv.includes('--stdio') || process.env.PALOUSE_MCP_TRANSPORT === 'stdio';
 
 const env = loadEnv();
 // stdio owns stdout for the protocol — logs must go to stderr there.
@@ -22,7 +21,7 @@ const db = getDb(env.DATABASE_URL);
 
 async function runStdio(database: Database): Promise<void> {
   const key = await verifyKeyFromEnv(database);
-  const server = buildServer(database, key);
+  const server = await buildServer(database, key);
   await server.connect(new StdioServerTransport());
   logger.info({ agentId: key.agentId, workspaceId: key.workspaceId }, 'MCP stdio transport ready');
 }
@@ -49,7 +48,7 @@ function runHttp(database: Database): void {
     }
     try {
       const key = await verifyKeyFromHeader(database, req.headers.authorization);
-      const server = buildServer(database, key);
+      const server = await buildServer(database, key);
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
         enableJsonResponse: true,

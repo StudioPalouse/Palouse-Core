@@ -10,7 +10,10 @@ export const AGENT_KIND_LABELS: Record<AgentKind, string> = {
 export const SCOPE_LABELS: Record<AgentKeyScope, string> = {
   'tasks:read': 'Read tasks',
   'tasks:write': 'Write tasks',
+  'decisions:read': 'Read decisions',
+  'decisions:write': 'Write decisions',
   'handoffs:claim': 'Claim handoffs',
   'handoffs:complete': 'Complete handoffs',
   'usage:write': 'Report usage',
+  '*': 'Full access',
 };
