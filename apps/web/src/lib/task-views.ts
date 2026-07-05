@@ -15,6 +15,8 @@ export type SortBy = 'updated' | 'priority' | 'due' | 'title';
 export type DisplayConfig = {
   groupBy: GroupBy;
   sortBy: SortBy;
+  /** Whether terminal (done/archived) tasks are shown. Hidden by default. */
+  showCompleted: boolean;
 };
 
 export const GROUP_BY_LABELS: Record<GroupBy, string> = {
@@ -32,17 +34,24 @@ export const SORT_BY_LABELS: Record<SortBy, string> = {
 };
 
 /**
- * Preset views: one click sets a full DisplayConfig. These are the "default
- * views" the research recommends shipping so the page is useful with zero setup.
+ * Preset views: one click sets the grouping + sort. Presets carry only those two
+ * axes (not showCompleted), so switching presets preserves the completed toggle.
+ * These are the "default views" so the page is useful with zero setup.
  */
-export const PRESETS: { id: string; label: string; config: DisplayConfig }[] = [
+type PresetConfig = Pick<DisplayConfig, 'groupBy' | 'sortBy'>;
+
+export const PRESETS: { id: string; label: string; config: PresetConfig }[] = [
   { id: 'all', label: 'All', config: { groupBy: 'none', sortBy: 'updated' } },
-  { id: 'status', label: 'By status', config: { groupBy: 'status', sortBy: 'priority' } },
+  { id: 'status', label: 'By status', config: { groupBy: 'status', sortBy: 'due' } },
   { id: 'priority', label: 'By priority', config: { groupBy: 'priority', sortBy: 'due' } },
   { id: 'due', label: 'By due date', config: { groupBy: 'due', sortBy: 'due' } },
 ];
 
-export const DEFAULT_DISPLAY: DisplayConfig = PRESETS[0]!.config;
+/**
+ * Default: group by status, soonest due first within each status, completed
+ * tasks hidden. (The "By status" preset.)
+ */
+export const DEFAULT_DISPLAY: DisplayConfig = { ...PRESETS[1]!.config, showCompleted: false };
 
 export type TaskGroup = { key: string; label: string; tasks: Task[] };
 

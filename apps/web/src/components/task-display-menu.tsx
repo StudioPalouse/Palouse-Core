@@ -4,6 +4,7 @@ import { SlidersHorizontal } from 'lucide-react';
 import {
   Button,
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
@@ -58,6 +59,13 @@ export function TaskDisplayMenu({
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuCheckboxItem
+          checked={config.showCompleted}
+          onCheckedChange={(checked) => onChange({ ...config, showCompleted: checked })}
+        >
+          Show completed
+        </DropdownMenuCheckboxItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
