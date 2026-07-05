@@ -1,8 +1,18 @@
 import { randomBytes } from 'node:crypto';
 import { hash as argon2Hash, verify as argon2Verify } from '@node-rs/argon2';
-import { and, desc, eq, isNull } from 'drizzle-orm';
-import { agentApiKeys, agents, auditEvents, type Database } from '@palouse/db';
+import { and, count, desc, eq, isNull } from 'drizzle-orm';
 import {
+  agentApiKeys,
+  agentHandoffs,
+  agents,
+  auditEvents,
+  decisions,
+  tasks,
+  usageRollupsDaily,
+  type Database,
+} from '@palouse/db';
+import {
+  conflict,
   notFound,
   unauthorized,
   WILDCARD_SCOPE,
@@ -22,6 +32,7 @@ function toDto(row: typeof agents.$inferSelect): Agent {
     name: row.name,
     kind: row.kind,
     metadata: row.metadata,
+    archivedAt: row.archivedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -58,11 +69,20 @@ export async function createAgent(
   return toDto(row!);
 }
 
-export async function listAgents(db: Database, workspaceId: string): Promise<Agent[]> {
+export async function listAgents(
+  db: Database,
+  workspaceId: string,
+  opts: { includeArchived?: boolean } = {},
+): Promise<Agent[]> {
   const rows = await db
     .select()
     .from(agents)
-    .where(eq(agents.workspaceId, workspaceId))
+    .where(
+      and(
+        eq(agents.workspaceId, workspaceId),
+        opts.includeArchived ? undefined : isNull(agents.archivedAt),
+      ),
+    )
     .orderBy(desc(agents.createdAt));
   return rows.map(toDto);
 }
@@ -87,6 +107,98 @@ export async function getAgent(
 }
 
 /**
+ * Archives an agent: hides it from the default list and revokes every active
+ * key so nothing can authenticate as it. History (handoffs, spend, tasks and
+ * decisions it created) is kept and stays attributed to it.
+ */
+export async function archiveAgent(
+  db: Database,
+  workspaceId: string,
+  actorUserId: string,
+  agentId: string,
+): Promise<Agent> {
+  const [row] = await db
+    .update(agents)
+    .set({ archivedAt: new Date(), updatedAt: new Date() })
+    .where(
+      and(
+        eq(agents.id, agentId),
+        eq(agents.workspaceId, workspaceId),
+        isNull(agents.archivedAt),
+      ),
+    )
+    .returning();
+  if (!row) throw notFound('Agent not found');
+  const revoked = await db
+    .update(agentApiKeys)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(agentApiKeys.agentId, agentId), isNull(agentApiKeys.revokedAt)))
+    .returning({ id: agentApiKeys.id });
+  await audit(db, workspaceId, actorUserId, 'agent.archived', agentId, {
+    revokedKeyIds: revoked.map((k) => k.id),
+  });
+  return toDto(row);
+}
+
+/**
+ * Restores an archived agent. Keys revoked by the archive stay revoked; the
+ * caller mints a fresh key to reconnect.
+ */
+export async function unarchiveAgent(
+  db: Database,
+  workspaceId: string,
+  actorUserId: string,
+  agentId: string,
+): Promise<Agent> {
+  const [row] = await db
+    .update(agents)
+    .set({ archivedAt: null, updatedAt: new Date() })
+    .where(and(eq(agents.id, agentId), eq(agents.workspaceId, workspaceId)))
+    .returning();
+  if (!row) throw notFound('Agent not found');
+  await audit(db, workspaceId, actorUserId, 'agent.unarchived', agentId);
+  return toDto(row);
+}
+
+/**
+ * Hard-deletes an agent that has never done anything: no handoffs, no usage,
+ * and no tasks or decisions attributed to it. Agents with history must be
+ * archived instead so attribution and spend records survive.
+ */
+export async function deleteAgent(
+  db: Database,
+  workspaceId: string,
+  actorUserId: string,
+  agentId: string,
+): Promise<void> {
+  const [agent] = await db
+    .select({ id: agents.id, name: agents.name })
+    .from(agents)
+    .where(and(eq(agents.id, agentId), eq(agents.workspaceId, workspaceId)))
+    .limit(1);
+  if (!agent) throw notFound('Agent not found');
+
+  const refCounts = await Promise.all([
+    db.select({ n: count() }).from(agentHandoffs).where(eq(agentHandoffs.actorAgentId, agentId)),
+    db.select({ n: count() }).from(tasks).where(eq(tasks.createdByAgentId, agentId)),
+    db.select({ n: count() }).from(decisions).where(eq(decisions.createdByAgentId, agentId)),
+    db
+      .select({ n: count() })
+      .from(usageRollupsDaily)
+      .where(eq(usageRollupsDaily.agentId, agentId)),
+  ]);
+  if (refCounts.some(([row]) => (row?.n ?? 0) > 0)) {
+    throw conflict(
+      'This agent has recorded activity and cannot be deleted. Archive it instead to keep its history.',
+    );
+  }
+
+  // Keys cascade with the agent row.
+  await db.delete(agents).where(eq(agents.id, agentId));
+  await audit(db, workspaceId, actorUserId, 'agent.deleted', agentId, { name: agent.name });
+}
+
+/**
  * Mints `palouse_agk_<prefix>_<secret>`; the plaintext is returned exactly once
  * and only the Argon2id hash of the secret is stored.
  */
@@ -98,11 +210,12 @@ export async function createApiKey(
   input: CreateAgentKeyInput,
 ): Promise<{ key: AgentApiKey; plaintext: string }> {
   const [agent] = await db
-    .select({ id: agents.id })
+    .select({ id: agents.id, archivedAt: agents.archivedAt })
     .from(agents)
     .where(and(eq(agents.id, agentId), eq(agents.workspaceId, workspaceId)))
     .limit(1);
   if (!agent) throw notFound('Agent not found');
+  if (agent.archivedAt) throw conflict('This agent is archived. Restore it to create new keys.');
 
   const prefix = randomBytes(6).toString('base64url').slice(0, 8);
   const secret = randomBytes(32).toString('hex');
@@ -188,7 +301,15 @@ export async function verifyApiKey(db: Database, rawKey: string): Promise<Verifi
     })
     .from(agentApiKeys)
     .innerJoin(agents, eq(agents.id, agentApiKeys.agentId))
-    .where(and(eq(agentApiKeys.prefix, prefix!), isNull(agentApiKeys.revokedAt)));
+    // Archiving revokes keys, but filter on the agent too so an archived agent
+    // can never authenticate regardless.
+    .where(
+      and(
+        eq(agentApiKeys.prefix, prefix!),
+        isNull(agentApiKeys.revokedAt),
+        isNull(agents.archivedAt),
+      ),
+    );
 
   for (const candidate of candidates) {
     if (await argon2Verify(candidate.hash, secret!)) {

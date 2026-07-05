@@ -86,6 +86,41 @@ function AgentDetailContent() {
     refresh();
   }
 
+  async function restore() {
+    if (!workspace) return;
+    await api.unarchiveAgent(workspace.id, agentId);
+    refresh();
+  }
+
+  // Tries the hard delete first; when the server refuses because the agent has
+  // history, offers the archive fallback instead.
+  async function remove() {
+    if (!workspace) return;
+    if (
+      !window.confirm(
+        'Remove this agent? If it has never done any work it is deleted; otherwise you can archive it.',
+      )
+    )
+      return;
+    try {
+      await api.deleteAgent(workspace.id, agentId);
+      router.replace('/settings/agents');
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        if (
+          window.confirm(
+            'This agent has recorded activity, so it cannot be deleted. Archive it instead? Its keys are revoked and it is hidden from the list, but its history and spend records are kept.',
+          )
+        ) {
+          await api.archiveAgent(workspace.id, agentId);
+          refresh();
+        }
+      } else {
+        throw err;
+      }
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -100,6 +135,12 @@ function AgentDetailContent() {
             {agent ? agent.name : <Skeleton className="inline-block h-6 w-40" />}
           </h1>
           {agent && <Badge variant="outline">{AGENT_KIND_LABELS[agent.kind]}</Badge>}
+          {agent?.archivedAt && <Badge variant="outline">Archived</Badge>}
+          {agent?.archivedAt && canManage && (
+            <Button variant="outline" size="sm" className="ml-auto" onClick={() => void restore()}>
+              Restore
+            </Button>
+          )}
         </div>
       </div>
 
@@ -129,11 +170,16 @@ function AgentDetailContent() {
         <div className="flex items-center gap-3">
           <h2 className="text-sm font-semibold">API keys</h2>
           <div className="ml-auto">
-            {workspace && canManage && (
+            {workspace && canManage && !agent?.archivedAt && (
               <AgentKeyDialog workspaceId={workspace.id} agentId={agentId} onCreated={refresh} />
             )}
           </div>
         </div>
+        {agent?.archivedAt && (
+          <p className="text-muted-foreground text-xs">
+            Keys were revoked when this agent was archived. Restore it to create a new key.
+          </p>
+        )}
 
         <div className="rounded-lg border">
           {keys === null ? (
@@ -210,6 +256,22 @@ function AgentDetailContent() {
           )}
         </div>
       </section>
+
+      {canManage && agent && !agent.archivedAt && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-sm font-semibold">Remove</h2>
+          <div className="flex flex-wrap items-center gap-4 rounded-lg border p-4">
+            <p className="text-muted-foreground min-w-0 flex-1 text-xs">
+              An agent that has never done any work is deleted outright. One with recorded
+              activity is archived instead: keys are revoked and it is hidden from the list, but
+              its history and spend records are kept.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => void remove()}>
+              Remove agent
+            </Button>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -4,10 +4,10 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { Agent } from '@palouse/shared';
-import { Badge, Skeleton } from '@palouse/ui';
+import { Badge, Label, Skeleton, Switch } from '@palouse/ui';
 import { ChevronRight } from 'lucide-react';
 import { AgentsTabs } from '@/components/agents-tabs';
-import { NewAgentDialog } from '@/components/new-agent-dialog';
+import { ConnectAgentDialog } from '@/components/connect-agent-dialog';
 import { api } from '@/lib/api';
 import { useActiveWorkspace } from '@/lib/workspace-context';
 import { canManage } from '@/lib/roles';
@@ -24,6 +24,8 @@ function AgentsContent() {
   const router = useRouter();
   const { workspace } = useActiveWorkspace();
   const [rows, setRows] = useState<AgentRow[] | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [hasArchived, setHasArchived] = useState(false);
 
   const refresh = useCallback(() => {
     if (!workspace) return;
@@ -32,7 +34,7 @@ function AgentsContent() {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
     Promise.all([
-      api.listAgents(id),
+      api.listAgents(id, { includeArchived: true }),
       api.getUsageSummary(id, { from: monthStart, groupBy: 'agent' }),
       api.listHandoffs(id),
     ]).then(([{ agents }, usage, { handoffs }]) => {
@@ -41,6 +43,7 @@ function AgentsContent() {
       for (const h of handoffs) {
         tasksByAgent.set(h.actorAgentId, (tasksByAgent.get(h.actorAgentId) ?? 0) + 1);
       }
+      setHasArchived(agents.some((a) => a.archivedAt !== null));
       setRows(
         agents.map((agent) => ({
           agent,
@@ -53,20 +56,31 @@ function AgentsContent() {
 
   useEffect(refresh, [refresh]);
 
+  const visible = rows?.filter((r) => showArchived || r.agent.archivedAt === null) ?? null;
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-lg font-semibold tracking-tight">
-          Agents
-          {workspace && (
-            <span className="text-muted-foreground ml-2 text-sm font-normal">{workspace.name}</span>
-          )}
-        </h1>
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight">
+            Agents
+            {workspace && (
+              <span className="text-muted-foreground ml-2 text-sm font-normal">
+                {workspace.name}
+              </span>
+            )}
+          </h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Agents are external tools connected to Palouse over MCP. Each gets its own key, spend
+            tracking, and activity history.
+          </p>
+        </div>
         <div className="ml-auto">
           {workspace && canManage(workspace.role) && (
-            <NewAgentDialog
+            <ConnectAgentDialog
               workspaceId={workspace.id}
-              onCreated={(agent) => router.push(`/settings/agents/${agent.id}`)}
+              onConnected={refresh}
+              onDone={(agent) => router.push(`/settings/agents/${agent.id}`)}
             />
           )}
         </div>
@@ -74,25 +88,37 @@ function AgentsContent() {
 
       <AgentsTabs />
 
+      {hasArchived && (
+        <div className="flex items-center gap-2 self-end">
+          <Switch id="show-archived" checked={showArchived} onCheckedChange={setShowArchived} />
+          <Label htmlFor="show-archived" className="text-muted-foreground text-xs font-normal">
+            Show archived
+          </Label>
+        </div>
+      )}
+
       <div className="rounded-lg border">
-        {rows === null ? (
+        {visible === null ? (
           <div className="flex flex-col gap-3 p-4">
             <Skeleton className="h-5 w-full" />
             <Skeleton className="h-5 w-5/6" />
           </div>
-        ) : rows.length === 0 ? (
+        ) : visible.length === 0 ? (
           <p className="text-muted-foreground p-8 text-center text-sm">
-            No agents yet. Create one to connect Claude Code, Paperclip, or a custom MCP agent.
+            {rows && rows.length > 0
+              ? 'No active agents. Turn on "Show archived" to see archived ones.'
+              : 'Nothing connected yet. Connect Claude Code or any MCP client to work with the tasks and decisions in this workspace.'}
           </p>
         ) : (
           <ul className="divide-y">
-            {rows.map(({ agent, tasks, spend }) => (
+            {visible.map(({ agent, tasks, spend }) => (
               <li key={agent.id}>
                 <Link
                   href={{ pathname: `/settings/agents/${agent.id}` }}
                   className="hover:bg-accent/50 flex w-full items-center gap-3 px-4 py-3 text-left transition-colors"
                 >
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">{agent.name}</span>
+                  {agent.archivedAt !== null && <Badge variant="outline">Archived</Badge>}
                   <Badge variant="outline">{AGENT_KIND_LABELS[agent.kind]}</Badge>
                   <span className="text-muted-foreground hidden w-28 text-right text-xs sm:inline">
                     {tasks} {tasks === 1 ? 'task' : 'tasks'}

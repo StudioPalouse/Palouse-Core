@@ -35,6 +35,7 @@ export const agentSchema = z.object({
   name: z.string(),
   kind: agentKind,
   metadata: z.record(z.unknown()),
+  archivedAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
@@ -67,5 +68,10 @@ export type CreateAgentKeyInput = z.infer<typeof createAgentKeyInput>;
 
 export const listAgentsQuery = z.object({
   workspaceId: uuid,
+  // Archived agents are hidden by default; accepts a bare boolean or the
+  // string form it takes as a query param.
+  includeArchived: z
+    .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true')])
+    .default(false),
 });
 export type ListAgentsQuery = z.infer<typeof listAgentsQuery>;
