@@ -43,6 +43,9 @@ export const agents = pgTable(
     kind: agentKind('kind').notNull().default('mcp_generic'),
     publicKeyFingerprint: text('public_key_fingerprint'),
     metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default({}),
+    // Soft delete: agents with history (handoffs, usage, attributions) cannot be
+    // hard-deleted, so they are archived instead. Archiving revokes active keys.
+    archivedAt: timestamp('archived_at', { withTimezone: true, mode: 'date' }),
     createdAt: ts('created_at'),
     updatedAt: ts('updated_at'),
   },

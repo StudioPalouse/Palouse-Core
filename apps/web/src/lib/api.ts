@@ -242,8 +242,10 @@ export const api = {
       { method: 'DELETE' },
     ),
 
-  listAgents: (workspaceId: string) =>
-    request<{ agents: Agent[] }>(`/v1/agents?workspaceId=${workspaceId}`),
+  listAgents: (workspaceId: string, opts?: { includeArchived?: boolean }) =>
+    request<{ agents: Agent[] }>(
+      `/v1/agents?workspaceId=${workspaceId}${opts?.includeArchived ? '&includeArchived=true' : ''}`,
+    ),
 
   createAgent: (
     workspaceId: string,
@@ -258,6 +260,20 @@ export const api = {
     request<{ agent: Agent; keys: AgentApiKey[] }>(
       `/v1/agents/${agentId}?workspaceId=${workspaceId}`,
     ),
+
+  deleteAgent: (workspaceId: string, agentId: string) =>
+    request<void>(`/v1/agents/${agentId}?workspaceId=${workspaceId}`, { method: 'DELETE' }),
+
+  archiveAgent: (workspaceId: string, agentId: string) =>
+    request<{ agent: Agent }>(`/v1/agents/${agentId}/archive`, {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId }),
+    }),
+
+  unarchiveAgent: (workspaceId: string, agentId: string) =>
+    request<{ agent: Agent }>(`/v1/agents/${agentId}/archive?workspaceId=${workspaceId}`, {
+      method: 'DELETE',
+    }),
 
   createAgentKey: (workspaceId: string, agentId: string, input: { scopes: AgentKeyScope[] }) =>
     request<{ key: AgentApiKey; plaintext: string }>(`/v1/agents/${agentId}/keys`, {

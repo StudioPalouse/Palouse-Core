@@ -19,7 +19,9 @@ agentRoutes.get('/', async (c) => {
   if (!parsed.success) throw validation('Invalid agent query', parsed.error.flatten());
   const db = getDb(loadEnv().DATABASE_URL);
   await workspaces.requireMembership(db, parsed.data.workspaceId, c.get('userId'));
-  const agents = await agentService.listAgents(db, parsed.data.workspaceId);
+  const agents = await agentService.listAgents(db, parsed.data.workspaceId, {
+    includeArchived: parsed.data.includeArchived,
+  });
   return c.json({ agents });
 });
 
@@ -42,6 +44,41 @@ agentRoutes.get('/:id', async (c) => {
   await workspaces.requireMembership(db, workspaceId, c.get('userId'));
   const result = await agentService.getAgent(db, workspaceId, c.req.param('id'));
   return c.json(result);
+});
+
+// Hard delete; only allowed while the agent has no recorded history (the
+// service returns 409 otherwise, pointing the caller at archive).
+agentRoutes.delete('/:id', async (c) => {
+  const workspaceId = c.req.query('workspaceId') ?? '';
+  if (!workspaceId) throw validation('workspaceId query param required');
+  const db = getDb(loadEnv().DATABASE_URL);
+  await workspaces.requireRole(db, workspaceId, c.get('userId'), ['owner', 'admin']);
+  await agentService.deleteAgent(db, workspaceId, c.get('userId'), c.req.param('id'));
+  return c.body(null, 204);
+});
+
+agentRoutes.post('/:id/archive', async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const workspaceId = typeof body.workspaceId === 'string' ? body.workspaceId : '';
+  if (!workspaceId) throw validation('workspaceId required');
+  const db = getDb(loadEnv().DATABASE_URL);
+  await workspaces.requireRole(db, workspaceId, c.get('userId'), ['owner', 'admin']);
+  const agent = await agentService.archiveAgent(db, workspaceId, c.get('userId'), c.req.param('id'));
+  return c.json({ agent });
+});
+
+agentRoutes.delete('/:id/archive', async (c) => {
+  const workspaceId = c.req.query('workspaceId') ?? '';
+  if (!workspaceId) throw validation('workspaceId query param required');
+  const db = getDb(loadEnv().DATABASE_URL);
+  await workspaces.requireRole(db, workspaceId, c.get('userId'), ['owner', 'admin']);
+  const agent = await agentService.unarchiveAgent(
+    db,
+    workspaceId,
+    c.get('userId'),
+    c.req.param('id'),
+  );
+  return c.json({ agent });
 });
 
 // The plaintext key appears in this response exactly once and is never
