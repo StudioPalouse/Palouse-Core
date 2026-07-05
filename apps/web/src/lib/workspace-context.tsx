@@ -14,6 +14,7 @@ import type { Workspace, WorkspaceCapabilities } from '@palouse/shared';
 import { api, ApiError } from '@/lib/api';
 
 const STORAGE_KEY = 'palouse.activeWorkspaceId';
+const CAPABILITIES_KEY_PREFIX = 'palouse.capabilities.';
 
 /**
  * Module-scoped cache of the last-loaded workspace list. The app shell (and this
@@ -25,8 +26,45 @@ const STORAGE_KEY = 'palouse.activeWorkspaceId';
  */
 let cachedWorkspaces: Workspace[] | null = null;
 
-/** Same idea, for each workspace's capability map (keyed by workspace id). */
+/**
+ * Same idea, for each workspace's capability map (keyed by workspace id). The
+ * in-memory map keeps SPA navigations flash-free; localStorage backs it so a
+ * full page reload also hydrates the last-known map synchronously, before the
+ * network fetch resolves. Without the localStorage layer, every reload starts
+ * with an unknown (all-enabled) map and the disabled nav items pop in and then
+ * disappear once the fetch lands.
+ */
 const cachedCapabilities = new Map<string, WorkspaceCapabilities>();
+
+/** Read a workspace's capability map from the module cache, then localStorage. */
+function readCachedCapabilities(workspaceId: string): WorkspaceCapabilities | null {
+  const inMemory = cachedCapabilities.get(workspaceId);
+  if (inMemory) return inMemory;
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(`${CAPABILITIES_KEY_PREFIX}${workspaceId}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as WorkspaceCapabilities;
+    cachedCapabilities.set(workspaceId, parsed);
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/** Persist a freshly loaded capability map to both caches. */
+function writeCachedCapabilities(workspaceId: string, capabilities: WorkspaceCapabilities): void {
+  cachedCapabilities.set(workspaceId, capabilities);
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(
+      `${CAPABILITIES_KEY_PREFIX}${workspaceId}`,
+      JSON.stringify(capabilities),
+    );
+  } catch {
+    // Storage full or unavailable; the in-memory cache still serves this session.
+  }
+}
 
 type WorkspaceContextValue = {
   /** All workspaces the signed-in user belongs to. */
@@ -107,7 +145,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (workspace && workspace.id !== activeId) persist(workspace.id);
   }, [workspace, activeId, persist]);
 
-  const workspaceId = workspace?.id ?? null;
+  // Prefer the resolved workspace, but fall back to the persisted selection so
+  // the capability map hydrates from localStorage before the workspace list
+  // round-trips. The initializer only touches the in-memory cache (empty on a
+  // fresh load) to stay consistent with the server-rendered markup; the effect
+  // below pulls in the localStorage-backed map.
+  const workspaceId = workspace?.id ?? activeId;
   const [capabilities, setCapabilities] = useState<WorkspaceCapabilities | null>(
     workspaceId ? (cachedCapabilities.get(workspaceId) ?? null) : null,
   );
@@ -117,7 +160,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     api
       .getCapabilities(workspaceId)
       .then(({ capabilities }) => {
-        cachedCapabilities.set(workspaceId, capabilities);
+        writeCachedCapabilities(workspaceId, capabilities);
         setCapabilities(capabilities);
       })
       .catch(() => {
@@ -125,9 +168,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       });
   }, [workspaceId]);
 
-  // Hydrate from cache synchronously on workspace switch, then refresh.
+  // Hydrate from cache (memory, then localStorage) synchronously on workspace
+  // switch or reload, then refresh in the background.
   useEffect(() => {
-    setCapabilities(workspaceId ? (cachedCapabilities.get(workspaceId) ?? null) : null);
+    setCapabilities(workspaceId ? readCachedCapabilities(workspaceId) : null);
     loadCapabilities();
   }, [workspaceId, loadCapabilities]);
 

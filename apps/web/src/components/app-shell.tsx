@@ -13,6 +13,7 @@ import {
   KanbanSquare,
   LayoutDashboard,
   ListChecks,
+  Loader2,
   Menu,
   Monitor,
   Moon,
@@ -108,15 +109,15 @@ function NavLink({
       onClick={onNavigate}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
-        nested && 'ml-4 text-[13px]',
+        'flex items-center gap-3 rounded-md px-3 py-2 text-[15px] transition-colors',
+        nested && 'ml-4 text-sm',
         active
-          ? 'bg-accent text-accent-foreground font-medium'
-          : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+          ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+          : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground',
         className,
       )}
     >
-      <Icon className="size-4 shrink-0" />
+      <Icon className="size-[18px] shrink-0" />
       {item.label}
     </Link>
   );
@@ -147,7 +148,7 @@ function NavSection({ item, onNavigate }: { item: NavItem; onNavigate?: () => vo
           onClick={() => setExpanded((v) => !v)}
           aria-label={`${expanded ? 'Collapse' : 'Expand'} ${item.label}`}
           aria-expanded={expanded}
-          className="text-muted-foreground hover:bg-accent/50 hover:text-foreground flex size-8 shrink-0 items-center justify-center rounded-md transition-colors"
+          className="text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground flex size-8 shrink-0 items-center justify-center rounded-md transition-colors"
         >
           <ChevronRight
             className={cn('size-4 transition-transform', expanded && 'rotate-90')}
@@ -170,9 +171,15 @@ function NavSection({ item, onNavigate }: { item: NavItem; onNavigate?: () => vo
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const { capabilities } = useActiveWorkspace();
+  // Fail closed: until the capability map is known, show only ungated items. A
+  // workspace that has a capability turned off must never flash it to its
+  // users, so gated items appear only once the map confirms they are enabled.
+  const items = NAV.filter(
+    (item) => !item.capability || (capabilities != null && isCapabilityEnabled(capabilities, item.capability)),
+  );
   return (
     <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4">
-      {NAV.filter((item) => isCapabilityEnabled(capabilities, item.capability)).map((item) => (
+      {items.map((item) => (
         <NavSection key={item.href} item={item} onNavigate={onNavigate} />
       ))}
     </nav>
@@ -181,17 +188,30 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
 /**
  * Swaps the page for a "turned off" state when someone navigates directly to a
- * route whose capability an admin has disabled. Until the capability map loads,
- * routes render normally; the gate only blocks a confirmed-disabled capability.
+ * route whose capability an admin has disabled. Fails closed: while the
+ * capability map is still loading a gated route shows a neutral spinner rather
+ * than its content, so a disabled capability is never briefly visible.
  */
 function CapabilityGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { workspace, capabilities } = useActiveWorkspace();
   const capability = capabilityForPath(pathname);
-  if (capability && capabilities && !isCapabilityEnabled(capabilities, capability)) {
-    return <CapabilityDisabled capability={capability} canManage={canManage(workspace?.role)} />;
+  if (capability) {
+    if (capabilities == null) return <CapabilityLoading />;
+    if (!isCapabilityEnabled(capabilities, capability)) {
+      return <CapabilityDisabled capability={capability} canManage={canManage(workspace?.role)} />;
+    }
   }
   return <>{children}</>;
+}
+
+/** Neutral placeholder shown on a gated route while its capability map loads. */
+function CapabilityLoading() {
+  return (
+    <div className="flex min-h-[40vh] items-center justify-center" aria-hidden>
+      <Loader2 className="text-muted-foreground size-5 animate-spin" />
+    </div>
+  );
 }
 
 function Brand({ onNavigate }: { onNavigate?: () => void }) {
@@ -240,7 +260,7 @@ function WorkspaceSwitcher({ onNavigate }: { onNavigate?: () => void }) {
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="hover:bg-accent/50 flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors"
+            className="hover:bg-sidebar-accent/60 border-sidebar-border flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors"
           >
             <span className="min-w-0 flex-1 truncate font-medium">{workspace.name}</span>
             <ChevronsUpDown className="text-muted-foreground size-4 shrink-0" />
@@ -299,12 +319,12 @@ function UserMenu() {
   const initial = email.charAt(0).toUpperCase() || '?';
 
   return (
-    <div className="border-t p-3">
+    <div className="border-sidebar-border border-t p-3">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="hover:bg-accent/50 flex w-full items-center gap-3 rounded-md p-2 text-left transition-colors"
+            className="hover:bg-sidebar-accent/60 flex w-full items-center gap-3 rounded-md p-2 text-left transition-colors"
           >
             <UserAvatar image={image} initial={initial} />
             <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs">
@@ -366,7 +386,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-svh">
       {/* Desktop sidebar */}
-      <aside className="bg-card/40 hidden w-60 shrink-0 flex-col border-r lg:flex">
+      <aside className="bg-sidebar text-sidebar-foreground border-sidebar-border hidden w-64 shrink-0 flex-col border-r lg:flex">
         <Brand />
         <WorkspaceSwitcher />
         <NavLinks />
@@ -401,7 +421,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
         </header>
 
         <main className="flex-1 px-4 py-6 sm:px-6">
-          <div className="mx-auto w-full max-w-6xl">
+          <div className="mx-auto w-full max-w-7xl">
             <CapabilityGate>{children}</CapabilityGate>
           </div>
         </main>
