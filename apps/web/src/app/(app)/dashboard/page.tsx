@@ -3,13 +3,15 @@
 import { useEffect, useState, type ComponentType } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { DecisionListItem, Task, TaskStatus } from '@palouse/shared';
-import { Badge, Card, CardContent, CardHeader, CardTitle, Skeleton } from '@palouse/ui';
+import type { DecisionListItem, ObjectiveListItem, Task, TaskStatus } from '@palouse/shared';
+import { Badge, Card, CardContent, CardHeader, CardTitle, cn, Skeleton } from '@palouse/ui';
 import { Bot, ClipboardCheck, ListChecks, Scale, Target, TrendingUp } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
 import { useActiveWorkspace } from '@/lib/workspace-context';
 import { HANDOFF_STATE_LABELS, formatDateTime } from '@/lib/handoff-meta';
 import { DECISION_STATUS_LABELS } from '@/lib/decision-meta';
+import { OBJECTIVE_STATUS_LABELS, OBJECTIVE_STATUS_TONE } from '@/lib/objective-meta';
+import { ProgressBar } from '@/components/objective-list';
 import { STATUS_LABELS, formatDate } from '@/lib/task-meta';
 
 const STATUS_BADGE: Record<TaskStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
@@ -40,6 +42,9 @@ type DashboardData = {
   noIntegrations: boolean;
   decisionsTotal: number;
   decisionsUnderReview: number;
+  objectivesTotal: number;
+  objectivesProgress: number;
+  topObjectives: ObjectiveListItem[];
   recentActivity: ActivityItem[];
   recentTasks: Task[];
   recentDecisions: DecisionListItem[];
@@ -112,12 +117,16 @@ function DashboardContent() {
     const decisionsReq = showDecisions
       ? api.listDecisions(id, { limit: 50 })
       : Promise.resolve(null);
+    const objectivesReq = showObjectives
+      ? api.listObjectives(id, { limit: 50 })
+      : Promise.resolve(null);
     const agentsReq = api.listAgents(id);
 
-    Promise.all([tasksReq, decisionsReq, agentsReq])
-      .then(([taskData, decisionData, agents]) => {
+    Promise.all([tasksReq, decisionsReq, objectivesReq, agentsReq])
+      .then(([taskData, decisionData, objectiveData, agents]) => {
         const handoffs = taskData ? taskData[4].handoffs : [];
         const decisions = decisionData ? decisionData.decisions : [];
+        const objectives = objectiveData ? objectiveData.objectives : [];
 
         const activity: ActivityItem[] = [
           ...handoffs.map((h) => ({
@@ -138,9 +147,26 @@ function DashboardContent() {
             href: '/decisions',
             icon: Scale,
           })),
+          ...objectives.map((o) => ({
+            id: `objective:${o.id}`,
+            title: o.title,
+            subtitle: o.area
+              ? `${OBJECTIVE_STATUS_LABELS[o.status]} · ${o.area}`
+              : OBJECTIVE_STATUS_LABELS[o.status],
+            timestamp: o.updatedAt,
+            href: '/objectives',
+            icon: Target,
+          })),
         ]
           .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
           .slice(0, 8);
+
+        // Overall goal progress averages only objectives that have key results,
+        // so goals still being set up do not drag the number to zero.
+        const measured = objectives.filter((o) => o.keyResultCount > 0);
+        const objectivesProgress = measured.length
+          ? Math.round(measured.reduce((sum, o) => sum + o.progress, 0) / measured.length)
+          : 0;
 
         setData({
           open: taskData ? taskData[0].total : 0,
@@ -153,6 +179,9 @@ function DashboardContent() {
           noIntegrations: taskData ? taskData[5].integrations.length === 0 : false,
           decisionsTotal: decisionData ? decisionData.total : 0,
           decisionsUnderReview: decisions.filter((d) => d.status === 'under_review').length,
+          objectivesTotal: objectiveData ? objectiveData.total : 0,
+          objectivesProgress,
+          topObjectives: objectives.slice(0, 4),
           recentActivity: activity,
           recentTasks: taskData ? taskData[3].tasks.slice(0, 6) : [],
           recentDecisions: [...decisions]
@@ -163,7 +192,7 @@ function DashboardContent() {
       .catch((err) => {
         if (err instanceof ApiError && err.status === 401) router.replace('/sign-in');
       });
-  }, [workspace, router, showTasks, showDecisions]);
+  }, [workspace, router, showTasks, showDecisions, showObjectives]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -200,28 +229,76 @@ function DashboardContent() {
         </div>
       )}
 
-      {/* Objectives progress strip (placeholder until Objectives ships) */}
-      {showObjectives && (
-        <Card className="border-dashed py-4">
-          <CardContent className="flex items-center gap-3 px-4">
-            <span className="bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-full">
-              <Target className="size-4" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-medium">Objectives</p>
-              <p className="text-muted-foreground text-xs">
-                Goal progress will appear here once Objectives are set up.
-              </p>
-            </div>
-            <Link
-              href="/objectives"
-              className="text-muted-foreground hover:text-foreground ml-auto text-xs underline underline-offset-2"
-            >
-              Learn more
-            </Link>
-          </CardContent>
-        </Card>
-      )}
+      {/* Objectives progress: real goal progress once objectives exist. */}
+      {showObjectives &&
+        (data === null ? (
+          <Skeleton className="h-20 w-full rounded-xl" />
+        ) : data.objectivesTotal === 0 ? (
+          <Card className="border-dashed py-4">
+            <CardContent className="flex items-center gap-3 px-4">
+              <span className="bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-full">
+                <Target className="size-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Objectives</p>
+                <p className="text-muted-foreground text-xs">
+                  Set a goal your team is working toward and its progress shows up here.
+                </p>
+              </div>
+              <Link
+                href="/objectives"
+                className="text-muted-foreground hover:text-foreground ml-auto text-xs underline underline-offset-2"
+              >
+                Get started
+              </Link>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader className="flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Target className="size-4" />
+                Objectives
+              </CardTitle>
+              <Link
+                href="/objectives"
+                className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2"
+              >
+                View all
+              </Link>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-muted-foreground w-24 shrink-0 text-xs">
+                  {data.objectivesTotal} {data.objectivesTotal === 1 ? 'goal' : 'goals'}
+                </span>
+                <ProgressBar value={data.objectivesProgress} className="flex-1" />
+              </div>
+              <ul className="flex flex-col gap-2.5">
+                {data.topObjectives.map((o) => (
+                  <li key={o.id} className="flex items-center gap-3 text-sm">
+                    <span
+                      className={cn(
+                        'inline-flex w-20 shrink-0 justify-center rounded-md px-2 py-0.5 text-xs font-medium',
+                        OBJECTIVE_STATUS_TONE[o.status],
+                      )}
+                    >
+                      {OBJECTIVE_STATUS_LABELS[o.status]}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{o.title}</span>
+                    {o.keyResultCount > 0 ? (
+                      <ProgressBar value={o.progress} className="w-32 shrink-0" />
+                    ) : (
+                      <span className="text-muted-foreground w-32 shrink-0 text-right text-xs">
+                        No key results
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        ))}
 
       {/* Stat cards, driven by the workspace's enabled capabilities */}
       {data === null ? (
