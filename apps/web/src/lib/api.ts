@@ -31,6 +31,7 @@ import type {
   LlmGeneration,
   Objective,
   ObjectiveDetail,
+  ObjectiveImportResult,
   ObjectiveListItem,
   ReviewDecision,
   MemberRole,
@@ -299,6 +300,12 @@ export const api = {
       `/v1/objectives/${objectiveId}/key-results/${keyResultId}?workspaceId=${workspaceId}`,
       { method: 'DELETE' },
     ),
+
+  importObjectives: (workspaceId: string, csv: string, dryRun: boolean) =>
+    request<ObjectiveImportResult>('/v1/objectives/import', {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId, csv, dryRun }),
+    }),
 
   listAgents: (workspaceId: string, opts?: { includeArchived?: boolean }) =>
     request<{ agents: Agent[] }>(

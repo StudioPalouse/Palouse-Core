@@ -5,14 +5,18 @@ import {
   type Actor,
   type CreateKeyResultInput,
   type CreateObjectiveInput,
+  type ImportObjectivesInput,
   type KeyResult,
   type ListObjectivesQuery,
   type Objective,
   type ObjectiveDetail,
+  type ObjectiveImportItem,
+  type ObjectiveImportResult,
   type ObjectiveListItem,
   type UpdateKeyResultInput,
   type UpdateObjectiveInput,
 } from '@palouse/shared';
+import { parseObjectivesCsv } from './csv.js';
 
 /**
  * Attainment of a single key result as a 0-100 percentage. Linear between the
@@ -123,6 +127,40 @@ export async function listObjectives(
       return { ...toDto(r), keyResultCount: roll.count, progress: roll.progress };
     }),
     total: count?.total ?? 0,
+  };
+}
+
+/**
+ * Bulk-create native objectives from a CSV. `dryRun` parses and returns the
+ * preview (counts + per-row errors) without writing; otherwise every parsed
+ * objective is created. Invalid rows are skipped and reported, not fatal.
+ */
+export async function importObjectives(
+  db: Database,
+  workspaceId: string,
+  actor: Actor,
+  input: ImportObjectivesInput,
+): Promise<ObjectiveImportResult> {
+  const { objectives, errors } = parseObjectivesCsv(input.csv);
+  const keyResultCount = objectives.reduce((n, o) => n + (o.keyResults?.length ?? 0), 0);
+  const items: ObjectiveImportItem[] = objectives.map((o) => ({
+    title: o.title,
+    status: o.status ?? 'planning',
+    keyResultCount: o.keyResults?.length ?? 0,
+  }));
+
+  if (!input.dryRun) {
+    for (const objective of objectives) {
+      await createObjective(db, workspaceId, actor, objective);
+    }
+  }
+
+  return {
+    dryRun: input.dryRun ?? false,
+    objectiveCount: objectives.length,
+    keyResultCount,
+    objectives: items,
+    errors,
   };
 }
 

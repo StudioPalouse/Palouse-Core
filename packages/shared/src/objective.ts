@@ -108,6 +108,37 @@ export const updateObjectiveInput = z.object({
 });
 export type UpdateObjectiveInput = z.infer<typeof updateObjectiveInput>;
 
+/** Body for the CSV bulk-import endpoint. `dryRun` parses and previews without writing. */
+export const importObjectivesInput = z.object({
+  csv: z.string().min(1).max(2_000_000),
+  dryRun: z.boolean().optional(),
+});
+export type ImportObjectivesInput = z.infer<typeof importObjectivesInput>;
+
+/** A row that could not be imported, with its 1-based spreadsheet row number. */
+export const objectiveImportErrorSchema = z.object({
+  row: z.number().int(),
+  message: z.string(),
+});
+export type ObjectiveImportError = z.infer<typeof objectiveImportErrorSchema>;
+
+/** One objective in the import preview/result (a summary, not the full record). */
+export const objectiveImportItemSchema = z.object({
+  title: z.string(),
+  status: objectiveStatus,
+  keyResultCount: z.number().int().nonnegative(),
+});
+export type ObjectiveImportItem = z.infer<typeof objectiveImportItemSchema>;
+
+export const objectiveImportResultSchema = z.object({
+  dryRun: z.boolean(),
+  objectiveCount: z.number().int().nonnegative(),
+  keyResultCount: z.number().int().nonnegative(),
+  objectives: z.array(objectiveImportItemSchema),
+  errors: z.array(objectiveImportErrorSchema),
+});
+export type ObjectiveImportResult = z.infer<typeof objectiveImportResultSchema>;
+
 export const listObjectivesQuery = z.object({
   workspaceId: uuid,
   status: objectiveStatus.optional(),

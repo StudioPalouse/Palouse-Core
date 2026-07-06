@@ -14,6 +14,7 @@ import {
 import { ObjectiveList } from '@/components/objective-list';
 import { ObjectiveDetailSheet } from '@/components/objective-detail-sheet';
 import { NewObjectiveDialog } from '@/components/new-objective-dialog';
+import { ImportObjectivesDialog } from '@/components/import-objectives-dialog';
 import { api } from '@/lib/api';
 import { useActiveWorkspace } from '@/lib/workspace-context';
 import { OBJECTIVE_STATUS_LABELS, OBJECTIVE_STATUS_ORDER } from '@/lib/objective-meta';
@@ -77,8 +78,13 @@ export default function ObjectivesPage() {
               ))}
             </SelectContent>
           </Select>
-          <div className="ml-auto">
-            {workspace && <NewObjectiveDialog workspaceId={workspace.id} onCreated={refresh} />}
+          <div className="ml-auto flex items-center gap-2">
+            {workspace && (
+              <>
+                <ImportObjectivesDialog workspaceId={workspace.id} onImported={refresh} />
+                <NewObjectiveDialog workspaceId={workspace.id} onCreated={refresh} />
+              </>
+            )}
           </div>
         </div>
 
