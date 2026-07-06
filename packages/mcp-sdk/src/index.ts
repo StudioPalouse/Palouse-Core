@@ -7,6 +7,7 @@ import {
   decisionEntityType,
   decisionStatus,
   handoffState,
+  objectiveStatus,
   raciRole,
   taskStatus,
 } from '@palouse/shared';
@@ -32,12 +33,24 @@ export const TOOLS = [
   'add_decision_comment',
   'set_decision_stakeholders',
   'add_decision_relation',
+  'list_objectives',
+  'get_objective',
+  'create_objective',
+  'update_objective',
 ] as const;
 
 export type ToolName = (typeof TOOLS)[number];
 
 const taskId = z.string().uuid().describe('Palouse task id (uuid)');
 const decisionId = z.string().uuid().describe('Palouse decision id (uuid)');
+const objectiveId = z.string().uuid().describe('Palouse objective id (uuid)');
+const keyResultInput = z.object({
+  name: z.string().min(1).max(300).describe('What is being measured, e.g. "Signups per week"'),
+  startValue: z.number().default(0).describe('Baseline value at the start (defaults to 0)'),
+  targetValue: z.number().describe('The value that counts as done'),
+  currentValue: z.number().optional().describe('Latest value (defaults to the start value)'),
+  unit: z.string().max(50).optional().describe('Unit label, e.g. "%", "$", or "users"'),
+});
 const stakeholderAssignment = z.object({
   userId: z.string().uuid().describe('Palouse user id of the stakeholder'),
   role: raciRole.describe('RACI role: responsible, accountable, consulted, or informed'),
@@ -246,6 +259,44 @@ export const TOOL_INPUTS = {
     entityType: decisionEntityType,
     entityId: z.string().uuid(),
   },
+  list_objectives: {
+    status: objectiveStatus.optional().describe('Filter by objective status'),
+    area: z.string().max(200).optional().describe('Filter by the free-text area/grouping'),
+    search: z.string().max(200).optional().describe('Substring match on the objective title'),
+    limit: z.number().int().min(1).max(200).default(50).optional(),
+    offset: z.number().int().min(0).default(0).optional(),
+  },
+  get_objective: { objectiveId },
+  create_objective: {
+    title: z.string().min(1).max(500).describe('Short statement of the goal'),
+    descriptionMd: z
+      .string()
+      .max(50_000)
+      .optional()
+      .describe('Why this goal matters and how it will be judged (markdown)'),
+    area: z
+      .string()
+      .max(200)
+      .optional()
+      .describe('Optional grouping, e.g. "Growth" or a team name'),
+    status: objectiveStatus.optional().describe("Defaults to 'planning'"),
+    targetDate: z.string().datetime().optional().describe('When the goal should be reached'),
+    keyResults: z
+      .array(keyResultInput)
+      .max(100)
+      .optional()
+      .describe('Measurable key results this objective is scored on'),
+  },
+  update_objective: {
+    objectiveId,
+    title: z.string().min(1).max(500).optional(),
+    descriptionMd: z.string().max(50_000).nullable().optional(),
+    area: z.string().max(200).nullable().optional(),
+    status: objectiveStatus
+      .optional()
+      .describe('planning, active, at_risk, achieved, missed, or archived'),
+    targetDate: z.string().datetime().nullable().optional(),
+  },
 } satisfies Record<ToolName, z.ZodRawShape>;
 
 export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
@@ -286,6 +337,14 @@ export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
     "Replace a decision's RACI roster in full (responsible, accountable, consulted, informed). At most one accountable is allowed. Pass Palouse user ids.",
   add_decision_relation:
     'Link a decision to a related entity so the record sits alongside the work it concerns. Only task links resolve today; project/goal/context are reserved for when those capabilities ship.',
+  list_objectives:
+    'List the goals (objectives) your workspace is working toward, filterable by status, area, and title search. Use this to find an existing objective before creating a new one, and to report progress on the goals a person cares about.',
+  get_objective:
+    "Fetch one objective with its key results, including each key result's current value and computed progress toward its target.",
+  create_objective:
+    'Create a goal (objective) for the team, optionally with its measurable key results. Use this when a person sets an OKR or KPI worth tracking. Put the goal in the title, the reasoning and definition of success in the description, and set the area to the team or theme. Give each key result a start value, a target value, and a unit so progress can be measured. It is marked as agent-originated. Search first with list_objectives so you update an existing goal instead of duplicating it.',
+  update_objective:
+    'Update an objective: refine its title, description, area, or target date, or change its status (planning, active, at_risk, achieved, missed, archived). Use this when a goal is adopted, put at risk, or reached.',
 };
 
 /** `palouse://` resource URI templates exposed by the MCP server. */

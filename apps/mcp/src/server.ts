@@ -7,6 +7,7 @@ import {
   capabilityService,
   decisionService,
   handoffService,
+  objectiveService,
   taskService,
   usageService,
 } from '@palouse/core';
@@ -44,6 +45,10 @@ const SCOPES: Record<ToolName, AgentKeyScope> = {
   add_decision_comment: 'decisions:write',
   set_decision_stakeholders: 'decisions:write',
   add_decision_relation: 'decisions:write',
+  list_objectives: 'objectives:read',
+  get_objective: 'objectives:read',
+  create_objective: 'objectives:write',
+  update_objective: 'objectives:write',
 };
 
 /**
@@ -59,6 +64,10 @@ const CAPABILITY: Partial<Record<ToolName, CapabilityKey>> = {
   add_decision_comment: 'decisions',
   set_decision_stakeholders: 'decisions',
   add_decision_relation: 'decisions',
+  list_objectives: 'objectives',
+  get_objective: 'objectives',
+  create_objective: 'objectives',
+  update_objective: 'objectives',
 };
 
 type ToolArgs<N extends ToolName> = z.objectOutputType<(typeof TOOL_INPUTS)[N], z.ZodTypeAny>;
@@ -308,6 +317,50 @@ export async function buildServer(db: Database, key: VerifiedAgentKey): Promise<
       { entityType: args.entityType, entityId: args.entityId },
     ),
   }));
+
+  register('list_objectives', async (args) =>
+    objectiveService.listObjectives(db, {
+      workspaceId: key.workspaceId,
+      status: args.status,
+      area: args.area,
+      search: args.search,
+      limit: args.limit ?? 50,
+      offset: args.offset ?? 0,
+    }),
+  );
+
+  register('get_objective', async (args) =>
+    objectiveService.getObjective(db, key.workspaceId, args.objectiveId),
+  );
+
+  register('create_objective', async (args) => ({
+    objective: await objectiveService.createObjective(
+      db,
+      key.workspaceId,
+      agentActor(key.agentId),
+      {
+        title: args.title,
+        descriptionMd: args.descriptionMd,
+        area: args.area,
+        status: args.status,
+        targetDate: args.targetDate,
+        keyResults: args.keyResults,
+      },
+    ),
+  }));
+
+  register('update_objective', async (args) => {
+    const { objectiveId, ...input } = args;
+    return {
+      objective: await objectiveService.updateObjective(
+        db,
+        key.workspaceId,
+        agentActor(key.agentId),
+        objectiveId,
+        input,
+      ),
+    };
+  });
 
   registerResources(server, db, key);
 
