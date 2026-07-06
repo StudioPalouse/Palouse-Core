@@ -22,10 +22,16 @@ import type {
   HandoffState,
   HandoffStep,
   HandoffUsageSummary,
+  CreateKeyResultInput,
+  CreateObjectiveInput,
   Integration,
   Invitation,
   InviteRole,
+  KeyResult,
   LlmGeneration,
+  Objective,
+  ObjectiveDetail,
+  ObjectiveListItem,
   ReviewDecision,
   MemberRole,
   MembershipStatus,
@@ -35,6 +41,8 @@ import type {
   TaskListItem,
   TaskSource,
   UpdateDecisionInput,
+  UpdateKeyResultInput,
+  UpdateObjectiveInput,
   UpdateTaskInput,
   UsageSummaryRow,
   Workspace,
@@ -239,6 +247,56 @@ export const api = {
   removeDecisionRelation: (workspaceId: string, decisionId: string, relationId: string) =>
     request<void>(
       `/v1/decisions/${decisionId}/relations/${relationId}?workspaceId=${workspaceId}`,
+      { method: 'DELETE' },
+    ),
+
+  listObjectives: (
+    workspaceId: string,
+    params?: { status?: string; area?: string; search?: string; limit?: number },
+  ) => {
+    const qs = new URLSearchParams({ workspaceId });
+    if (params?.status) qs.set('status', params.status);
+    if (params?.area) qs.set('area', params.area);
+    if (params?.search) qs.set('search', params.search);
+    if (params?.limit != null) qs.set('limit', String(params.limit));
+    return request<{ objectives: ObjectiveListItem[]; total: number }>(`/v1/objectives?${qs}`);
+  },
+
+  getObjective: (workspaceId: string, objectiveId: string) =>
+    request<ObjectiveDetail>(`/v1/objectives/${objectiveId}?workspaceId=${workspaceId}`),
+
+  createObjective: (workspaceId: string, input: CreateObjectiveInput) =>
+    request<{ objective: Objective }>('/v1/objectives', {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId, ...input }),
+    }),
+
+  updateObjective: (workspaceId: string, objectiveId: string, input: UpdateObjectiveInput) =>
+    request<{ objective: Objective }>(`/v1/objectives/${objectiveId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ workspaceId, ...input }),
+    }),
+
+  addKeyResult: (workspaceId: string, objectiveId: string, input: CreateKeyResultInput) =>
+    request<{ keyResult: KeyResult }>(`/v1/objectives/${objectiveId}/key-results`, {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId, ...input }),
+    }),
+
+  updateKeyResult: (
+    workspaceId: string,
+    objectiveId: string,
+    keyResultId: string,
+    input: UpdateKeyResultInput,
+  ) =>
+    request<{ keyResult: KeyResult }>(`/v1/objectives/${objectiveId}/key-results/${keyResultId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ workspaceId, ...input }),
+    }),
+
+  removeKeyResult: (workspaceId: string, objectiveId: string, keyResultId: string) =>
+    request<void>(
+      `/v1/objectives/${objectiveId}/key-results/${keyResultId}?workspaceId=${workspaceId}`,
       { method: 'DELETE' },
     ),
 
