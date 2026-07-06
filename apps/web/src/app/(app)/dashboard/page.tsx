@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ComponentType } from 'react';
+import { useCallback, useEffect, useState, type ComponentType } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { DecisionListItem, ObjectiveListItem, Task, TaskStatus } from '@palouse/shared';
@@ -21,6 +21,10 @@ const STATUS_BADGE: Record<TaskStatus, 'default' | 'secondary' | 'destructive' |
   done: 'secondary',
   archived: 'secondary',
 };
+
+// Agents change tasks, decisions, and objectives server-side with nothing to
+// signal the client, so the dashboard polls to pick up their changes.
+const POLL_MS = 20_000;
 
 /** A normalized entry in the unified recent-activity feed (tasks + decisions). */
 type ActivityItem = {
@@ -99,7 +103,7 @@ function DashboardContent() {
   const showDecisions = capabilities?.decisions ?? true;
   const showObjectives = capabilities?.objectives ?? true;
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!workspace) return;
     const id = workspace.id;
 
@@ -193,6 +197,16 @@ function DashboardContent() {
         if (err instanceof ApiError && err.status === 401) router.replace('/sign-in');
       });
   }, [workspace, router, showTasks, showDecisions, showObjectives]);
+
+  // Load on mount / workspace change, then poll so changes surface on their own.
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    const t = setInterval(load, POLL_MS);
+    return () => clearInterval(t);
+  }, [load]);
 
   return (
     <div className="flex flex-col gap-6">
