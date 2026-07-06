@@ -3,6 +3,7 @@ import {
   createKeyResultInput,
   createObjectiveInput,
   forbidden,
+  importObjectivesInput,
   listObjectivesQuery,
   updateKeyResultInput,
   updateObjectiveInput,
@@ -65,6 +66,23 @@ objectiveRoutes.post('/', async (c) => {
     parsed.data,
   );
   return c.json({ objective }, 201);
+});
+
+objectiveRoutes.post('/import', async (c) => {
+  const body = await c.req.json();
+  const workspaceId = bodyWorkspaceId(body);
+  const parsed = importObjectivesInput.safeParse(body);
+  if (!parsed.success || !workspaceId)
+    throw validation('Invalid import', parsed.success ? undefined : parsed.error.flatten());
+  const db = getDb(loadEnv().DATABASE_URL);
+  await requireObjectivesAccess(db, workspaceId, c.get('userId'));
+  const result = await objectiveService.importObjectives(
+    db,
+    workspaceId,
+    userActor(c.get('userId')),
+    parsed.data,
+  );
+  return c.json(result);
 });
 
 objectiveRoutes.get('/:id', async (c) => {
