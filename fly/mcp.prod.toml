@@ -24,6 +24,9 @@ primary_region = "iad"
   API_BASE_URL = "https://app.palouse.ai"
   BETTER_AUTH_URL = "https://app.palouse.ai"
   WEB_BASE_URL = "https://app.palouse.ai"
+  # Audience this server verifies OAuth access tokens against (must match the
+  # aud the API mints); also the resource in its protected-resource metadata.
+  PUBLIC_MCP_URL = "https://mcp.palouse.ai/mcp"
 
 [[vm]]
   size = "shared-cpu-1x"
