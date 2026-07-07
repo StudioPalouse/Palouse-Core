@@ -1,4 +1,11 @@
 {
   "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // The oauth-provider plugin's inferred types reference zod v4 via pnpm
+    // paths that are not declaration-portable (TS2742). This package is
+    // consumed as source (main points at src/), so declarations are unneeded.
+    "declaration": false,
+    "declarationMap": false
+  },
   "include": ["src/**/*"]
 }

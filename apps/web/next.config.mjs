@@ -18,7 +18,16 @@ const nextConfig = {
   // The browser only ever talks to the web origin; these paths proxy server-side
   // to the API. Keeps auth cookies first-party and hides infra hostnames.
   async rewrites() {
-    return ['/v1/:path*', '/api/:path*', '/oauth/:path*', '/webhooks/:path*'].map((source) => ({
+    return [
+      '/v1/:path*',
+      '/api/:path*',
+      '/oauth/:path*',
+      '/webhooks/:path*',
+      // OAuth 2.1 discovery for MCP clients; RFC 8414 puts these at the origin
+      // root, so they proxy to the API like /api/auth does.
+      '/.well-known/oauth-authorization-server/:path*',
+      '/.well-known/openid-configuration/:path*',
+    ].map((source) => ({
       source,
       destination: `${API_PROXY_TARGET}${source}`,
     }));
