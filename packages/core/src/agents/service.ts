@@ -7,6 +7,9 @@ import {
   agents,
   auditEvents,
   decisions,
+  oauthAccessTokens,
+  oauthConsents,
+  oauthRefreshTokens,
   tasks,
   usageRollupsDaily,
   type Database,
@@ -107,9 +110,13 @@ export async function getAgent(
 }
 
 /**
- * Archives an agent: hides it from the default list and revokes every active
- * key so nothing can authenticate as it. History (handoffs, spend, tasks and
- * decisions it created) is kept and stays attributed to it.
+ * Archives an agent: hides it from the default list and revokes every way it
+ * can authenticate. For key-based agents that means revoking their API keys;
+ * for agents connected over OAuth (MCP sign-in) it means clearing their stored
+ * grants so no client can mint a fresh token and a reconnect needs consent
+ * again (the stateless access-token JWT is already refused once the agent is
+ * archived). History (handoffs, spend, tasks and decisions it created) is kept
+ * and stays attributed to it.
  */
 export async function archiveAgent(
   db: Database,
@@ -121,11 +128,7 @@ export async function archiveAgent(
     .update(agents)
     .set({ archivedAt: new Date(), updatedAt: new Date() })
     .where(
-      and(
-        eq(agents.id, agentId),
-        eq(agents.workspaceId, workspaceId),
-        isNull(agents.archivedAt),
-      ),
+      and(eq(agents.id, agentId), eq(agents.workspaceId, workspaceId), isNull(agents.archivedAt)),
     )
     .returning();
   if (!row) throw notFound('Agent not found');
@@ -134,6 +137,12 @@ export async function archiveAgent(
     .set({ revokedAt: new Date() })
     .where(and(eq(agentApiKeys.agentId, agentId), isNull(agentApiKeys.revokedAt)))
     .returning({ id: agentApiKeys.id });
+  // OAuth grants are keyed by referenceId = agentId. Deleting the refresh
+  // token cascades its access tokens; the consent is dropped so reconnecting
+  // asks the user to approve again.
+  await db.delete(oauthRefreshTokens).where(eq(oauthRefreshTokens.referenceId, agentId));
+  await db.delete(oauthAccessTokens).where(eq(oauthAccessTokens.referenceId, agentId));
+  await db.delete(oauthConsents).where(eq(oauthConsents.referenceId, agentId));
   await audit(db, workspaceId, actorUserId, 'agent.archived', agentId, {
     revokedKeyIds: revoked.map((k) => k.id),
   });
@@ -182,10 +191,7 @@ export async function deleteAgent(
     db.select({ n: count() }).from(agentHandoffs).where(eq(agentHandoffs.actorAgentId, agentId)),
     db.select({ n: count() }).from(tasks).where(eq(tasks.createdByAgentId, agentId)),
     db.select({ n: count() }).from(decisions).where(eq(decisions.createdByAgentId, agentId)),
-    db
-      .select({ n: count() })
-      .from(usageRollupsDaily)
-      .where(eq(usageRollupsDaily.agentId, agentId)),
+    db.select({ n: count() }).from(usageRollupsDaily).where(eq(usageRollupsDaily.agentId, agentId)),
   ]);
   if (refCounts.some(([row]) => (row?.n ?? 0) > 0)) {
     throw conflict(
@@ -193,7 +199,11 @@ export async function deleteAgent(
     );
   }
 
-  // Keys cascade with the agent row.
+  // OAuth grants reference the agent by a bare text id (no FK), so clear them
+  // explicitly. Keys cascade with the agent row.
+  await db.delete(oauthRefreshTokens).where(eq(oauthRefreshTokens.referenceId, agentId));
+  await db.delete(oauthAccessTokens).where(eq(oauthAccessTokens.referenceId, agentId));
+  await db.delete(oauthConsents).where(eq(oauthConsents.referenceId, agentId));
   await db.delete(agents).where(eq(agents.id, agentId));
   await audit(db, workspaceId, actorUserId, 'agent.deleted', agentId, { name: agent.name });
 }

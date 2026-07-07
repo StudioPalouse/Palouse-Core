@@ -1,4 +1,13 @@
-import type { AgentKeyScope, AgentKind } from '@palouse/shared';
+import type { Agent, AgentKeyScope, AgentKind } from '@palouse/shared';
+
+/**
+ * True for agents connected over MCP sign-in (OAuth) rather than an API key.
+ * The connect flow stamps the OAuth client id into the agent metadata; those
+ * agents have no API key and are managed as connections, not keys.
+ */
+export function isOAuthAgent(agent: Pick<Agent, 'metadata'>): boolean {
+  return typeof agent.metadata?.oauthClientId === 'string';
+}
 
 export const AGENT_KIND_LABELS: Record<AgentKind, string> = {
   mcp_generic: 'Generic MCP',

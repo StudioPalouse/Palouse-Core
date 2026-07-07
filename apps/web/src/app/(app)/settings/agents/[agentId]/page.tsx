@@ -10,7 +10,7 @@ import { AgentKeyDialog } from '@/components/agent-key-dialog';
 import { MiniSpark } from '@/components/spend-charts';
 import { api, ApiError } from '@/lib/api';
 import { useActiveWorkspace } from '@/lib/workspace-context';
-import { AGENT_KIND_LABELS, SCOPE_LABELS } from '@/lib/agent-meta';
+import { AGENT_KIND_LABELS, isOAuthAgent, SCOPE_LABELS } from '@/lib/agent-meta';
 import { HANDOFF_STATE_LABELS, formatDateTime, formatTokens, formatUsd } from '@/lib/handoff-meta';
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
@@ -77,6 +77,7 @@ function AgentDetailContent() {
   useEffect(refresh, [refresh]);
 
   const canManage = !!workspace && (workspace.role === 'owner' || workspace.role === 'admin');
+  const isOAuth = !!agent && isOAuthAgent(agent);
 
   async function revoke(keyId: string) {
     if (!workspace) return;
@@ -89,6 +90,20 @@ function AgentDetailContent() {
   async function restore() {
     if (!workspace) return;
     await api.unarchiveAgent(workspace.id, agentId);
+    refresh();
+  }
+
+  // OAuth connections are archived to revoke: that clears their stored grants
+  // so the client cannot mint a new token and must sign in again to reconnect.
+  async function disconnect() {
+    if (!workspace) return;
+    if (
+      !window.confirm(
+        'Revoke this connection? The client loses access immediately and must reconnect and sign in again.',
+      )
+    )
+      return;
+    await api.archiveAgent(workspace.id, agentId);
     refresh();
   }
 
@@ -134,7 +149,9 @@ function AgentDetailContent() {
           <h1 className="text-lg font-semibold tracking-tight">
             {agent ? agent.name : <Skeleton className="inline-block h-6 w-40" />}
           </h1>
-          {agent && <Badge variant="outline">{AGENT_KIND_LABELS[agent.kind]}</Badge>}
+          {agent && (
+            <Badge variant="outline">{isOAuth ? 'Sign-in' : AGENT_KIND_LABELS[agent.kind]}</Badge>
+          )}
           {agent?.archivedAt && <Badge variant="outline">Archived</Badge>}
           {agent?.archivedAt && canManage && (
             <Button variant="outline" size="sm" className="ml-auto" onClick={() => void restore()}>
@@ -165,61 +182,86 @@ function AgentDetailContent() {
         </Card>
       )}
 
-      {/* API keys */}
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center gap-3">
-          <h2 className="text-sm font-semibold">API keys</h2>
-          <div className="ml-auto">
-            {workspace && canManage && !agent?.archivedAt && (
-              <AgentKeyDialog workspaceId={workspace.id} agentId={agentId} onCreated={refresh} />
+      {/* Connection (OAuth sign-in) or API keys (key-based) */}
+      {isOAuth ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-sm font-semibold">Connection</h2>
+          <div className="flex flex-wrap items-center gap-4 rounded-lg border p-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm">Connected over MCP sign-in.</p>
+              <p className="text-muted-foreground mt-1 text-xs">
+                {agent?.archivedAt
+                  ? 'Access has been revoked. The client must reconnect and sign in again.'
+                  : `Connected ${formatDateTime(agent?.createdAt ?? null)}. No API key is stored; the client authenticates with the signed-in user's Palouse credentials.`}
+              </p>
+            </div>
+            {agent && !agent.archivedAt && canManage && (
+              <Button variant="outline" size="sm" onClick={() => void disconnect()}>
+                Revoke access
+              </Button>
             )}
           </div>
-        </div>
-        {agent?.archivedAt && (
-          <p className="text-muted-foreground text-xs">
-            Keys were revoked when this agent was archived. Restore it to create a new key.
-          </p>
-        )}
-
-        <div className="rounded-lg border">
-          {keys === null ? (
-            <div className="flex flex-col gap-3 p-4">
-              <Skeleton className="h-5 w-full" />
-              <Skeleton className="h-5 w-5/6" />
+        </section>
+      ) : (
+        <section className="flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-semibold">API keys</h2>
+            <div className="ml-auto">
+              {workspace && canManage && !agent?.archivedAt && (
+                <AgentKeyDialog workspaceId={workspace.id} agentId={agentId} onCreated={refresh} />
+              )}
             </div>
-          ) : keys.length === 0 ? (
-            <p className="text-muted-foreground p-8 text-center text-sm">
-              No keys yet. Create one to connect this agent over MCP.
+          </div>
+          {agent?.archivedAt && (
+            <p className="text-muted-foreground text-xs">
+              Keys were revoked when this agent was archived. Restore it to create a new key.
             </p>
-          ) : (
-            <ul className="divide-y">
-              {keys.map((key) => (
-                <li key={key.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                  <code className="bg-muted rounded px-1.5 py-0.5 text-xs">
-                    palouse_agk_{key.prefix}…
-                  </code>
-                  <div className="flex flex-wrap gap-1">
-                    {key.scopes.map((s) => (
-                      <Badge key={s} variant="secondary" className="text-[10px]">
-                        {SCOPE_LABELS[s] ?? s}
-                      </Badge>
-                    ))}
-                  </div>
-                  {key.revokedAt ? <Badge variant="outline">Revoked</Badge> : <Badge>Active</Badge>}
-                  <span className="text-muted-foreground ml-auto text-xs">
-                    last used: {formatDateTime(key.lastUsedAt)}
-                  </span>
-                  {!key.revokedAt && canManage && (
-                    <Button variant="ghost" size="sm" onClick={() => void revoke(key.id)}>
-                      Revoke
-                    </Button>
-                  )}
-                </li>
-              ))}
-            </ul>
           )}
-        </div>
-      </section>
+
+          <div className="rounded-lg border">
+            {keys === null ? (
+              <div className="flex flex-col gap-3 p-4">
+                <Skeleton className="h-5 w-full" />
+                <Skeleton className="h-5 w-5/6" />
+              </div>
+            ) : keys.length === 0 ? (
+              <p className="text-muted-foreground p-8 text-center text-sm">
+                No keys yet. Create one to connect this agent over MCP.
+              </p>
+            ) : (
+              <ul className="divide-y">
+                {keys.map((key) => (
+                  <li key={key.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                    <code className="bg-muted rounded px-1.5 py-0.5 text-xs">
+                      palouse_agk_{key.prefix}…
+                    </code>
+                    <div className="flex flex-wrap gap-1">
+                      {key.scopes.map((s) => (
+                        <Badge key={s} variant="secondary" className="text-[10px]">
+                          {SCOPE_LABELS[s] ?? s}
+                        </Badge>
+                      ))}
+                    </div>
+                    {key.revokedAt ? (
+                      <Badge variant="outline">Revoked</Badge>
+                    ) : (
+                      <Badge>Active</Badge>
+                    )}
+                    <span className="text-muted-foreground ml-auto text-xs">
+                      last used: {formatDateTime(key.lastUsedAt)}
+                    </span>
+                    {!key.revokedAt && canManage && (
+                      <Button variant="ghost" size="sm" onClick={() => void revoke(key.id)}>
+                        Revoke
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Recent activity */}
       <section className="flex flex-col gap-3">
@@ -262,9 +304,9 @@ function AgentDetailContent() {
           <h2 className="text-sm font-semibold">Remove</h2>
           <div className="flex flex-wrap items-center gap-4 rounded-lg border p-4">
             <p className="text-muted-foreground min-w-0 flex-1 text-xs">
-              An agent that has never done any work is deleted outright. One with recorded
-              activity is archived instead: keys are revoked and it is hidden from the list, but
-              its history and spend records are kept.
+              An agent that has never done any work is deleted outright. One with recorded activity
+              is archived instead: keys are revoked and it is hidden from the list, but its history
+              and spend records are kept.
             </p>
             <Button variant="outline" size="sm" onClick={() => void remove()}>
               Remove agent

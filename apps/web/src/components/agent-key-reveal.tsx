@@ -3,18 +3,10 @@
 import { useState } from 'react';
 import { Button, Label } from '@palouse/ui';
 import { Check, Copy, Download } from 'lucide-react';
-
-// Baked at build time (fly/web*.toml build args). Empty in self-hosted builds
-// that have not set NEXT_PUBLIC_MCP_URL; the UI shows a placeholder then.
-const MCP_URL = process.env.NEXT_PUBLIC_MCP_URL ?? '';
-const MCP_URL_PLACEHOLDER = 'https://your-palouse-host/mcp';
-// Distinct client alias per environment, so connecting staging and prod side
-// by side does not collide in the local MCP config.
-const MCP_ALIAS = MCP_URL.includes('mcp-test.') ? 'palouse-test' : 'palouse';
+import { MCP_ALIAS, MCP_URL, MCP_URL_PLACEHOLDER, mcpEndpoint } from '@/lib/mcp';
 
 function claudeCodeSnippet(plaintext: string): string {
-  const url = MCP_URL || MCP_URL_PLACEHOLDER;
-  return `claude mcp add --transport http ${MCP_ALIAS} ${url} --header "Authorization: Bearer ${plaintext}"`;
+  return `claude mcp add --transport http ${MCP_ALIAS} ${mcpEndpoint()} --header "Authorization: Bearer ${plaintext}"`;
 }
 
 function httpConfigSnippet(plaintext: string): string {
@@ -23,7 +15,7 @@ function httpConfigSnippet(plaintext: string): string {
       mcpServers: {
         [MCP_ALIAS]: {
           type: 'http',
-          url: MCP_URL || MCP_URL_PLACEHOLDER,
+          url: mcpEndpoint(),
           headers: { Authorization: `Bearer ${plaintext}` },
         },
       },
