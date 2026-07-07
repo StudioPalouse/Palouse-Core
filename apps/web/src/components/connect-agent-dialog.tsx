@@ -20,14 +20,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@palouse/ui';
-import { AgentKeyReveal } from '@/components/agent-key-reveal';
+import { AgentKeyReveal, CopyButton } from '@/components/agent-key-reveal';
 import { AgentScopePicker } from '@/components/agent-scope-picker';
 import { api, ApiError } from '@/lib/api';
 import { AGENT_KIND_LABELS } from '@/lib/agent-meta';
+import {
+  MCP_URL,
+  MCP_URL_PLACEHOLDER,
+  mcpEndpoint,
+  oauthConnectCommand,
+  oauthHttpConfigSnippet,
+} from '@/lib/mcp';
+
+type Mode = 'signin' | 'key';
 
 /**
- * Single connect flow: register the agent and mint its first key in one step,
- * then show the key with ready-to-paste MCP setup snippets.
+ * Two ways to connect a client to this workspace:
+ *  - Sign in (recommended): the user pastes the MCP endpoint into their client
+ *    and signs in with their Palouse credentials. No key to copy; the agent is
+ *    created by the OAuth flow and appears in the list afterward.
+ *  - API key (advanced): register the agent and mint a key here, for clients
+ *    that do not speak OAuth or for self-hosted stdio setups.
  */
 export function ConnectAgentDialog({
   workspaceId,
@@ -35,12 +48,13 @@ export function ConnectAgentDialog({
   onDone,
 }: {
   workspaceId: string;
-  /** Fired as soon as the agent exists, so lists can refresh behind the dialog. */
+  /** Fired as soon as a key-based agent exists, so lists can refresh behind the dialog. */
   onConnected?: (agent: Agent) => void;
-  /** Fired when the user closes the reveal step. */
+  /** Fired when the user closes the key reveal step. */
   onDone?: (agent: Agent) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<Mode>('signin');
   const [name, setName] = useState('');
   const [kind, setKind] = useState<AgentKind>('mcp_generic');
   const [fullAccess, setFullAccess] = useState(true);
@@ -50,6 +64,7 @@ export function ConnectAgentDialog({
   const [submitting, setSubmitting] = useState(false);
 
   function reset() {
+    setMode('signin');
     setName('');
     setKind('mcp_generic');
     setFullAccess(true);
@@ -107,57 +122,7 @@ export function ConnectAgentDialog({
         <Button size="sm">Connect agent</Button>
       </DialogTrigger>
       <DialogContent>
-        {created === null ? (
-          <>
-            <DialogHeader>
-              <DialogTitle>Connect an agent</DialogTitle>
-              <DialogDescription>
-                Name the agent, choose what it can do, and you get a key plus setup snippets to
-                paste into your MCP client.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={onSubmit} className="flex flex-col gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="agent-name">Name</Label>
-                <Input
-                  id="agent-name"
-                  required
-                  maxLength={200}
-                  placeholder="e.g. Claude Code (local)"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Kind</Label>
-                <Select value={kind} onValueChange={(v) => setKind(v as AgentKind)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {agentKind.options.map((k) => (
-                      <SelectItem key={k} value={k}>
-                        {AGENT_KIND_LABELS[k]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <AgentScopePicker
-                fullAccess={fullAccess}
-                onFullAccessChange={setFullAccess}
-                scopes={scopes}
-                onToggleScope={toggle}
-              />
-              {error && <p className="text-destructive text-sm">{error}</p>}
-              <DialogFooter>
-                <Button type="submit" disabled={submitting || !canSubmit}>
-                  {submitting ? 'Connecting…' : 'Connect'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </>
-        ) : (
+        {created !== null ? (
           <>
             <DialogHeader>
               <DialogTitle>{created.agent.name} is ready to connect</DialogTitle>
@@ -170,6 +135,117 @@ export function ConnectAgentDialog({
             <DialogFooter>
               <Button onClick={close}>Done</Button>
             </DialogFooter>
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle>Connect an agent</DialogTitle>
+              <DialogDescription>Connect any MCP client to this workspace.</DialogDescription>
+            </DialogHeader>
+
+            <div className="bg-muted flex gap-1 rounded-md p-1">
+              {(['signin', 'key'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMode(m)}
+                  aria-pressed={mode === m}
+                  className={`flex-1 rounded px-3 py-1.5 text-sm font-medium transition-colors ${
+                    mode === m
+                      ? 'bg-background shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {m === 'signin' ? 'Sign in' : 'API key'}
+                </button>
+              ))}
+            </div>
+
+            {mode === 'signin' ? (
+              <div className="flex flex-col gap-4">
+                <p className="text-muted-foreground text-sm">
+                  Add this endpoint to your MCP client and run it. You get sent to Palouse to sign
+                  in and confirm this workspace, then the client is connected. It shows up here once
+                  you finish.
+                </p>
+                <div className="grid gap-2">
+                  <Label>MCP endpoint</Label>
+                  <code className="bg-muted block overflow-x-auto rounded-md px-3 py-2 text-xs">
+                    {mcpEndpoint()}
+                  </code>
+                  <CopyButton value={mcpEndpoint()} label="Copy endpoint" />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Connect Claude Code</Label>
+                  <pre className="bg-muted overflow-x-auto rounded-md px-3 py-2 text-xs whitespace-pre-wrap break-all">
+                    {oauthConnectCommand()}
+                  </pre>
+                  <CopyButton value={oauthConnectCommand()} label="Copy command" />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Other MCP clients (HTTP)</Label>
+                  <pre className="bg-muted overflow-x-auto rounded-md px-3 py-2 text-xs">
+                    {oauthHttpConfigSnippet()}
+                  </pre>
+                  <CopyButton value={oauthHttpConfigSnippet()} label="Copy config" />
+                </div>
+                {!MCP_URL && (
+                  <p className="text-muted-foreground text-xs">
+                    Replace {MCP_URL_PLACEHOLDER} with your instance&apos;s MCP endpoint.
+                  </p>
+                )}
+                <DialogFooter>
+                  <Button variant="outline" onClick={close}>
+                    Done
+                  </Button>
+                </DialogFooter>
+              </div>
+            ) : (
+              <form onSubmit={onSubmit} className="flex flex-col gap-4">
+                <p className="text-muted-foreground text-sm">
+                  Mint a key for a client that cannot sign in through the browser, or for a
+                  self-hosted stdio setup. Name the agent and choose what it can do.
+                </p>
+                <div className="grid gap-2">
+                  <Label htmlFor="agent-name">Name</Label>
+                  <Input
+                    id="agent-name"
+                    required
+                    maxLength={200}
+                    placeholder="e.g. Claude Code (local)"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Kind</Label>
+                  <Select value={kind} onValueChange={(v) => setKind(v as AgentKind)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {agentKind.options.map((k) => (
+                        <SelectItem key={k} value={k}>
+                          {AGENT_KIND_LABELS[k]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <AgentScopePicker
+                  fullAccess={fullAccess}
+                  onFullAccessChange={setFullAccess}
+                  scopes={scopes}
+                  onToggleScope={toggle}
+                />
+                {error && <p className="text-destructive text-sm">{error}</p>}
+                <DialogFooter>
+                  <Button type="submit" disabled={submitting || !canSubmit}>
+                    {submitting ? 'Connecting…' : 'Connect with a key'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            )}
           </>
         )}
       </DialogContent>

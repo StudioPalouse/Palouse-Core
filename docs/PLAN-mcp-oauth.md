@@ -88,12 +88,26 @@ workspace pick, consent, JWT-authed `initialize` + `list_tasks`). Granted scope 
 everything advertised (consent screen lists them); per-scope pick-and-choose UI comes
 later. Staging dogfood via `claude mcp add --transport http`.
 
-**Slice 2 (follow-ups, in rough order):**
-- Connections UI: list OAuth-connected clients per workspace (consents + last-used),
-  revoke from Settings; agent archive also revokes that agent's consents/refresh tokens.
-- Granular scope selection on the consent screen.
-- Onboarding copy: lead the connect-agent dialog with "paste this URL", demote the
-  key snippet to the advanced path.
+**Slice 2 (UX surfacing): DONE.**
+- Connect-agent dialog now leads with "Sign in" (paste the MCP endpoint, run
+  `claude mcp add --transport http <alias> <url>` with no bearer, sign in). The old
+  name + scopes + mint-a-key flow is the second "API key" tab for clients that cannot
+  sign in or for self-hosted stdio.
+- OAuth connections are surfaced in Settings > Agents: a "Sign-in" badge in the list,
+  and on the detail page a "Connection" section (connected date, "Revoke access")
+  instead of the key-oriented "API keys"/"Remove" sections. Detection is
+  `metadata.oauthClientId` (helper `isOAuthAgent`).
+- Archive is now a full OAuth revoke: `archiveAgent`/`deleteAgent` delete the agent's
+  `oauth_consents` + `oauth_refresh_tokens` + `oauth_access_tokens` (keyed by
+  `referenceId = agentId`). The stateless access-token JWT is already refused by the
+  archived-agent check at verify time; clearing the grants stops refresh and forces
+  re-consent on reconnect. Verified locally for both agent types.
+
+**Slice 3 (still deferred, in rough order):**
+- Last-used / activity timestamp for OAuth connections (they have no `agent_api_keys`
+  row, so no `lastUsedAt` today; could derive from `audit_events` or stamp the agent).
+- Granular scope selection on the consent screen (today: consent grants the full
+  advertised set).
 - Trusted first-party clients (skip consent) if we ship our own clients.
 - Policy question: allow `member` role to self-connect (today: owner/admin only,
   matching key minting).

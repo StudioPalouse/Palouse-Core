@@ -11,7 +11,7 @@ import { ConnectAgentDialog } from '@/components/connect-agent-dialog';
 import { api } from '@/lib/api';
 import { useActiveWorkspace } from '@/lib/workspace-context';
 import { canManage } from '@/lib/roles';
-import { AGENT_KIND_LABELS } from '@/lib/agent-meta';
+import { AGENT_KIND_LABELS, isOAuthAgent } from '@/lib/agent-meta';
 import { formatUsd } from '@/lib/handoff-meta';
 
 type AgentRow = { agent: Agent; tasks: number; spend: number };
@@ -119,7 +119,9 @@ function AgentsContent() {
                 >
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">{agent.name}</span>
                   {agent.archivedAt !== null && <Badge variant="outline">Archived</Badge>}
-                  <Badge variant="outline">{AGENT_KIND_LABELS[agent.kind]}</Badge>
+                  <Badge variant="outline">
+                    {isOAuthAgent(agent) ? 'Sign-in' : AGENT_KIND_LABELS[agent.kind]}
+                  </Badge>
                   <span className="text-muted-foreground hidden w-28 text-right text-xs sm:inline">
                     {tasks} {tasks === 1 ? 'task' : 'tasks'}
                   </span>
