@@ -32,9 +32,22 @@ export const objectiveSchema = z.object({
 });
 export type Objective = z.infer<typeof objectiveSchema>;
 
+/** A project laddered up to a key result, with its live completion fraction. */
+export const keyResultProjectSchema = z.object({
+  projectId: uuid,
+  name: z.string(),
+  itemCount: z.number().int().nonnegative(),
+  completedCount: z.number().int().nonnegative(),
+  /** completedCount / itemCount, 0 when the project has no items. */
+  fraction: z.number().min(0).max(1),
+});
+export type KeyResultProject = z.infer<typeof keyResultProjectSchema>;
+
 /**
  * A key result as returned to clients. `progress` is a computed 0-100 attainment
  * derived from start/target/current (never stored); the service fills it in.
+ * When `derived` is true the `currentValue` was computed from `linkedProjects'`
+ * completion (the sum of their fractions) rather than set by hand.
  */
 export const keyResultSchema = z.object({
   id: uuid,
@@ -45,6 +58,8 @@ export const keyResultSchema = z.object({
   currentValue: z.number(),
   unit: z.string().nullable(),
   progress: z.number().min(0).max(100),
+  derived: z.boolean(),
+  linkedProjects: z.array(keyResultProjectSchema),
   createdByUserId: uuid.nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),

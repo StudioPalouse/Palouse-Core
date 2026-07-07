@@ -1,8 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Bot, Plus, X } from 'lucide-react';
-import type { KeyResult, ObjectiveDetail, ObjectiveStatus } from '@palouse/shared';
+import { Bot, Plus, Sparkles, X } from 'lucide-react';
+import type {
+  KeyResult,
+  ObjectiveDetail,
+  ObjectiveStatus,
+  ProjectListItem,
+} from '@palouse/shared';
 import {
   Badge,
   Button,
@@ -50,12 +55,19 @@ export function ObjectiveDetailSheet({
   onChanged: () => void;
 }) {
   const [detail, setDetail] = useState<ObjectiveDetail | null>(null);
+  const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!objectiveId) return;
     const data = await api.getObjective(workspaceId, objectiveId);
     setDetail(data);
+  }, [workspaceId, objectiveId]);
+
+  // Projects available to ladder a key result to.
+  useEffect(() => {
+    if (!objectiveId) return;
+    api.listProjects(workspaceId, { limit: 200 }).then(({ projects }) => setProjects(projects));
   }, [workspaceId, objectiveId]);
 
   useEffect(() => {
@@ -161,6 +173,7 @@ export function ObjectiveDetailSheet({
 
               <KeyResultsSection
                 detail={detail}
+                projects={projects}
                 onUpdate={(krId, currentValue) =>
                   run(() =>
                     api.updateKeyResult(workspaceId, detail.objective.id, krId, { currentValue }),
@@ -171,6 +184,16 @@ export function ObjectiveDetailSheet({
                 }
                 onRemove={(krId) =>
                   run(() => api.removeKeyResult(workspaceId, detail.objective.id, krId))
+                }
+                onLinkProject={(krId, projectId) =>
+                  run(() =>
+                    api.linkKeyResultProject(workspaceId, detail.objective.id, krId, projectId),
+                  )
+                }
+                onUnlinkProject={(krId, projectId) =>
+                  run(() =>
+                    api.unlinkKeyResultProject(workspaceId, detail.objective.id, krId, projectId),
+                  )
                 }
               />
             </div>
@@ -183,11 +206,15 @@ export function ObjectiveDetailSheet({
 
 function KeyResultsSection({
   detail,
+  projects,
   onUpdate,
   onAdd,
   onRemove,
+  onLinkProject,
+  onUnlinkProject,
 }: {
   detail: ObjectiveDetail;
+  projects: ProjectListItem[];
   onUpdate: (krId: string, currentValue: number) => Promise<void>;
   onAdd: (input: {
     name: string;
@@ -197,6 +224,8 @@ function KeyResultsSection({
     unit?: string | null;
   }) => Promise<void>;
   onRemove: (krId: string) => Promise<void>;
+  onLinkProject: (krId: string, projectId: string) => Promise<void>;
+  onUnlinkProject: (krId: string, projectId: string) => Promise<void>;
 }) {
   return (
     <div className="flex flex-col gap-3">
@@ -206,9 +235,17 @@ function KeyResultsSection({
           No key results yet. Add one to make this goal measurable.
         </p>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className="flex flex-col gap-4">
           {detail.keyResults.map((kr) => (
-            <KeyResultRow key={kr.id} kr={kr} onUpdate={onUpdate} onRemove={onRemove} />
+            <KeyResultRow
+              key={kr.id}
+              kr={kr}
+              projects={projects}
+              onUpdate={onUpdate}
+              onRemove={onRemove}
+              onLinkProject={onLinkProject}
+              onUnlinkProject={onUnlinkProject}
+            />
           ))}
         </ul>
       )}
@@ -219,16 +256,23 @@ function KeyResultsSection({
 
 function KeyResultRow({
   kr,
+  projects,
   onUpdate,
   onRemove,
+  onLinkProject,
+  onUnlinkProject,
 }: {
   kr: KeyResult;
+  projects: ProjectListItem[];
   onUpdate: (krId: string, currentValue: number) => Promise<void>;
   onRemove: (krId: string) => Promise<void>;
+  onLinkProject: (krId: string, projectId: string) => Promise<void>;
+  onUnlinkProject: (krId: string, projectId: string) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(String(kr.currentValue));
   const [saving, setSaving] = useState(false);
+  const [pick, setPick] = useState('');
 
   async function save() {
     const n = Number(value);
@@ -242,11 +286,21 @@ function KeyResultRow({
     }
   }
 
+  const linkedIds = new Set(kr.linkedProjects.map((p) => p.projectId));
+  const available = projects.filter((p) => !linkedIds.has(p.id));
+
   return (
     <li className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2 text-sm">
         <span className="min-w-0 flex-1 truncate">{kr.name}</span>
-        {editing ? (
+        {kr.derived ? (
+          // Value is driven by linked projects, not editable by hand.
+          <span className="text-muted-foreground flex items-center gap-1 tabular-nums">
+            <Sparkles className="size-3.5" aria-label="Auto from projects" />
+            {formatKeyResultValue(kr.currentValue, kr.unit)} /{' '}
+            {formatKeyResultValue(kr.targetValue, kr.unit)}
+          </span>
+        ) : editing ? (
           <span className="flex items-center gap-1">
             <Input
               className="h-7 w-24"
@@ -272,27 +326,71 @@ function KeyResultRow({
             </Button>
           </span>
         ) : (
-          <>
-            <button
-              type="button"
-              className="text-muted-foreground hover:text-foreground tabular-nums"
-              onClick={() => setEditing(true)}
-            >
-              {formatKeyResultValue(kr.currentValue, kr.unit)} /{' '}
-              {formatKeyResultValue(kr.targetValue, kr.unit)}
-            </button>
-            <button
-              type="button"
-              aria-label="Remove key result"
-              className="text-muted-foreground hover:text-foreground shrink-0"
-              onClick={() => void onRemove(kr.id)}
-            >
-              <X className="size-3.5" />
-            </button>
-          </>
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-foreground tabular-nums"
+            onClick={() => setEditing(true)}
+          >
+            {formatKeyResultValue(kr.currentValue, kr.unit)} /{' '}
+            {formatKeyResultValue(kr.targetValue, kr.unit)}
+          </button>
         )}
+        <button
+          type="button"
+          aria-label="Remove key result"
+          className="text-muted-foreground hover:text-foreground shrink-0"
+          onClick={() => void onRemove(kr.id)}
+        >
+          <X className="size-3.5" />
+        </button>
       </div>
       <ProgressBar value={kr.progress} />
+
+      {kr.linkedProjects.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 pt-0.5">
+          {kr.linkedProjects.map((p) => (
+            <Badge key={p.projectId} variant="outline" className="gap-1">
+              <span className="truncate">{p.name}</span>
+              <span className="text-muted-foreground tabular-nums">
+                {p.completedCount}/{p.itemCount}
+              </span>
+              <button
+                type="button"
+                aria-label="Unlink project"
+                className="text-muted-foreground hover:text-foreground shrink-0"
+                onClick={() => void onUnlinkProject(kr.id, p.projectId)}
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+      {available.length > 0 && (
+        <div className="flex items-center gap-2 pt-0.5">
+          <Select value={pick} onValueChange={setPick}>
+            <SelectTrigger size="sm" className="h-7 flex-1">
+              <SelectValue placeholder="Ladder a project to this key result…" />
+            </SelectTrigger>
+            <SelectContent>
+              {available.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="h-7"
+            disabled={!pick}
+            onClick={() => void onLinkProject(kr.id, pick).then(() => setPick(''))}
+          >
+            Link
+          </Button>
+        </div>
+      )}
     </li>
   );
 }

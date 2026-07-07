@@ -4,6 +4,7 @@ export * as capabilityService from './capabilities/service.js';
 export * as taskService from './tasks/service.js';
 export * as decisionService from './decisions/service.js';
 export * as objectiveService from './objectives/service.js';
+export * as projectService from './projects/service.js';
 export * as integrationService from './integrations/service.js';
 export * as agentService from './agents/service.js';
 export * as handoffService from './handoffs/state-machine.js';

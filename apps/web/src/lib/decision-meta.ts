@@ -54,6 +54,7 @@ export const RACI_INITIAL: Record<RaciRole, string> = {
 export const ENTITY_TYPE_LABELS: Record<DecisionEntityType, string> = {
   task: 'Task',
   project: 'Project',
+  project_item: 'Card',
   goal: 'Goal',
   context: 'Context',
 };

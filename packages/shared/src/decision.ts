@@ -18,7 +18,7 @@ export type DecisionOrigin = z.infer<typeof decisionOrigin>;
 export const raciRole = z.enum(['responsible', 'accountable', 'consulted', 'informed']);
 export type RaciRole = z.infer<typeof raciRole>;
 
-export const decisionEntityType = z.enum(['task', 'project', 'goal', 'context']);
+export const decisionEntityType = z.enum(['task', 'project', 'project_item', 'goal', 'context']);
 export type DecisionEntityType = z.infer<typeof decisionEntityType>;
 
 export const decisionResourceKind = z.enum(['link', 'document', 'other']);

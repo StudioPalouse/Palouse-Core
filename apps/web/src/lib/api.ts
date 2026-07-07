@@ -33,6 +33,17 @@ import type {
   ObjectiveDetail,
   ObjectiveImportResult,
   ObjectiveListItem,
+  CreateColumnInput,
+  CreateProjectInput,
+  CreateProjectItemInput,
+  Project,
+  ProjectColumn,
+  ProjectDetail,
+  ProjectItem,
+  ProjectListItem,
+  UpdateColumnInput,
+  UpdateProjectInput,
+  UpdateProjectItemInput,
   ReviewDecision,
   MemberRole,
   MembershipStatus,
@@ -306,6 +317,156 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ workspaceId, csv, dryRun }),
     }),
+
+  linkKeyResultProject: (
+    workspaceId: string,
+    objectiveId: string,
+    keyResultId: string,
+    projectId: string,
+  ) =>
+    request<void>(`/v1/objectives/${objectiveId}/key-results/${keyResultId}/projects`, {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId, projectId }),
+    }),
+
+  unlinkKeyResultProject: (
+    workspaceId: string,
+    objectiveId: string,
+    keyResultId: string,
+    projectId: string,
+  ) =>
+    request<void>(
+      `/v1/objectives/${objectiveId}/key-results/${keyResultId}/projects/${projectId}?workspaceId=${workspaceId}`,
+      { method: 'DELETE' },
+    ),
+
+  listProjects: (
+    workspaceId: string,
+    params?: { status?: string; search?: string; limit?: number },
+  ) => {
+    const qs = new URLSearchParams({ workspaceId });
+    if (params?.status) qs.set('status', params.status);
+    if (params?.search) qs.set('search', params.search);
+    if (params?.limit != null) qs.set('limit', String(params.limit));
+    return request<{ projects: ProjectListItem[]; total: number }>(`/v1/projects?${qs}`);
+  },
+
+  getProject: (workspaceId: string, projectId: string) =>
+    request<ProjectDetail>(`/v1/projects/${projectId}?workspaceId=${workspaceId}`),
+
+  createProject: (workspaceId: string, input: CreateProjectInput) =>
+    request<{ project: Project }>('/v1/projects', {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId, ...input }),
+    }),
+
+  updateProject: (workspaceId: string, projectId: string, input: UpdateProjectInput) =>
+    request<{ project: Project }>(`/v1/projects/${projectId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ workspaceId, ...input }),
+    }),
+
+  deleteProject: (workspaceId: string, projectId: string) =>
+    request<void>(`/v1/projects/${projectId}?workspaceId=${workspaceId}`, { method: 'DELETE' }),
+
+  addProjectColumn: (workspaceId: string, projectId: string, input: CreateColumnInput) =>
+    request<{ column: ProjectColumn }>(`/v1/projects/${projectId}/columns`, {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId, ...input }),
+    }),
+
+  updateProjectColumn: (
+    workspaceId: string,
+    projectId: string,
+    columnId: string,
+    input: UpdateColumnInput,
+  ) =>
+    request<{ column: ProjectColumn }>(`/v1/projects/${projectId}/columns/${columnId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ workspaceId, ...input }),
+    }),
+
+  removeProjectColumn: (workspaceId: string, projectId: string, columnId: string) =>
+    request<void>(`/v1/projects/${projectId}/columns/${columnId}?workspaceId=${workspaceId}`, {
+      method: 'DELETE',
+    }),
+
+  createProjectItem: (workspaceId: string, projectId: string, input: CreateProjectItemInput) =>
+    request<{ item: ProjectItem }>(`/v1/projects/${projectId}/items`, {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId, ...input }),
+    }),
+
+  updateProjectItem: (
+    workspaceId: string,
+    projectId: string,
+    itemId: string,
+    input: UpdateProjectItemInput,
+  ) =>
+    request<{ item: ProjectItem }>(`/v1/projects/${projectId}/items/${itemId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ workspaceId, ...input }),
+    }),
+
+  removeProjectItem: (workspaceId: string, projectId: string, itemId: string) =>
+    request<void>(`/v1/projects/${projectId}/items/${itemId}?workspaceId=${workspaceId}`, {
+      method: 'DELETE',
+    }),
+
+  addProjectDependency: (
+    workspaceId: string,
+    projectId: string,
+    input: { predecessorItemId: string; successorItemId: string },
+  ) =>
+    request<void>(`/v1/projects/${projectId}/dependencies`, {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId, ...input }),
+    }),
+
+  removeProjectDependency: (workspaceId: string, projectId: string, dependencyId: string) =>
+    request<void>(
+      `/v1/projects/${projectId}/dependencies/${dependencyId}?workspaceId=${workspaceId}`,
+      { method: 'DELETE' },
+    ),
+
+  linkProjectItemTask: (workspaceId: string, projectId: string, itemId: string, taskId: string) =>
+    request<void>(`/v1/projects/${projectId}/items/${itemId}/tasks`, {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId, taskId }),
+    }),
+
+  unlinkProjectItemTask: (
+    workspaceId: string,
+    projectId: string,
+    itemId: string,
+    taskId: string,
+  ) =>
+    request<void>(
+      `/v1/projects/${projectId}/items/${itemId}/tasks/${taskId}?workspaceId=${workspaceId}`,
+      { method: 'DELETE' },
+    ),
+
+  linkProjectItemDecision: (
+    workspaceId: string,
+    projectId: string,
+    itemId: string,
+    decisionId: string,
+  ) =>
+    request<void>(`/v1/projects/${projectId}/items/${itemId}/decisions`, {
+      method: 'POST',
+      body: JSON.stringify({ workspaceId, decisionId }),
+    }),
+
+  unlinkProjectItemDecision: (
+    workspaceId: string,
+    projectId: string,
+    itemId: string,
+    decisionId: string,
+  ) =>
+    request<void>(
+      `/v1/projects/${projectId}/items/${itemId}/decisions/${decisionId}?workspaceId=${workspaceId}`,
+      { method: 'DELETE' },
+    ),
 
   listAgents: (workspaceId: string, opts?: { includeArchived?: boolean }) =>
     request<{ agents: Agent[] }>(
