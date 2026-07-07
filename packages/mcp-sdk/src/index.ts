@@ -8,6 +8,7 @@ import {
   decisionStatus,
   handoffState,
   objectiveStatus,
+  projectStatus,
   raciRole,
   taskStatus,
 } from '@palouse/shared';
@@ -37,6 +38,12 @@ export const TOOLS = [
   'get_objective',
   'create_objective',
   'update_objective',
+  'list_projects',
+  'get_project',
+  'create_project',
+  'update_project',
+  'create_project_item',
+  'update_project_item',
 ] as const;
 
 export type ToolName = (typeof TOOLS)[number];
@@ -44,6 +51,8 @@ export type ToolName = (typeof TOOLS)[number];
 const taskId = z.string().uuid().describe('Palouse task id (uuid)');
 const decisionId = z.string().uuid().describe('Palouse decision id (uuid)');
 const objectiveId = z.string().uuid().describe('Palouse objective id (uuid)');
+const projectId = z.string().uuid().describe('Palouse project id (uuid)');
+const projectItemId = z.string().uuid().describe('Palouse project item (card) id (uuid)');
 const keyResultInput = z.object({
   name: z.string().min(1).max(300).describe('What is being measured, e.g. "Signups per week"'),
   startValue: z.number().default(0).describe('Baseline value at the start (defaults to 0)'),
@@ -297,6 +306,57 @@ export const TOOL_INPUTS = {
       .describe('planning, active, at_risk, achieved, missed, or archived'),
     targetDate: z.string().datetime().nullable().optional(),
   },
+  list_projects: {
+    status: projectStatus.optional().describe('Filter by project status'),
+    search: z.string().max(200).optional().describe('Substring match on the project name'),
+    limit: z.number().int().min(1).max(200).default(50).optional(),
+    offset: z.number().int().min(0).default(0).optional(),
+  },
+  get_project: { projectId },
+  create_project: {
+    name: z.string().min(1).max(300).describe('Short project name'),
+    descriptionMd: z
+      .string()
+      .max(50_000)
+      .optional()
+      .describe('What the project is about and its goal (markdown)'),
+    status: projectStatus.optional().describe("Defaults to 'active'"),
+  },
+  update_project: {
+    projectId,
+    name: z.string().min(1).max(300).optional(),
+    descriptionMd: z.string().max(50_000).nullable().optional(),
+    status: projectStatus
+      .optional()
+      .describe('planning, active, on_hold, completed, or archived'),
+  },
+  create_project_item: {
+    projectId,
+    columnId: z
+      .string()
+      .uuid()
+      .optional()
+      .describe('Column (list) to add the card to; defaults to the first column'),
+    title: z.string().min(1).max(500).describe('Short card title'),
+    descriptionMd: z.string().max(50_000).optional().describe('Card detail (markdown)'),
+    startDate: z.string().datetime().optional().describe('Timeline start for the Gantt view'),
+    endDate: z.string().datetime().optional().describe('Timeline due date for the Gantt view'),
+    completed: z.boolean().optional().describe('Mark the card done on creation'),
+  },
+  update_project_item: {
+    projectId,
+    itemId: projectItemId,
+    columnId: z
+      .string()
+      .uuid()
+      .optional()
+      .describe('Move the card to this column; a done column marks it complete'),
+    title: z.string().min(1).max(500).optional(),
+    descriptionMd: z.string().max(50_000).nullable().optional(),
+    startDate: z.string().datetime().nullable().optional(),
+    endDate: z.string().datetime().nullable().optional(),
+    completed: z.boolean().optional().describe('Mark the card done or not done'),
+  },
 } satisfies Record<ToolName, z.ZodRawShape>;
 
 export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
@@ -345,6 +405,18 @@ export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
     'Create a goal (objective) for the team, optionally with its measurable key results. Use this when a person sets an OKR or KPI worth tracking. Put the goal in the title, the reasoning and definition of success in the description, and set the area to the team or theme. Give each key result a start value, a target value, and a unit so progress can be measured. It is marked as agent-originated. Search first with list_objectives so you update an existing goal instead of duplicating it.',
   update_objective:
     'Update an objective: refine its title, description, area, or target date, or change its status (planning, active, at_risk, achieved, missed, archived). Use this when a goal is adopted, put at risk, or reached.',
+  list_projects:
+    'List the projects (Kanban boards) in your workspace, filterable by status and name search. Each project reports how many cards it has and how many are done. Use this to find an existing project before creating a new one.',
+  get_project:
+    "Fetch one project with its columns and cards, including each card's column, completion, timeline dates, and its linked tasks and decisions.",
+  create_project:
+    'Create a project (a lightweight Kanban board) for the team. It comes seeded with To do, In progress, and Done columns; cards in the Done column count as complete. Put the project name in the title and its aim in the description. It is marked as agent-originated. Search first with list_projects so you extend an existing project instead of duplicating it.',
+  update_project:
+    'Update a project: refine its name or description, or change its status (planning, active, on_hold, completed, archived).',
+  create_project_item:
+    'Add a card to a project. Defaults to the first column unless you pass a columnId. Give it a title and optional detail, and set startDate/endDate to place it on the timeline. Adding it to a done column (or passing completed) marks it complete, which feeds any key result this project ladders up to.',
+  update_project_item:
+    'Update a card: change its title or detail, move it to another column, set its timeline dates, or mark it done. Moving a card into a done column marks it complete; completion drives the progress of any key result the project is laddered to.',
 };
 
 /** `palouse://` resource URI templates exposed by the MCP server. */

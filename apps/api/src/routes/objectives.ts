@@ -4,6 +4,7 @@ import {
   createObjectiveInput,
   forbidden,
   importObjectivesInput,
+  linkKeyResultProjectInput,
   listObjectivesQuery,
   updateKeyResultInput,
   updateObjectiveInput,
@@ -166,6 +167,42 @@ objectiveRoutes.delete('/:id/key-results/:krId', async (c) => {
     userActor(c.get('userId')),
     c.req.param('id'),
     c.req.param('krId'),
+  );
+  return c.body(null, 204);
+});
+
+// Ladder a whole project up to a key result: its completion drives KR progress.
+objectiveRoutes.post('/:id/key-results/:krId/projects', async (c) => {
+  const body = await c.req.json();
+  const workspaceId = bodyWorkspaceId(body);
+  const parsed = linkKeyResultProjectInput.safeParse(body);
+  if (!parsed.success || !workspaceId)
+    throw validation('Invalid project link', parsed.success ? undefined : parsed.error.flatten());
+  const db = getDb(loadEnv().DATABASE_URL);
+  await requireObjectivesAccess(db, workspaceId, c.get('userId'));
+  await objectiveService.linkKeyResultProject(
+    db,
+    workspaceId,
+    userActor(c.get('userId')),
+    c.req.param('id'),
+    c.req.param('krId'),
+    parsed.data.projectId,
+  );
+  return c.body(null, 201);
+});
+
+objectiveRoutes.delete('/:id/key-results/:krId/projects/:projectId', async (c) => {
+  const workspaceId = c.req.query('workspaceId') ?? '';
+  if (!workspaceId) throw validation('workspaceId query param required');
+  const db = getDb(loadEnv().DATABASE_URL);
+  await requireObjectivesAccess(db, workspaceId, c.get('userId'));
+  await objectiveService.unlinkKeyResultProject(
+    db,
+    workspaceId,
+    userActor(c.get('userId')),
+    c.req.param('id'),
+    c.req.param('krId'),
+    c.req.param('projectId'),
   );
   return c.body(null, 204);
 });

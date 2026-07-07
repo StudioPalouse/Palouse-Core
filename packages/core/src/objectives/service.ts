@@ -1,5 +1,13 @@
 import { and, asc, desc, eq, ilike, inArray, sql, type SQL } from 'drizzle-orm';
-import { auditEvents, keyResults, objectives, type Database } from '@palouse/db';
+import {
+  auditEvents,
+  keyResultProjects,
+  keyResults,
+  objectives,
+  projectItems,
+  projects,
+  type Database,
+} from '@palouse/db';
 import {
   notFound,
   type Actor,
@@ -7,6 +15,7 @@ import {
   type CreateObjectiveInput,
   type ImportObjectivesInput,
   type KeyResult,
+  type KeyResultProject,
   type ListObjectivesQuery,
   type Objective,
   type ObjectiveDetail,
@@ -55,20 +64,87 @@ function toDto(row: typeof objectives.$inferSelect): Objective {
   };
 }
 
-function keyResultToDto(row: typeof keyResults.$inferSelect): KeyResult {
+/**
+ * Row to DTO. When the key result has linked projects, its current value is
+ * derived from their completion (the sum of each project's completed/total
+ * fraction) rather than the stored manual value.
+ */
+function keyResultToDto(
+  row: typeof keyResults.$inferSelect,
+  linkedProjects: KeyResultProject[] = [],
+): KeyResult {
+  const derived = linkedProjects.length > 0;
+  const currentValue = derived
+    ? linkedProjects.reduce((sum, p) => sum + p.fraction, 0)
+    : row.currentValue;
   return {
     id: row.id,
     objectiveId: row.objectiveId,
     name: row.name,
     startValue: row.startValue,
     targetValue: row.targetValue,
-    currentValue: row.currentValue,
+    currentValue,
     unit: row.unit,
-    progress: keyResultProgress(row.startValue, row.targetValue, row.currentValue),
+    progress: keyResultProgress(row.startValue, row.targetValue, currentValue),
+    derived,
+    linkedProjects,
     createdByUserId: row.createdByUserId,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
+}
+
+/**
+ * For the given key-result ids, load their laddered projects enriched with live
+ * completion counts, keyed by key-result id. Two grouped queries keep this off
+ * the per-KR fan-out path.
+ */
+async function loadKeyResultProjects(
+  db: Database,
+  keyResultIds: string[],
+): Promise<Map<string, KeyResultProject[]>> {
+  const byKeyResult = new Map<string, KeyResultProject[]>();
+  if (keyResultIds.length === 0) return byKeyResult;
+
+  const links = await db
+    .select({
+      keyResultId: keyResultProjects.keyResultId,
+      projectId: keyResultProjects.projectId,
+      name: projects.name,
+    })
+    .from(keyResultProjects)
+    .innerJoin(projects, eq(projects.id, keyResultProjects.projectId))
+    .where(inArray(keyResultProjects.keyResultId, keyResultIds));
+  if (links.length === 0) return byKeyResult;
+
+  const projectIds = [...new Set(links.map((l) => l.projectId))];
+  const counts = new Map<string, { itemCount: number; completedCount: number }>();
+  const itemRows = await db
+    .select({
+      projectId: projectItems.projectId,
+      itemCount: sql<number>`count(*)::int`,
+      completedCount: sql<number>`count(${projectItems.completedAt})::int`,
+    })
+    .from(projectItems)
+    .where(inArray(projectItems.projectId, projectIds))
+    .groupBy(projectItems.projectId);
+  for (const r of itemRows)
+    counts.set(r.projectId, { itemCount: r.itemCount, completedCount: r.completedCount });
+
+  for (const link of links) {
+    const c = counts.get(link.projectId) ?? { itemCount: 0, completedCount: 0 };
+    const fraction = c.itemCount > 0 ? c.completedCount / c.itemCount : 0;
+    const list = byKeyResult.get(link.keyResultId) ?? [];
+    list.push({
+      projectId: link.projectId,
+      name: link.name,
+      itemCount: c.itemCount,
+      completedCount: c.completedCount,
+      fraction,
+    });
+    byKeyResult.set(link.keyResultId, list);
+  }
+  return byKeyResult;
 }
 
 export async function listObjectives(
@@ -103,6 +179,7 @@ export async function listObjectives(
   if (ids.length > 0) {
     const krRows = await db
       .select({
+        id: keyResults.id,
         objectiveId: keyResults.objectiveId,
         startValue: keyResults.startValue,
         targetValue: keyResults.targetValue,
@@ -110,10 +187,18 @@ export async function listObjectives(
       })
       .from(keyResults)
       .where(inArray(keyResults.objectiveId, ids));
+    // Fold in laddered-project completion so a KR driven by projects rolls up
+    // its live progress, not its stale stored value.
+    const linkedByKr = await loadKeyResultProjects(
+      db,
+      krRows.map((kr) => kr.id),
+    );
     const byObjective = new Map<string, number[]>();
     for (const kr of krRows) {
+      const linked = linkedByKr.get(kr.id);
+      const current = linked ? linked.reduce((s, p) => s + p.fraction, 0) : kr.currentValue;
       const list = byObjective.get(kr.objectiveId) ?? [];
-      list.push(keyResultProgress(kr.startValue, kr.targetValue, kr.currentValue));
+      list.push(keyResultProgress(kr.startValue, kr.targetValue, current));
       byObjective.set(kr.objectiveId, list);
     }
     for (const [objectiveId, progresses] of byObjective) {
@@ -189,9 +274,13 @@ export async function getObjective(
     .from(keyResults)
     .where(eq(keyResults.objectiveId, objectiveId))
     .orderBy(asc(keyResults.createdAt));
+  const linkedByKr = await loadKeyResultProjects(
+    db,
+    krRows.map((kr) => kr.id),
+  );
   return {
     objective: toDto(row),
-    keyResults: krRows.map(keyResultToDto),
+    keyResults: krRows.map((kr) => keyResultToDto(kr, linkedByKr.get(kr.id) ?? [])),
   };
 }
 
@@ -340,6 +429,78 @@ export async function removeKeyResult(
   if (!row) throw notFound('Key result not found');
   await touchObjective(db, objectiveId);
   await audit(db, workspaceId, actor, 'objective.key_result_removed', objectiveId, { keyResultId });
+}
+
+/** Load a key result, enforcing that it belongs to an objective in the workspace. */
+async function loadKeyResultRow(
+  db: Database,
+  workspaceId: string,
+  objectiveId: string,
+  keyResultId: string,
+): Promise<typeof keyResults.$inferSelect> {
+  await loadObjectiveRow(db, workspaceId, objectiveId);
+  const [row] = await db
+    .select()
+    .from(keyResults)
+    .where(and(eq(keyResults.id, keyResultId), eq(keyResults.objectiveId, objectiveId)))
+    .limit(1);
+  if (!row) throw notFound('Key result not found');
+  return row;
+}
+
+/** Ladder a whole project up to a key result so its completion drives progress. */
+export async function linkKeyResultProject(
+  db: Database,
+  workspaceId: string,
+  actor: Actor,
+  objectiveId: string,
+  keyResultId: string,
+  projectId: string,
+): Promise<void> {
+  await loadKeyResultRow(db, workspaceId, objectiveId, keyResultId);
+  const [project] = await db
+    .select({ id: projects.id })
+    .from(projects)
+    .where(and(eq(projects.id, projectId), eq(projects.workspaceId, workspaceId)))
+    .limit(1);
+  if (!project) throw notFound('Project not found');
+  await db
+    .insert(keyResultProjects)
+    .values({
+      keyResultId,
+      projectId,
+      createdByUserId: actor.type === 'user' ? actor.id : null,
+    })
+    .onConflictDoNothing({ target: [keyResultProjects.keyResultId, keyResultProjects.projectId] });
+  await touchObjective(db, objectiveId);
+  await audit(db, workspaceId, actor, 'objective.key_result_project_linked', objectiveId, {
+    keyResultId,
+    projectId,
+  });
+}
+
+export async function unlinkKeyResultProject(
+  db: Database,
+  workspaceId: string,
+  actor: Actor,
+  objectiveId: string,
+  keyResultId: string,
+  projectId: string,
+): Promise<void> {
+  await loadKeyResultRow(db, workspaceId, objectiveId, keyResultId);
+  await db
+    .delete(keyResultProjects)
+    .where(
+      and(
+        eq(keyResultProjects.keyResultId, keyResultId),
+        eq(keyResultProjects.projectId, projectId),
+      ),
+    );
+  await touchObjective(db, objectiveId);
+  await audit(db, workspaceId, actor, 'objective.key_result_project_unlinked', objectiveId, {
+    keyResultId,
+    projectId,
+  });
 }
 
 /** Bump the parent objective's updatedAt so list ordering reflects KR edits. */

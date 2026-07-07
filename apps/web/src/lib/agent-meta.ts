@@ -14,6 +14,8 @@ export const SCOPE_LABELS: Record<AgentKeyScope, string> = {
   'decisions:write': 'Write decisions',
   'objectives:read': 'Read objectives',
   'objectives:write': 'Write objectives',
+  'projects:read': 'Read projects',
+  'projects:write': 'Write projects',
   'handoffs:claim': 'Claim handoffs',
   'handoffs:complete': 'Complete handoffs',
   'usage:write': 'Report usage',

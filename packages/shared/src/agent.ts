@@ -11,6 +11,8 @@ export const agentKeyScope = z.enum([
   'decisions:write',
   'objectives:read',
   'objectives:write',
+  'projects:read',
+  'projects:write',
   'handoffs:claim',
   'handoffs:complete',
   'usage:write',

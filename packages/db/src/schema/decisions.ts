@@ -31,6 +31,7 @@ export const raciRole = pgEnum('raci_role', [
 export const decisionEntityType = pgEnum('decision_entity_type', [
   'task',
   'project',
+  'project_item',
   'goal',
   'context',
 ]);

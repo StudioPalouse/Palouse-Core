@@ -8,6 +8,7 @@ import {
   decisionService,
   handoffService,
   objectiveService,
+  projectService,
   taskService,
   usageService,
 } from '@palouse/core';
@@ -49,6 +50,12 @@ const SCOPES: Record<ToolName, AgentKeyScope> = {
   get_objective: 'objectives:read',
   create_objective: 'objectives:write',
   update_objective: 'objectives:write',
+  list_projects: 'projects:read',
+  get_project: 'projects:read',
+  create_project: 'projects:write',
+  update_project: 'projects:write',
+  create_project_item: 'projects:write',
+  update_project_item: 'projects:write',
 };
 
 /**
@@ -68,6 +75,12 @@ const CAPABILITY: Partial<Record<ToolName, CapabilityKey>> = {
   get_objective: 'objectives',
   create_objective: 'objectives',
   update_objective: 'objectives',
+  list_projects: 'projects',
+  get_project: 'projects',
+  create_project: 'projects',
+  update_project: 'projects',
+  create_project_item: 'projects',
+  update_project_item: 'projects',
 };
 
 type ToolArgs<N extends ToolName> = z.objectOutputType<(typeof TOOL_INPUTS)[N], z.ZodTypeAny>;
@@ -357,6 +370,72 @@ export async function buildServer(db: Database, key: VerifiedAgentKey): Promise<
         key.workspaceId,
         agentActor(key.agentId),
         objectiveId,
+        input,
+      ),
+    };
+  });
+
+  register('list_projects', async (args) =>
+    projectService.listProjects(db, {
+      workspaceId: key.workspaceId,
+      status: args.status,
+      search: args.search,
+      limit: args.limit ?? 50,
+      offset: args.offset ?? 0,
+    }),
+  );
+
+  register('get_project', async (args) =>
+    projectService.getProject(db, key.workspaceId, args.projectId),
+  );
+
+  register('create_project', async (args) => ({
+    project: await projectService.createProject(db, key.workspaceId, agentActor(key.agentId), {
+      name: args.name,
+      descriptionMd: args.descriptionMd,
+      status: args.status,
+    }),
+  }));
+
+  register('update_project', async (args) => {
+    const { projectId, ...input } = args;
+    return {
+      project: await projectService.updateProject(
+        db,
+        key.workspaceId,
+        agentActor(key.agentId),
+        projectId,
+        input,
+      ),
+    };
+  });
+
+  register('create_project_item', async (args) => ({
+    item: await projectService.createProjectItem(
+      db,
+      key.workspaceId,
+      agentActor(key.agentId),
+      args.projectId,
+      {
+        columnId: args.columnId,
+        title: args.title,
+        descriptionMd: args.descriptionMd,
+        startDate: args.startDate,
+        endDate: args.endDate,
+        completed: args.completed,
+      },
+    ),
+  }));
+
+  register('update_project_item', async (args) => {
+    const { projectId, itemId, ...input } = args;
+    return {
+      item: await projectService.updateProjectItem(
+        db,
+        key.workspaceId,
+        agentActor(key.agentId),
+        projectId,
+        itemId,
         input,
       ),
     };
