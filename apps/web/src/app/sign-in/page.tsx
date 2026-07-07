@@ -47,7 +47,7 @@ export default function SignInPage() {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
-    const { error } = await signIn.email({ email, password });
+    const { data, error } = await signIn.email({ email, password });
     if (error) {
       // Unverified accounts are blocked (403) and Better-Auth re-sends the link.
       const notVerified = error.status === 403 || /verif/i.test(error.message ?? '');
@@ -57,6 +57,14 @@ export default function SignInPage() {
           : (error.message ?? 'Sign in failed'),
       );
       setSubmitting(false);
+      return;
+    }
+    // When sign-in arrived from an OAuth authorize redirect (MCP connect
+    // flow), the server resumes /oauth2/authorize and hands back the next
+    // hop (workspace selection, consent, or the client's redirect_uri).
+    const resumed = data as { redirect?: boolean; url?: string } | null;
+    if (resumed?.redirect && resumed.url) {
+      window.location.href = resumed.url;
       return;
     }
     router.push(safeNext() as Route);

@@ -13,6 +13,7 @@
     "test": "echo 'TODO: vitest'"
   },
   "dependencies": {
+    "@better-auth/oauth-provider": "^1.6.23",
     "@hono/node-server": "^1.19.14",
     "@palouse/auth": "workspace:*",
     "@palouse/config": "workspace:*",

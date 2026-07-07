@@ -109,6 +109,10 @@ task board polling) → `v0.9.0` (per-workspace capability toggles with nav gati
 
 ## Next / backlog
 
+0. **MCP OAuth connect (in progress, 2026-07-07)**: paste the MCP URL into a client and
+   sign in with Palouse credentials instead of minting a key by hand. Better Auth
+   `@better-auth/oauth-provider` + workspace selection at consent; agent keys stay as
+   the manual/self-hosted path. Design + slices: `docs/PLAN-mcp-oauth.md`.
 1. **Board bookkeeping**: close the shipped issues — Phase 4 (#20-#25), Team & access epic
    (#43-#49). Open a Testing & CI epic; open issues for the user-management work if not tracked.
 2. **Manual dogfood on staging**: exercise the destructive account-deletion path end to end

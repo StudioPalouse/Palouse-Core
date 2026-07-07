@@ -17,6 +17,9 @@ primary_region = "iad"
   API_BASE_URL = "https://test.palouse.ai"
   BETTER_AUTH_URL = "https://test.palouse.ai"
   WEB_BASE_URL = "https://test.palouse.ai"
+  # Public URL of the MCP endpoint. The OAuth authorization server builds the
+  # MCP access-token audience and resource metadata from it for MCP sign-in.
+  PUBLIC_MCP_URL = "https://mcp-test.palouse.ai/mcp"
   # Hosted cloud: work emails only — public providers (gmail, outlook, …) can't sign up.
   AUTH_BLOCK_PUBLIC_EMAIL_DOMAINS = "true"
   # Verified Resend sending domain (app.palouse.ai to be added later).

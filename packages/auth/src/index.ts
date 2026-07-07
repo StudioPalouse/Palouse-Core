@@ -5,6 +5,7 @@ import { loadEnv } from '@palouse/config';
 import { getDb } from '@palouse/db';
 import { renderBasicEmail, sendEmail } from '@palouse/mail';
 import { BLOCKED_EMAIL_MESSAGE, isEmailDomainBlocked, policyFromEnv } from './email-policy.js';
+import { mcpOAuthPlugins } from './mcp-oauth.js';
 
 function build() {
   const env = loadEnv();
@@ -42,6 +43,10 @@ function build() {
     trustedOrigins: [env.WEB_BASE_URL],
     // Tables use uuid PKs with gen_random_uuid() defaults — let Postgres mint ids.
     advanced: { database: { generateId: false } },
+    // The jwt plugin's session-JWT endpoint is unused; only the OAuth token
+    // endpoint should mint JWTs (recommended by the oauth-provider docs).
+    disabledPaths: ['/token'],
+    plugins: mcpOAuthPlugins(env, db),
     emailAndPassword: {
       enabled: true,
       // Hosted policy: block sign-in until the email is verified. An unverified

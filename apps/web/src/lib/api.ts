@@ -119,6 +119,23 @@ export const api = {
       { method: 'PATCH', body: JSON.stringify({ enabled }) },
     ),
 
+  // MCP OAuth connect flow (docs/PLAN-mcp-oauth.md)
+  getMcpSelection: () =>
+    request<{
+      selection: {
+        workspaceId: string;
+        workspaceName: string;
+        agentId: string;
+        clientId: string;
+      } | null;
+    }>('/v1/mcp-connect/selection'),
+
+  selectMcpWorkspace: (input: { workspaceId: string; clientId: string }) =>
+    request<{ agentId: string }>('/v1/mcp-connect/selection', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
   listMembers: (workspaceId: string) =>
     request<{ members: WorkspaceMember[] }>(`/v1/workspaces/${workspaceId}/members`),
 

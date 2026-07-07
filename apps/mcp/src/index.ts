@@ -4,8 +4,8 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import pino from 'pino';
 import { loadEnv } from '@palouse/config';
 import { getDb, type Database } from '@palouse/db';
-import { PalouseError } from '@palouse/shared';
-import { verifyKeyFromEnv, verifyKeyFromHeader } from './auth.js';
+import { ALL_AGENT_KEY_SCOPES, PalouseError } from '@palouse/shared';
+import { oauthAudience, oauthIssuer, verifyKeyFromEnv, verifyKeyFromHeader } from './auth.js';
 import { buildServer } from './server.js';
 
 const useStdio = process.argv.includes('--stdio') || process.env.PALOUSE_MCP_TRANSPORT === 'stdio';
@@ -32,11 +32,35 @@ async function runStdio(database: Database): Promise<void> {
  * number of agents without session bookkeeping.
  */
 function runHttp(database: Database): void {
+  // RFC 9728 protected-resource metadata: MCP clients follow this from the
+  // 401 WWW-Authenticate header to discover the authorization server, then
+  // run the OAuth connect flow (docs/PLAN-mcp-oauth.md).
+  const resourceMetadata = JSON.stringify({
+    resource: oauthAudience(),
+    authorization_servers: [oauthIssuer()],
+    bearer_methods_supported: ['header'],
+    scopes_supported: [...ALL_AGENT_KEY_SCOPES, 'offline_access'],
+  });
+  const resourceMetadataUrl = `${new URL(oauthAudience()).origin}/.well-known/oauth-protected-resource/mcp`;
+
   const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const path = req.url?.split('?')[0];
     if (path === '/healthz') {
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ ok: true }));
+      return;
+    }
+    // Both the root form and the path-insert form (resource path is /mcp);
+    // clients construct either.
+    if (
+      path === '/.well-known/oauth-protected-resource' ||
+      path === '/.well-known/oauth-protected-resource/mcp'
+    ) {
+      res.writeHead(200, {
+        'content-type': 'application/json',
+        'access-control-allow-origin': '*',
+      });
+      res.end(resourceMetadata);
       return;
     }
     // The protocol lives at /mcp only, so the URL in configs stays unambiguous
@@ -64,6 +88,14 @@ function runHttp(database: Database): void {
       const message = err instanceof PalouseError ? err.message : 'Internal server error';
       if (status >= 500) logger.error({ err }, 'MCP request failed');
       if (!res.headersSent) {
+        // On 401, point OAuth-capable clients at the resource metadata so
+        // they can start the connect flow instead of failing outright.
+        if (status === 401) {
+          res.setHeader(
+            'WWW-Authenticate',
+            `Bearer resource_metadata="${resourceMetadataUrl}"`,
+          );
+        }
         res.writeHead(status, { 'content-type': 'application/json' });
         res.end(
           JSON.stringify({
