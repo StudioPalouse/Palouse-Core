@@ -1,0 +1,53 @@
+<!-- @dsCard group="Brand" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fieldwork · Brand mark</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@600&display=swap');
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; background: #eef2f0; color: #14201b; padding: 28px; }
+  h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 4px; }
+  .lead { font-size: 13px; color: #4f6157; margin: 0 0 24px; max-width: 62ch; }
+  .themes { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 720px) { .themes { grid-template-columns: 1fr; } }
+  .panel { border-radius: 14px; padding: 22px; border: 1px solid; display: flex; align-items: center; gap: 26px; }
+  .panel.light { background: oklch(0.985 0.005 165); border-color: oklch(0.9 0.01 165); --mark: oklch(0.45 0.09 165); color: oklch(0.22 0.01 165); }
+  .panel.dark { background: oklch(0.155 0.024 165); border-color: oklch(0.62 0.04 165 / 32%); --mark: oklch(0.72 0.09 165); color: oklch(0.97 0.01 165); }
+  .sizes { display: flex; align-items: flex-end; gap: 16px; }
+  .lockup { display: flex; align-items: center; gap: 10px; }
+  .lockup span { font-size: 24px; font-weight: 600; letter-spacing: -0.01em; }
+  svg { color: var(--mark); display: block; }
+</style>
+</head>
+<body>
+  <h1>Brand mark</h1>
+  <p class="lead">Rolling-hills mark drawn as inline SVG so it inherits currentColor, scales crisply, and themes without an asset swap. Three receding hill layers echo the Palouse's contoured fields. Defaults to the Forest primary.</p>
+  <div class="themes">
+    <section class="panel light">
+      <div class="sizes">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M0 11 C 4 7.5, 8 9, 12 8.2 S 20 5.5, 24 8 L24 24 L0 24 Z" fill="currentColor" opacity="0.3"/><path d="M0 15 C 5 11.5, 9 13, 13 12.2 S 20 10, 24 12.5 L24 24 L0 24 Z" fill="currentColor" opacity="0.55"/><path d="M0 19.5 C 4 16.8, 9 17.6, 13 16.8 S 20 14.8, 24 17 L24 24 L0 24 Z" fill="currentColor"/></svg>
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M0 11 C 4 7.5, 8 9, 12 8.2 S 20 5.5, 24 8 L24 24 L0 24 Z" fill="currentColor" opacity="0.3"/><path d="M0 15 C 5 11.5, 9 13, 13 12.2 S 20 10, 24 12.5 L24 24 L0 24 Z" fill="currentColor" opacity="0.55"/><path d="M0 19.5 C 4 16.8, 9 17.6, 13 16.8 S 20 14.8, 24 17 L24 24 L0 24 Z" fill="currentColor"/></svg>
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none"><path d="M0 11 C 4 7.5, 8 9, 12 8.2 S 20 5.5, 24 8 L24 24 L0 24 Z" fill="currentColor" opacity="0.3"/><path d="M0 15 C 5 11.5, 9 13, 13 12.2 S 20 10, 24 12.5 L24 24 L0 24 Z" fill="currentColor" opacity="0.55"/><path d="M0 19.5 C 4 16.8, 9 17.6, 13 16.8 S 20 14.8, 24 17 L24 24 L0 24 Z" fill="currentColor"/></svg>
+      </div>
+      <div class="lockup">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M0 11 C 4 7.5, 8 9, 12 8.2 S 20 5.5, 24 8 L24 24 L0 24 Z" fill="currentColor" opacity="0.3"/><path d="M0 15 C 5 11.5, 9 13, 13 12.2 S 20 10, 24 12.5 L24 24 L0 24 Z" fill="currentColor" opacity="0.55"/><path d="M0 19.5 C 4 16.8, 9 17.6, 13 16.8 S 20 14.8, 24 17 L24 24 L0 24 Z" fill="currentColor"/></svg>
+        <span>Palouse</span>
+      </div>
+    </section>
+    <section class="panel dark">
+      <div class="sizes">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M0 11 C 4 7.5, 8 9, 12 8.2 S 20 5.5, 24 8 L24 24 L0 24 Z" fill="currentColor" opacity="0.3"/><path d="M0 15 C 5 11.5, 9 13, 13 12.2 S 20 10, 24 12.5 L24 24 L0 24 Z" fill="currentColor" opacity="0.55"/><path d="M0 19.5 C 4 16.8, 9 17.6, 13 16.8 S 20 14.8, 24 17 L24 24 L0 24 Z" fill="currentColor"/></svg>
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M0 11 C 4 7.5, 8 9, 12 8.2 S 20 5.5, 24 8 L24 24 L0 24 Z" fill="currentColor" opacity="0.3"/><path d="M0 15 C 5 11.5, 9 13, 13 12.2 S 20 10, 24 12.5 L24 24 L0 24 Z" fill="currentColor" opacity="0.55"/><path d="M0 19.5 C 4 16.8, 9 17.6, 13 16.8 S 20 14.8, 24 17 L24 24 L0 24 Z" fill="currentColor"/></svg>
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none"><path d="M0 11 C 4 7.5, 8 9, 12 8.2 S 20 5.5, 24 8 L24 24 L0 24 Z" fill="currentColor" opacity="0.3"/><path d="M0 15 C 5 11.5, 9 13, 13 12.2 S 20 10, 24 12.5 L24 24 L0 24 Z" fill="currentColor" opacity="0.55"/><path d="M0 19.5 C 4 16.8, 9 17.6, 13 16.8 S 20 14.8, 24 17 L24 24 L0 24 Z" fill="currentColor"/></svg>
+      </div>
+      <div class="lockup">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M0 11 C 4 7.5, 8 9, 12 8.2 S 20 5.5, 24 8 L24 24 L0 24 Z" fill="currentColor" opacity="0.3"/><path d="M0 15 C 5 11.5, 9 13, 13 12.2 S 20 10, 24 12.5 L24 24 L0 24 Z" fill="currentColor" opacity="0.55"/><path d="M0 19.5 C 4 16.8, 9 17.6, 13 16.8 S 20 14.8, 24 17 L24 24 L0 24 Z" fill="currentColor"/></svg>
+        <span>Palouse</span>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
