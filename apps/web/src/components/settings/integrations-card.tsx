@@ -19,42 +19,8 @@ import {
   Skeleton,
 } from '@palouse/ui';
 import { adminConsentUrl, api, oauthStartUrl } from '@/lib/api';
+import { CONNECTOR_CATALOG, PROVIDER_LABELS } from '@/lib/connectors';
 import { canManage } from '@/lib/roles';
-
-const PROVIDER_LABELS: Record<string, string> = {
-  google_tasks: 'Google Tasks',
-  asana: 'Asana',
-  todoist: 'Todoist',
-  ms_tasks: 'Microsoft Tasks',
-  // Legacy per-product Microsoft connections (pre-unification rows).
-  ms_todo: 'Microsoft To Do',
-  ms_planner: 'Microsoft Planner',
-};
-
-/** Connectors offered in the Add connection flow. */
-const CATALOG: { provider: string; label: string; description: string }[] = [
-  {
-    provider: 'ms_tasks',
-    label: 'Microsoft Tasks',
-    description:
-      'Microsoft To Do and Planner tasks through one sign-in. Planner requires a work or school account.',
-  },
-  {
-    provider: 'google_tasks',
-    label: 'Google Tasks',
-    description: 'Tasks from your Google account, checked every minute.',
-  },
-  {
-    provider: 'asana',
-    label: 'Asana',
-    description: 'Tasks from your Asana workspace, updated as they change.',
-  },
-  {
-    provider: 'todoist',
-    label: 'Todoist',
-    description: 'Tasks from your Todoist account, checked every two minutes.',
-  },
-];
 
 /**
  * Shown when Entra blocked the sign-in because the tenant requires admin
@@ -178,7 +144,7 @@ function AddConnectionDialog({
           </DialogDescription>
         </DialogHeader>
         <ul className="divide-y rounded-md border">
-          {CATALOG.map((entry) => (
+          {CONNECTOR_CATALOG.map((entry) => (
             <li key={entry.provider} className="flex items-center gap-3 px-3 py-3">
               <div className="min-w-0">
                 <p className="text-sm font-medium">{entry.label}</p>

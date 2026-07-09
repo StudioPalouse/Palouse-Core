@@ -19,6 +19,7 @@ import { NewTaskDialog } from '@/components/new-task-dialog';
 import { TaskDetailSheet } from '@/components/task-detail-sheet';
 import { TaskList } from '@/components/task-list';
 import { TaskDisplayMenu } from '@/components/task-display-menu';
+import { TasksEmptyState } from '@/components/tasks-empty-state';
 import { api } from '@/lib/api';
 import { HANDOFFS_CHANGED_EVENT } from '@/lib/handoff-meta';
 import { useActiveWorkspace } from '@/lib/workspace-context';
@@ -300,9 +301,7 @@ function TasksContent() {
               <Skeleton className="h-5 w-4/6" />
             </div>
           ) : tasks.length === 0 ? (
-            <p className="text-muted-foreground p-8 text-center text-sm">
-              No tasks yet. Create one, or connect an integration in Settings to start syncing.
-            </p>
+            <TasksEmptyState role={workspace?.role} />
           ) : visibleTasks && visibleTasks.length === 0 ? (
             <p className="text-muted-foreground p-8 text-center text-sm">
               No tasks match these filters. Adjust the provider or status filter, or turn on
