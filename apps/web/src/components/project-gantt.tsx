@@ -116,7 +116,7 @@ export function ProjectGantt({ detail }: { detail: ProjectDetail }) {
                   <div
                     className={cn(
                       'absolute top-1/2 flex h-5 -translate-y-1/2 items-center rounded px-2 text-xs text-white',
-                      s.item.completedAt ? 'bg-emerald-500' : 'bg-primary',
+                      s.item.completedAt ? 'bg-status-done' : 'bg-primary',
                     )}
                     style={{ left: s.startDay * DAY_WIDTH, width: Math.max(width, DAY_WIDTH) }}
                   />

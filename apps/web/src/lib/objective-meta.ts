@@ -20,16 +20,16 @@ export const OBJECTIVE_STATUS_ORDER: ObjectiveStatus[] = [
 ];
 
 /**
- * Soft tonal classes for the status pill. Semantic: planning = neutral,
- * active = blue, at risk = amber, achieved = green, missed = red,
- * archived = muted (no longer live).
+ * Soft tonal classes for the status pill, from the Fieldwork semantic status
+ * tokens (docs/design-system.md): planning = sky, active = blue, at risk =
+ * amber, achieved = emerald, missed = rose, archived = muted (no longer live).
  */
 export const OBJECTIVE_STATUS_TONE: Record<ObjectiveStatus, string> = {
-  planning: 'bg-sky-500/15 text-sky-700 dark:text-sky-300',
-  active: 'bg-blue-500/15 text-blue-700 dark:text-blue-300',
-  at_risk: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
-  achieved: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-  missed: 'bg-rose-500/15 text-rose-700 dark:text-rose-300',
+  planning: 'bg-status-open-bg text-status-open',
+  active: 'bg-status-active-bg text-status-active',
+  at_risk: 'bg-status-progress-bg text-status-progress',
+  achieved: 'bg-status-done-bg text-status-done',
+  missed: 'bg-status-blocked-bg text-status-blocked',
   archived: 'bg-muted text-muted-foreground',
 };
 
