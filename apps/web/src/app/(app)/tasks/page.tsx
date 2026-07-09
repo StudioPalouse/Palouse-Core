@@ -293,7 +293,7 @@ function TasksContent() {
           </div>
         )}
 
-        <div className="rounded-lg border">
+        <div className="overflow-hidden rounded-lg border">
           {tasks === null ? (
             <div className="flex flex-col gap-3 p-4">
               <Skeleton className="h-5 w-full" />

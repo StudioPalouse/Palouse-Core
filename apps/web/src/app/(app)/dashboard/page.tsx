@@ -12,6 +12,7 @@ import { HANDOFF_STATE_LABELS, formatDateTime } from '@/lib/handoff-meta';
 import { DECISION_STATUS_LABELS } from '@/lib/decision-meta';
 import { OBJECTIVE_STATUS_LABELS, OBJECTIVE_STATUS_TONE } from '@/lib/objective-meta';
 import { ProgressBar } from '@/components/objective-list';
+import { Horizon } from '@/components/fieldwork/horizon';
 import { STATUS_LABELS, formatDate } from '@/lib/task-meta';
 
 const STATUS_BADGE: Record<TaskStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
@@ -73,7 +74,7 @@ function StatCard({
   icon: ComponentType<{ className?: string }>;
 }) {
   return (
-    <Card className="gap-2 py-4">
+    <Card className="relative gap-2 overflow-hidden py-4">
       <CardHeader className="px-4">
         <CardTitle className="text-muted-foreground flex items-center justify-between text-xs font-medium">
           {label}
@@ -81,9 +82,10 @@ function StatCard({
         </CardTitle>
       </CardHeader>
       <CardContent className="px-4">
-        <div className="text-2xl font-semibold tracking-tight">{value}</div>
+        <div className="text-2xl font-semibold tracking-tight tabular-nums">{value}</div>
         {hint && <p className="text-muted-foreground mt-0.5 text-xs">{hint}</p>}
       </CardContent>
+      <Horizon className="h-10" />
     </Card>
   );
 }
@@ -209,7 +211,7 @@ function DashboardContent() {
   }, [load]);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="stagger-rise flex flex-col gap-6">
       <div>
         <h1 className="text-lg font-semibold tracking-tight">{greeting()}</h1>
         {workspace && (
