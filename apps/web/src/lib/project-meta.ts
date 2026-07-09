@@ -18,14 +18,15 @@ export const PROJECT_STATUS_ORDER: ProjectStatus[] = [
 ];
 
 /**
- * Soft tonal classes for the status pill. Semantic: planning = neutral,
- * active = blue, on hold = amber, completed = green, archived = muted.
+ * Soft tonal classes for the status pill, from the Fieldwork semantic status
+ * tokens (docs/design-system.md): planning = sky, active = blue, on hold =
+ * amber, completed = emerald/achieved, archived = muted.
  */
 export const PROJECT_STATUS_TONE: Record<ProjectStatus, string> = {
-  planning: 'bg-sky-500/15 text-sky-700 dark:text-sky-300',
-  active: 'bg-blue-500/15 text-blue-700 dark:text-blue-300',
-  on_hold: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
-  completed: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+  planning: 'bg-status-open-bg text-status-open',
+  active: 'bg-status-active-bg text-status-active',
+  on_hold: 'bg-status-progress-bg text-status-progress',
+  completed: 'bg-status-done-bg text-status-done',
   archived: 'bg-muted text-muted-foreground',
 };
 

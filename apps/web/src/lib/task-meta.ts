@@ -12,14 +12,15 @@ export const STATUS_ORDER: TaskStatus[] = ['open', 'in_progress', 'blocked', 'do
 
 /**
  * Soft tonal classes for the status label pill. Filled tints (no border) so a
- * status reads as a passive tag, not a button. Colours are semantic: open =
- * neutral blue, in progress = amber, blocked = red, done = green.
+ * status reads as a passive tag, not a button. Colours come from the Fieldwork
+ * semantic status tokens (docs/design-system.md): open = sky/planning, in
+ * progress = amber, blocked = rose, done = emerald/achieved.
  */
 export const STATUS_TONE: Record<TaskStatus, string> = {
-  open: 'bg-sky-500/15 text-sky-700 dark:text-sky-300',
-  in_progress: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
-  blocked: 'bg-rose-500/15 text-rose-700 dark:text-rose-300',
-  done: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+  open: 'bg-status-open-bg text-status-open',
+  in_progress: 'bg-status-progress-bg text-status-progress',
+  blocked: 'bg-status-blocked-bg text-status-blocked',
+  done: 'bg-status-done-bg text-status-done',
   archived: 'bg-muted text-muted-foreground',
 };
 

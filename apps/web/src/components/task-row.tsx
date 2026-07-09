@@ -66,7 +66,7 @@ export function TaskRow({
           )}
         >
           {done ? (
-            <CheckCircle2 className="size-[18px] text-emerald-500" />
+            <CheckCircle2 className="text-status-done size-[18px]" />
           ) : (
             <Circle className="text-muted-foreground hover:text-foreground size-[18px] transition-colors" />
           )}

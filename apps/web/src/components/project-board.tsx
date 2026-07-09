@@ -143,7 +143,7 @@ function ColumnHeader({
     <div className="flex items-center gap-1.5 px-1">
       <span className="truncate text-sm font-medium">{column.name}</span>
       {column.isDone && (
-        <Check className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-label="Done column" />
+        <Check className="text-status-done size-3.5 shrink-0" aria-label="Done column" />
       )}
       <span className="text-muted-foreground text-xs tabular-nums">{count}</span>
       <DropdownMenu>
@@ -204,7 +204,7 @@ function Card({
     >
       <div className="flex items-start gap-1.5">
         {item.completedAt && (
-          <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <Check className="text-status-done mt-0.5 size-3.5 shrink-0" />
         )}
         <span className={cn('min-w-0 flex-1', item.completedAt && 'line-through')}>
           {item.title}

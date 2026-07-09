@@ -20,15 +20,16 @@ export const DECISION_STATUS_ORDER: DecisionStatus[] = [
 ];
 
 /**
- * Soft tonal classes for the status pill. Semantic: proposed = neutral,
- * under review = amber, accepted = green, rejected = red, deprecated/superseded
- * = muted (no longer live).
+ * Soft tonal classes for the status pill, from the Fieldwork semantic status
+ * tokens (docs/design-system.md): proposed = sky, under review = amber,
+ * accepted = emerald, rejected = rose, deprecated/superseded = muted (no longer
+ * live).
  */
 export const DECISION_STATUS_TONE: Record<DecisionStatus, string> = {
-  proposed: 'bg-sky-500/15 text-sky-700 dark:text-sky-300',
-  under_review: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
-  accepted: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-  rejected: 'bg-rose-500/15 text-rose-700 dark:text-rose-300',
+  proposed: 'bg-status-open-bg text-status-open',
+  under_review: 'bg-status-progress-bg text-status-progress',
+  accepted: 'bg-status-done-bg text-status-done',
+  rejected: 'bg-status-blocked-bg text-status-blocked',
   deprecated: 'bg-muted text-muted-foreground',
   superseded: 'bg-muted text-muted-foreground',
 };
