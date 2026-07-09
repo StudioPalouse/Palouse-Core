@@ -6,36 +6,84 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Base shadcn theme — neutral palette, stock radius. */
+/* ────────────────────────────────────────────────────────────────────────────
+   Fieldwork design language (see docs/design-system.md).
+
+   The hue-165 green is promoted out of dark mode to become the brand primary in
+   BOTH themes (Forest). Harvest gold is a growth-only accent. Every neutral
+   carries a 1-3% tint of the same green hue so even the grays are ours. Status
+   and chart colors are formalized as tokens instead of hardcoded Tailwind
+   classes. Starting values below; final values iterate in tweakcn and must pass
+   contrast checks in both themes.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/* Light theme: rebuilt off the hand-tuned dark ramp rather than shadcn neutral. */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --radius: 0.7rem;
+
+  /* Loam: green-tinted off-white page + lifted card surfaces. */
+  --background: oklch(0.985 0.005 165);
+  --foreground: oklch(0.22 0.01 165); /* Pine ink */
+  --card: oklch(1 0.002 165);
+  --card-foreground: oklch(0.22 0.01 165);
+  --popover: oklch(1 0.002 165);
+  --popover-foreground: oklch(0.22 0.01 165);
+
+  /* Forest is the brand primary. */
+  --primary: oklch(0.45 0.09 165);
+  --primary-foreground: oklch(0.985 0.005 165);
+
+  --secondary: oklch(0.96 0.008 165);
+  --secondary-foreground: oklch(0.28 0.015 165);
+  --muted: oklch(0.96 0.008 165);
+  --muted-foreground: oklch(0.48 0.015 165);
+  --accent: oklch(0.95 0.012 165);
+  --accent-foreground: oklch(0.28 0.015 165);
+
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+
+  --border: oklch(0.9 0.01 165);
+  --input: oklch(0.9 0.01 165);
+  --ring: oklch(0.55 0.08 165);
+
+  /* Fern: brighter interactive green. Harvest: growth-only gold accent. */
+  --fern: oklch(0.52 0.115 165);
+  --fern-foreground: oklch(0.985 0.005 165);
+  --harvest: oklch(0.6 0.125 78);
+  --harvest-foreground: oklch(0.99 0.01 85);
+
   /* Sidebar surface: a hair off the white content area, with a firmer divider. */
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.9 0 0);
-  --sidebar-accent: oklch(0.94 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar: oklch(0.96 0.008 165);
+  --sidebar-foreground: oklch(0.28 0.015 165);
+  --sidebar-border: oklch(0.88 0.012 165);
+  --sidebar-accent: oklch(0.93 0.015 165);
+  --sidebar-accent-foreground: oklch(0.28 0.015 165);
+
+  /* Categorical dataviz slots, assigned in fixed order, never cycled. Validated
+     hexes (colorblind separation + surface contrast); re-validate if changed. */
+  --chart-1: #007d58; /* fern */
+  --chart-2: #a97500; /* wheat */
+  --chart-3: #3d7dc4; /* sky */
+  --chart-4: #c0603f; /* clay */
+  --chart-5: #7a5fae; /* lupine */
+
+  /* Semantic status: sky=open/planning, amber=in progress/at risk,
+     rose=blocked/rejected, emerald=done/achieved, blue=active. Each has an
+     accent color (text/dot) and a subtle pill background. */
+  --status-open: oklch(0.55 0.12 240);
+  --status-open-bg: oklch(0.96 0.03 240);
+  --status-progress: oklch(0.62 0.13 70);
+  --status-progress-bg: oklch(0.96 0.05 85);
+  --status-blocked: oklch(0.58 0.19 15);
+  --status-blocked-bg: oklch(0.96 0.03 15);
+  --status-done: oklch(0.55 0.13 160);
+  --status-done-bg: oklch(0.96 0.04 160);
+  --status-active: oklch(0.52 0.16 255);
+  --status-active-bg: oklch(0.96 0.03 255);
 }
 
-/* Deep-green-tinted dark theme (hue ~165) matching the brand's forest/teal greens. */
+/* Deep-green-tinted dark theme (hue ~165). This ramp is the reference the light
+   theme was rebuilt to match; only the primary is rebalanced to Forest. */
 .dark {
   --background: oklch(0.155 0.024 165);
   --foreground: oklch(0.97 0.01 165);
@@ -43,27 +91,60 @@
   --card-foreground: oklch(0.97 0.01 165);
   --popover: oklch(0.215 0.03 165);
   --popover-foreground: oklch(0.97 0.01 165);
-  --primary: oklch(0.92 0.02 165);
-  --primary-foreground: oklch(0.21 0.03 165);
+
+  /* Forest is the brand primary here too, rather than the old near-white fill. */
+  --primary: oklch(0.72 0.09 165);
+  --primary-foreground: oklch(0.18 0.03 165);
+
   --secondary: oklch(0.27 0.03 165);
   --secondary-foreground: oklch(0.97 0.01 165);
   --muted: oklch(0.27 0.03 165);
   --muted-foreground: oklch(0.75 0.025 165);
   --accent: oklch(0.3 0.04 165);
   --accent-foreground: oklch(0.97 0.01 165);
+
   --destructive: oklch(0.704 0.191 22.216);
+
   --border: oklch(0.62 0.04 165 / 32%);
   --input: oklch(0.7 0.04 165 / 18%);
   --ring: oklch(0.62 0.1 165);
+
+  --fern: oklch(0.68 0.115 165);
+  --fern-foreground: oklch(0.18 0.03 165);
+  --harvest: oklch(0.75 0.125 82);
+  --harvest-foreground: oklch(0.18 0.03 82);
+
   /* Sidebar surface: lifted above the deeper content bg, with a firmer divider. */
   --sidebar: oklch(0.2 0.03 165);
   --sidebar-foreground: oklch(0.97 0.01 165);
   --sidebar-border: oklch(0.62 0.04 165 / 32%);
   --sidebar-accent: oklch(0.32 0.045 165);
   --sidebar-accent-foreground: oklch(0.98 0.01 165);
+
+  /* Dataviz slots tuned for the dark card surface (#0b1e16 family). */
+  --chart-1: #329f78; /* fern */
+  --chart-2: #b88923; /* wheat */
+  --chart-3: #4f8ac6; /* sky */
+  --chart-4: #c26b4c; /* clay */
+  --chart-5: #977cc5; /* lupine */
+
+  --status-open: oklch(0.72 0.11 240);
+  --status-open-bg: oklch(0.32 0.05 240);
+  --status-progress: oklch(0.78 0.12 80);
+  --status-progress-bg: oklch(0.32 0.05 80);
+  --status-blocked: oklch(0.7 0.16 15);
+  --status-blocked-bg: oklch(0.32 0.06 15);
+  --status-done: oklch(0.72 0.12 160);
+  --status-done-bg: oklch(0.3 0.05 160);
+  --status-active: oklch(0.7 0.14 255);
+  --status-active-bg: oklch(0.32 0.06 255);
 }
 
 @theme inline {
+  /* One workhorse family; Plex Mono for code and identifiers. */
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, 'SFMono-Regular', monospace;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -82,11 +163,30 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-fern: var(--fern);
+  --color-fern-foreground: var(--fern-foreground);
+  --color-harvest: var(--harvest);
+  --color-harvest-foreground: var(--harvest-foreground);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-status-open: var(--status-open);
+  --color-status-open-bg: var(--status-open-bg);
+  --color-status-progress: var(--status-progress);
+  --color-status-progress-bg: var(--status-progress-bg);
+  --color-status-blocked: var(--status-blocked);
+  --color-status-blocked-bg: var(--status-blocked-bg);
+  --color-status-done: var(--status-done);
+  --color-status-done-bg: var(--status-done-bg);
+  --color-status-active: var(--status-active);
+  --color-status-active-bg: var(--status-active-bg);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
