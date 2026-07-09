@@ -148,11 +148,16 @@ The primitives in `packages/ui` keep their APIs. What changes:
 - **The horizon line.** A low rolling-hills curve as the footer of stat cards and the
   backdrop of empty states, at 8 to 13 percent opacity. It appears in exactly those
   two places in the app; it is never a loud hero.
-- **Growth progress.** Objective progress bars run forest-to-gold (planting to
-  harvest). At 100 percent, a one-time 400ms ease-out fill sweep. That is the entire
-  playful budget for the component.
-- **SVG brand mark.** Redraw the hills mark (currently raster PNG in
-  `apps/web/public/brand/`) as SVG so it can inherit `currentColor`, scale, and theme.
+- **Growth progress.** Objective progress bars grow toward green: the fill runs
+  gold-to-forest so the leading edge, and a completed bar, land on the same green
+  that means "done/achieved" elsewhere in the app. (This reverses the earlier
+  forest-to-gold direction after review; ending on green reads more clearly as
+  complete.) At 100 percent, a one-time 400ms ease-out sweep crosses the bar. That
+  is the entire playful budget for the component.
+- **Brand mark.** Keep the existing circular rolling-hills mark (green gradient
+  with white contour lines, raster PNG in `apps/web/public/brand/`). An SVG
+  redraw was tried and reverted: the circular mark is the established logo and
+  reads well on both themes as-is.
 - **Empty states become moments.** Dashed gray boxes become small horizon
   illustrations with quiet Plex headlines (for example "Nothing planted here yet").
 

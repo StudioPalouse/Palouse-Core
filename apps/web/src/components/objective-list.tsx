@@ -11,10 +11,12 @@ import {
 } from '@/lib/objective-meta';
 
 /**
- * A slim growth progress bar with the percentage beside it. The fill runs
- * forest-to-gold, planting to harvest (docs/design-system.md section 3.5); at
- * 100% a one-time sweep crosses the bar. That sweep is the whole playful budget
- * for this component, and it is disabled under prefers-reduced-motion.
+ * A slim growth progress bar with the percentage beside it. The fill grows
+ * toward green: it runs gold-to-forest so the leading edge (and a completed bar)
+ * lands on the same green that means "done/achieved" elsewhere in the app
+ * (docs/design-system.md section 3.5). At 100% a one-time sweep crosses the bar.
+ * That sweep is the whole playful budget for this component, and it is disabled
+ * under prefers-reduced-motion.
  */
 export function ProgressBar({ value, className }: { value: number; className?: string }) {
   const pct = Math.min(100, Math.max(0, Math.round(value)));
@@ -23,7 +25,7 @@ export function ProgressBar({ value, className }: { value: number; className?: s
     <div className={cn('flex items-center gap-2', className)}>
       <div className="bg-muted relative h-1.5 flex-1 overflow-hidden rounded-full">
         <div
-          className="from-primary to-harvest h-full rounded-full bg-linear-to-r transition-all"
+          className="from-harvest to-primary h-full rounded-full bg-linear-to-r transition-all"
           style={{ width: `${pct}%` }}
         />
         {complete && (

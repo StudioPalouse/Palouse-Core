@@ -24,14 +24,15 @@
   .progress-label { font-size: 13px; font-weight: 500; margin-bottom: 8px; display: flex; justify-content: space-between; }
   .progress-label span:last-child { font-variant-numeric: tabular-nums; color: oklch(0.48 0.015 165); }
   .track { height: 10px; border-radius: 999px; background: oklch(0.93 0.01 165); overflow: hidden; }
-  /* Growth progress: forest-to-gold, planting to harvest. */
-  .fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, oklch(0.45 0.09 165), oklch(0.6 0.125 78)); }
+  /* Growth progress: grows toward green (gold to forest), ending on the same
+     green that means done/achieved elsewhere in the app. */
+  .fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, oklch(0.6 0.125 78), oklch(0.45 0.09 165)); }
   .cap { font-size: 11px; color: oklch(0.48 0.015 165); margin-top: 10px; }
 </style>
 </head>
 <body>
   <h1>Badges &amp; growth progress</h1>
-  <p class="lead">Badges stay pill-shaped (an existing opinion we keep) and wear the status tokens. Objective progress runs forest-to-gold, planting to harvest, the single signature moment of playfulness on the component.</p>
+  <p class="lead">Badges stay pill-shaped (an existing opinion we keep) and wear the status tokens. Objective progress grows toward green (gold to forest), ending on the same green that means done elsewhere: the single signature moment of playfulness on the component.</p>
   <div class="card">
     <h2>Status badges</h2>
     <div class="badges">
