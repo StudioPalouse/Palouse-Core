@@ -109,10 +109,24 @@ task board polling) → `v0.9.0` (per-workspace capability toggles with nav gati
 
 ## Next / backlog
 
-0. **MCP OAuth connect (in progress, 2026-07-07)**: paste the MCP URL into a client and
-   sign in with Palouse credentials instead of minting a key by hand. Better Auth
-   `@better-auth/oauth-provider` + workspace selection at consent; agent keys stay as
-   the manual/self-hosted path. Design + slices: `docs/PLAN-mcp-oauth.md`.
+0. **MCP OAuth connect — SHIPPED to prod as v0.17.0 (2026-07-07)**: paste the MCP URL into
+   a client and sign in with Palouse credentials instead of minting a key by hand. Better
+   Auth `@better-auth/oauth-provider` + `jwt`; workspace selection at consent (postLogin
+   hook), consent pinned to an agent id, access-token JWT carries workspace/agent claims;
+   migration 0017 (oauth/jwks tables + `mcp_connect_selections`). Slice 1 = flow + migration
+   (PR #81); slice 2 = connect dialog leads with sign-in, OAuth connections surfaced in
+   Settings > Agents, archive is a full OAuth revoke (PR #82). Agent keys stay as the
+   manual/self-hosted path. Design: `docs/PLAN-mcp-oauth.md`. **Slice 3 (deferred, not yet
+   built):**
+   - Last-used / activity timestamp for OAuth connections (they have no `agent_api_keys`
+     row, so no `lastUsedAt`; derive from `audit_events` or stamp the agent on use).
+   - Granular scope selection on the consent screen (today consent grants the full
+     advertised scope set).
+   - Trusted first-party clients (skip consent) once we ship our own MCP clients.
+   - Policy: allow the `member` role to self-connect (today owner/admin only, matching key
+     minting).
+   - MCP tool gating by workspace capability inside `apps/mcp/src/server.ts` (still deferred
+     from v0.9.0; the OAuth path inherits the same gap).
 1. **Board bookkeeping**: close the shipped issues — Phase 4 (#20-#25), Team & access epic
    (#43-#49). Open a Testing & CI epic; open issues for the user-management work if not tracked.
 2. **Manual dogfood on staging**: exercise the destructive account-deletion path end to end
