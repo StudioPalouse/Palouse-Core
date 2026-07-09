@@ -17,8 +17,14 @@ user/account management) → `v0.4.x` (nav/IA restructure + Context sections, de
 → `v0.5.x` (Microsoft admin-consent hand-holding, brand identity, green dark mode)
 → `v0.6.0` (handoff/review UX queue + multi-select bulk hand-off) → `v0.7.0` (hosted MCP
 endpoint + agent onboarding) → `v0.8.0` (agent-originated tasks via `create_task` + live-ish
-task board polling) → `v0.9.0` (per-workspace capability toggles with nav gating) → **`v0.10.0`**
-(`start_task` + task status sync + provenance badge + per-environment snippet alias).
+task board polling) → `v0.9.0` (per-workspace capability toggles with nav gating) → `v0.10.0`
+(`start_task` + task status sync + provenance badge + per-environment snippet alias)
+→ `v0.11.0` (Todoist connector) → `v0.12.0` (task list UX redesign) → `v0.13.0` (Decisions
+capability) → `v0.14.0` (agent connect + archive) → `v0.15.0` (Objectives / OKRs) → `v0.16.0`
+(Projects: Kanban + Gantt) → `v0.17.0` (MCP OAuth connect) → **`v0.18.0`** (Fieldwork design
+language: IBM Plex type, green-tinted token system, tokenized data-viz + semantic status pills,
+circular brand mark + horizon motif, grow-toward-green progress, reduced-motion-aware motion;
+plus the tasks first-run empty state).
 
 ## Shipped & live in prod
 
