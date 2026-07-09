@@ -207,3 +207,66 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Fieldwork motion. Exactly two custom keyframes beyond tw-animate-css: a
+   one-time growth sweep when a progress bar reaches 100% (planting to harvest),
+   and a staggered fade-up for cards on dashboard load. No motion library. All of
+   it is disabled under prefers-reduced-motion.
+   ──────────────────────────────────────────────────────────────────────────── */
+@keyframes fieldwork-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fieldwork-progress-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@layer utilities {
+  /* One-time harvest sweep across a completed progress bar (clip with the track). */
+  .animate-harvest-sweep {
+    animation: fieldwork-progress-sweep 400ms ease-out 1;
+  }
+
+  /* Gentle staggered rise for a container's direct children (dashboard load). */
+  .stagger-rise > * {
+    animation: fieldwork-card-rise 400ms ease-out both;
+  }
+  .stagger-rise > *:nth-child(1) {
+    animation-delay: 0ms;
+  }
+  .stagger-rise > *:nth-child(2) {
+    animation-delay: 60ms;
+  }
+  .stagger-rise > *:nth-child(3) {
+    animation-delay: 120ms;
+  }
+  .stagger-rise > *:nth-child(4) {
+    animation-delay: 180ms;
+  }
+  .stagger-rise > *:nth-child(5) {
+    animation-delay: 240ms;
+  }
+  .stagger-rise > *:nth-child(n + 6) {
+    animation-delay: 300ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-harvest-sweep,
+  .stagger-rise > * {
+    animation: none;
+  }
+}

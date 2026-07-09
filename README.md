@@ -56,8 +56,13 @@ system. For connector development without real credentials,
 ### UI
 
 `packages/ui` is a [shadcn/ui](https://ui.shadcn.com)-based component library on
-Tailwind v4 — stock base theme, neutral palette, no customization. Navigation is
-deliberately minimal: a single top bar (Inbox · Settings · sign out).
+Tailwind v4, extended with **Fieldwork**, the Palouse design language (see
+[`docs/design-system.md`](./docs/design-system.md)). Fieldwork keeps the shadcn
+architecture and grows a green-tinted token system on top: Forest as the brand
+primary in both themes, Harvest gold as a growth-only accent, IBM Plex Sans and
+Mono for type, and semantic status plus categorical chart tokens for data
+visualization. Navigation is a persistent left sidebar (the app shell), gated by
+per-workspace capabilities.
 
 ## Full self-host
 

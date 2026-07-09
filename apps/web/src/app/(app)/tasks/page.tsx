@@ -18,6 +18,7 @@ import { AgentPickerDialog } from '@/components/agent-picker-dialog';
 import { NewTaskDialog } from '@/components/new-task-dialog';
 import { TaskDetailSheet } from '@/components/task-detail-sheet';
 import { TaskList } from '@/components/task-list';
+import { EmptyState } from '@/components/fieldwork/empty-state';
 import { TaskDisplayMenu } from '@/components/task-display-menu';
 import { api } from '@/lib/api';
 import { HANDOFFS_CHANGED_EVENT } from '@/lib/handoff-meta';
@@ -292,7 +293,7 @@ function TasksContent() {
           </div>
         )}
 
-        <div className="rounded-lg border">
+        <div className="overflow-hidden rounded-lg border">
           {tasks === null ? (
             <div className="flex flex-col gap-3 p-4">
               <Skeleton className="h-5 w-full" />
@@ -300,9 +301,11 @@ function TasksContent() {
               <Skeleton className="h-5 w-4/6" />
             </div>
           ) : tasks.length === 0 ? (
-            <p className="text-muted-foreground p-8 text-center text-sm">
-              No tasks yet. Create one, or connect an integration in Settings to start syncing.
-            </p>
+            <EmptyState
+              bordered={false}
+              title="No tasks yet"
+              description="Create one, or connect a service in Settings to start syncing."
+            />
           ) : visibleTasks && visibleTasks.length === 0 ? (
             <p className="text-muted-foreground p-8 text-center text-sm">
               No tasks match these filters. Adjust the provider or status filter, or turn on

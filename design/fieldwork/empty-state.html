@@ -1,0 +1,40 @@
+<!-- @dsCard group="Components" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fieldwork · Empty state</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; background: #eef2f0; color: #14201b; padding: 28px; }
+  h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 4px; }
+  .lead { font-size: 13px; color: #4f6157; margin: 0 0 24px; max-width: 64ch; }
+  .themes { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 720px) { .themes { grid-template-columns: 1fr; } }
+  .empty { position: relative; overflow: hidden; border-radius: 12px; border: 1px solid; padding: 56px 24px; text-align: center; }
+  .empty.light { background: oklch(1 0.002 165); border-color: oklch(0.9 0.01 165); --ink: oklch(0.22 0.01 165); --muted: oklch(0.48 0.015 165); --hill: oklch(0.45 0.09 165); color: var(--ink); }
+  .empty.dark { background: oklch(0.215 0.03 165); border-color: oklch(0.62 0.04 165 / 32%); --ink: oklch(0.97 0.01 165); --muted: oklch(0.75 0.025 165); --hill: oklch(0.72 0.09 165); color: var(--ink); }
+  .empty h2 { font-size: 15px; font-weight: 500; margin: 0 0 4px; position: relative; }
+  .empty p { font-size: 13px; color: var(--muted); margin: 0 auto; max-width: 34ch; position: relative; }
+  .horizon { position: absolute; inset-inline: 0; bottom: 0; height: 64px; width: 100%; color: var(--hill); pointer-events: none; }
+</style>
+</head>
+<body>
+  <h1>Empty state</h1>
+  <p class="lead">Dashed gray boxes become quiet moments: a Plex headline over a low horizon at 8&ndash;13% opacity. One of only two places the horizon motif appears (the other is the footer of stat cards). Used for page- and section-level empties; inline notes stay plain muted text.</p>
+  <div class="themes">
+    <section class="empty light">
+      <svg class="horizon" viewBox="0 0 400 64" preserveAspectRatio="none" fill="none"><path d="M0 34 C 60 16, 130 30, 200 26 S 340 14, 400 28 L400 64 L0 64 Z" fill="currentColor" opacity="0.10"/><path d="M0 46 C 80 32, 150 44, 224 40 S 356 30, 400 42 L400 64 L0 64 Z" fill="currentColor" opacity="0.08"/></svg>
+      <h2>Nothing planted here yet</h2>
+      <p>Set a goal your team is working toward and track its progress here.</p>
+    </section>
+    <section class="empty dark">
+      <svg class="horizon" viewBox="0 0 400 64" preserveAspectRatio="none" fill="none"><path d="M0 34 C 60 16, 130 30, 200 26 S 340 14, 400 28 L400 64 L0 64 Z" fill="currentColor" opacity="0.10"/><path d="M0 46 C 80 32, 150 44, 224 40 S 356 30, 400 42 L400 64 L0 64 Z" fill="currentColor" opacity="0.08"/></svg>
+      <h2>Nothing planted here yet</h2>
+      <p>Set a goal your team is working toward and track its progress here.</p>
+    </section>
+  </div>
+</body>
+</html>
