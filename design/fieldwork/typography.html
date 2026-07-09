@@ -1,0 +1,53 @@
+<!-- @dsCard group="Type" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fieldwork · Type</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    background: oklch(0.985 0.005 165); color: oklch(0.22 0.01 165);
+    padding: 32px;
+  }
+  .eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; color: oklch(0.48 0.015 165); margin: 0 0 6px; }
+  .lead { font-size: 13px; color: oklch(0.48 0.015 165); margin: 0 0 28px; max-width: 66ch; }
+  .scale > div { display: flex; align-items: baseline; gap: 16px; padding: 10px 0; border-bottom: 1px solid oklch(0.9 0.01 165); }
+  .scale .tag { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11px; color: oklch(0.48 0.015 165); width: 118px; flex: none; }
+  .s-display { font-size: 34px; font-weight: 600; letter-spacing: -0.02em; }
+  .s-h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.015em; }
+  .s-h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+  .s-body { font-size: 15px; font-weight: 400; }
+  .s-small { font-size: 13px; font-weight: 500; }
+  .s-mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 13px; }
+  .weights { display: flex; gap: 26px; margin-top: 26px; }
+  .weights div { font-size: 22px; }
+  .w4 { font-weight: 400; } .w5 { font-weight: 500; } .w6 { font-weight: 600; }
+  .weights span { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 400; color: oklch(0.48 0.015 165); margin-top: 4px; }
+  .nums { margin-top: 24px; font-variant-numeric: tabular-nums; font-size: 15px; }
+  .nums b { font-weight: 600; }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Type &middot; IBM Plex</p>
+  <p class="lead">One workhorse family for headings, body, and UI. Hierarchy comes from size and weight, never a second voice. Plex Mono carries code, task IDs, and agent identifiers. Numbers in stats and tables set tabular-nums.</p>
+  <div class="scale">
+    <div><span class="tag">Display / 600</span><span class="s-display">Grow while you operate</span></div>
+    <div><span class="tag">H1 / 600</span><span class="s-h1">Objectives and key results</span></div>
+    <div><span class="tag">H2 / 600</span><span class="s-h2">This quarter&rsquo;s harvest</span></div>
+    <div><span class="tag">Body / 400</span><span class="s-body">Operations are the field you maintain; goals are the harvest you grow toward.</span></div>
+    <div><span class="tag">Small / 500</span><span class="s-small">Updated 2 hours ago by the sync worker</span></div>
+    <div><span class="tag">Mono / 400</span><span class="s-mono">TASK-4812 &middot; agent:harvester &middot; sync_token</span></div>
+  </div>
+  <div class="weights">
+    <div class="w4">Aa<span>Regular 400</span></div>
+    <div class="w5">Aa<span>Medium 500</span></div>
+    <div class="w6">Aa<span>Semibold 600</span></div>
+  </div>
+  <p class="nums">Tabular numerals: <b>1,284</b> tasks &middot; <b>92%</b> complete &middot; <b>$3,410.00</b> spend</p>
+</body>
+</html>

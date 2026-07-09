@@ -1,0 +1,50 @@
+<!-- @dsCard group="Components" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fieldwork · Badges &amp; progress</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; background: #eef2f0; padding: 28px; color: #14201b; }
+  h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 4px; }
+  .lead { font-size: 13px; color: #4f6157; margin: 0 0 22px; max-width: 62ch; }
+  .card { background: oklch(1 0.002 165); border: 1px solid oklch(0.9 0.01 165); border-radius: 14px; padding: 20px; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin: 0 0 14px; color: oklch(0.48 0.015 165); }
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 26px; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; }
+  .dot { width: 7px; height: 7px; border-radius: 999px; }
+  .b-open { background: oklch(0.96 0.03 240); color: oklch(0.55 0.12 240); }
+  .b-prog { background: oklch(0.96 0.05 85); color: oklch(0.62 0.13 70); }
+  .b-block { background: oklch(0.96 0.03 15); color: oklch(0.58 0.19 15); }
+  .b-done { background: oklch(0.96 0.04 160); color: oklch(0.55 0.13 160); }
+  .b-active { background: oklch(0.96 0.03 255); color: oklch(0.52 0.16 255); }
+  .progress-label { font-size: 13px; font-weight: 500; margin-bottom: 8px; display: flex; justify-content: space-between; }
+  .progress-label span:last-child { font-variant-numeric: tabular-nums; color: oklch(0.48 0.015 165); }
+  .track { height: 10px; border-radius: 999px; background: oklch(0.93 0.01 165); overflow: hidden; }
+  /* Growth progress: forest-to-gold, planting to harvest. */
+  .fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, oklch(0.45 0.09 165), oklch(0.6 0.125 78)); }
+  .cap { font-size: 11px; color: oklch(0.48 0.015 165); margin-top: 10px; }
+</style>
+</head>
+<body>
+  <h1>Badges &amp; growth progress</h1>
+  <p class="lead">Badges stay pill-shaped (an existing opinion we keep) and wear the status tokens. Objective progress runs forest-to-gold, planting to harvest, the single signature moment of playfulness on the component.</p>
+  <div class="card">
+    <h2>Status badges</h2>
+    <div class="badges">
+      <span class="badge b-open"><span class="dot" style="background:oklch(0.55 0.12 240)"></span>Open</span>
+      <span class="badge b-prog"><span class="dot" style="background:oklch(0.62 0.13 70)"></span>In progress</span>
+      <span class="badge b-block"><span class="dot" style="background:oklch(0.58 0.19 15)"></span>Blocked</span>
+      <span class="badge b-done"><span class="dot" style="background:oklch(0.55 0.13 160)"></span>Done</span>
+      <span class="badge b-active"><span class="dot" style="background:oklch(0.52 0.16 255)"></span>Active</span>
+    </div>
+    <h2>Growth progress</h2>
+    <div class="progress-label"><span>Reduce onboarding time</span><span>72%</span></div>
+    <div class="track"><div class="fill" style="width:72%"></div></div>
+    <p class="cap">At 100% a one-time 400ms ease-out sweep fills the bar. That is the entire playful budget for this component.</p>
+  </div>
+</body>
+</html>

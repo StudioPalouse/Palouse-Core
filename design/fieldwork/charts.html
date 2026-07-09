@@ -1,0 +1,72 @@
+<!-- @dsCard group="Data viz" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fieldwork · Data viz</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    background: #eef2f0; color: #14201b; padding: 28px;
+  }
+  h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 4px; }
+  .lead { font-size: 13px; color: #4f6157; margin: 0 0 24px; max-width: 64ch; }
+  .themes { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 720px) { .themes { grid-template-columns: 1fr; } }
+  .panel { border-radius: 14px; padding: 18px; border: 1px solid; }
+  .panel.light { background: oklch(1 0.002 165); border-color: oklch(0.9 0.01 165); }
+  .panel.dark { background: #0b1e16; border-color: oklch(0.62 0.04 165 / 32%); color: oklch(0.97 0.01 165); }
+  .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin: 0 0 16px; opacity: 0.7; }
+  .slots { display: flex; gap: 8px; margin-bottom: 18px; }
+  .slot { flex: 1; }
+  .slot .well { height: 40px; border-radius: 8px; }
+  .slot .name { font-size: 11px; font-weight: 600; margin-top: 6px; }
+  .slot .val { font-size: 10px; font-family: 'IBM Plex Mono', ui-monospace, monospace; opacity: 0.65; }
+  .bars { display: flex; align-items: flex-end; gap: 12px; height: 92px; padding-top: 8px; }
+  .bar { flex: 1; border-radius: 4px 4px 0 0; }
+</style>
+</head>
+<body>
+  <h1>Data visualization</h1>
+  <p class="lead">Five categorical slots, assigned in fixed order, never cycled. A sixth series folds into &ldquo;Other&rdquo;. This is where the brand smiles: playfulness lives in dataviz, not in tables or forms. Hexes are machine-validated for colorblind separation and surface contrast.</p>
+  <div class="themes">
+    <section class="panel light">
+      <h2>Light &middot; on white</h2>
+      <div class="slots">
+        <div class="slot"><div class="well" style="background:#007d58"></div><div class="name">Fern</div><div class="val">#007d58</div></div>
+        <div class="slot"><div class="well" style="background:#a97500"></div><div class="name">Wheat</div><div class="val">#a97500</div></div>
+        <div class="slot"><div class="well" style="background:#3d7dc4"></div><div class="name">Sky</div><div class="val">#3d7dc4</div></div>
+        <div class="slot"><div class="well" style="background:#c0603f"></div><div class="name">Clay</div><div class="val">#c0603f</div></div>
+        <div class="slot"><div class="well" style="background:#7a5fae"></div><div class="name">Lupine</div><div class="val">#7a5fae</div></div>
+      </div>
+      <div class="bars">
+        <div class="bar" style="height:78%;background:#007d58"></div>
+        <div class="bar" style="height:54%;background:#a97500"></div>
+        <div class="bar" style="height:92%;background:#3d7dc4"></div>
+        <div class="bar" style="height:40%;background:#c0603f"></div>
+        <div class="bar" style="height:66%;background:#7a5fae"></div>
+      </div>
+    </section>
+    <section class="panel dark">
+      <h2>Dark &middot; on card</h2>
+      <div class="slots">
+        <div class="slot"><div class="well" style="background:#329f78"></div><div class="name">Fern</div><div class="val">#329f78</div></div>
+        <div class="slot"><div class="well" style="background:#b88923"></div><div class="name">Wheat</div><div class="val">#b88923</div></div>
+        <div class="slot"><div class="well" style="background:#4f8ac6"></div><div class="name">Sky</div><div class="val">#4f8ac6</div></div>
+        <div class="slot"><div class="well" style="background:#c26b4c"></div><div class="name">Clay</div><div class="val">#c26b4c</div></div>
+        <div class="slot"><div class="well" style="background:#977cc5"></div><div class="name">Lupine</div><div class="val">#977cc5</div></div>
+      </div>
+      <div class="bars">
+        <div class="bar" style="height:78%;background:#329f78"></div>
+        <div class="bar" style="height:54%;background:#b88923"></div>
+        <div class="bar" style="height:92%;background:#4f8ac6"></div>
+        <div class="bar" style="height:40%;background:#c26b4c"></div>
+        <div class="bar" style="height:66%;background:#977cc5"></div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

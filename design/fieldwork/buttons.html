@@ -1,0 +1,64 @@
+<!-- @dsCard group="Components" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fieldwork · Buttons</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; background: #eef2f0; padding: 28px; color: #14201b; }
+  h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 4px; }
+  .lead { font-size: 13px; color: #4f6157; margin: 0 0 22px; max-width: 62ch; }
+  .themes { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 720px) { .themes { grid-template-columns: 1fr; } }
+  .panel { border-radius: 14px; padding: 20px; border: 1px solid; }
+  .panel.light { --fg: oklch(0.22 0.01 165); background: oklch(0.985 0.005 165); border-color: oklch(0.9 0.01 165); color: var(--fg);
+    --primary: oklch(0.45 0.09 165); --primary-fg: oklch(0.985 0.005 165);
+    --secondary: oklch(0.96 0.008 165); --border: oklch(0.9 0.01 165);
+    --harvest: oklch(0.6 0.125 78); --harvest-fg: oklch(0.99 0.01 85); --muted: oklch(0.48 0.015 165); }
+  .panel.dark { --fg: oklch(0.97 0.01 165); background: oklch(0.155 0.024 165); border-color: oklch(0.62 0.04 165 / 32%); color: var(--fg);
+    --primary: oklch(0.72 0.09 165); --primary-fg: oklch(0.18 0.03 165);
+    --secondary: oklch(0.27 0.03 165); --border: oklch(0.62 0.04 165 / 40%);
+    --harvest: oklch(0.75 0.125 82); --harvest-fg: oklch(0.18 0.03 82); --muted: oklch(0.75 0.025 165); }
+  .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin: 0 0 16px; opacity: 0.7; }
+  .btns { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  button { font: inherit; font-size: 13px; font-weight: 500; padding: 8px 15px; border-radius: 0.7rem; border: 1px solid transparent; cursor: pointer; }
+  .primary { background: var(--primary); color: var(--primary-fg); }
+  .secondary { background: var(--secondary); color: var(--fg); }
+  .outline { background: transparent; color: var(--fg); border-color: var(--border); }
+  .ghost { background: transparent; color: var(--fg); }
+  .harvest { background: var(--harvest); color: var(--harvest-fg); }
+  .note { font-size: 11px; color: var(--muted); margin-top: 14px; }
+</style>
+</head>
+<body>
+  <h1>Buttons</h1>
+  <p class="lead">Primitives keep their shadcn APIs. Forest fills the primary action; secondary/outline/ghost stay disciplined. Gold (Harvest) appears only on growth and progress moments, never as a general interactive color.</p>
+  <div class="themes">
+    <section class="panel light">
+      <h2>Light</h2>
+      <div class="btns">
+        <button class="primary">Primary</button>
+        <button class="secondary">Secondary</button>
+        <button class="outline">Outline</button>
+        <button class="ghost">Ghost</button>
+        <button class="harvest">Mark achieved</button>
+      </div>
+      <p class="note">Harvest reserved for growth moments only.</p>
+    </section>
+    <section class="panel dark">
+      <h2>Dark</h2>
+      <div class="btns">
+        <button class="primary">Primary</button>
+        <button class="secondary">Secondary</button>
+        <button class="outline">Outline</button>
+        <button class="ghost">Ghost</button>
+        <button class="harvest">Mark achieved</button>
+      </div>
+      <p class="note">Harvest reserved for growth moments only.</p>
+    </section>
+  </div>
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!-- @dsCard group="Color" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fieldwork · Status</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    background: #eef2f0; color: #14201b; padding: 28px;
+  }
+  h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 4px; }
+  .lead { font-size: 13px; color: #4f6157; margin: 0 0 24px; max-width: 62ch; }
+  .themes { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 720px) { .themes { grid-template-columns: 1fr; } }
+  .panel { border-radius: 14px; padding: 18px; border: 1px solid; }
+  .panel.light { background: oklch(0.985 0.005 165); border-color: oklch(0.9 0.01 165); }
+  .panel.dark { background: oklch(0.155 0.024 165); border-color: oklch(0.62 0.04 165 / 32%); color: oklch(0.97 0.01 165); }
+  .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin: 0 0 14px; opacity: 0.7; }
+  .row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .row:last-child { margin-bottom: 0; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; }
+  .dot { width: 7px; height: 7px; border-radius: 999px; }
+  .desc { font-size: 12px; opacity: 0.65; }
+</style>
+</head>
+<body>
+  <h1>Semantic status</h1>
+  <p class="lead">The status convention is formalized as tokens (pill fill + accent), not hardcoded Tailwind classes. Pills stay the existing shape. sky = open/planning, amber = in progress/at risk, rose = blocked/rejected, emerald = done/achieved, blue = active.</p>
+  <div class="themes">
+    <section class="panel light">
+      <h2>Light</h2>
+      <div class="row"><span class="pill" style="background:oklch(0.96 0.03 240);color:oklch(0.55 0.12 240)"><span class="dot" style="background:oklch(0.55 0.12 240)"></span>Open</span><span class="desc">planning</span></div>
+      <div class="row"><span class="pill" style="background:oklch(0.96 0.05 85);color:oklch(0.62 0.13 70)"><span class="dot" style="background:oklch(0.62 0.13 70)"></span>In progress</span><span class="desc">at risk</span></div>
+      <div class="row"><span class="pill" style="background:oklch(0.96 0.03 15);color:oklch(0.58 0.19 15)"><span class="dot" style="background:oklch(0.58 0.19 15)"></span>Blocked</span><span class="desc">rejected</span></div>
+      <div class="row"><span class="pill" style="background:oklch(0.96 0.04 160);color:oklch(0.55 0.13 160)"><span class="dot" style="background:oklch(0.55 0.13 160)"></span>Done</span><span class="desc">achieved</span></div>
+      <div class="row"><span class="pill" style="background:oklch(0.96 0.03 255);color:oklch(0.52 0.16 255)"><span class="dot" style="background:oklch(0.52 0.16 255)"></span>Active</span></div>
+    </section>
+    <section class="panel dark">
+      <h2>Dark</h2>
+      <div class="row"><span class="pill" style="background:oklch(0.32 0.05 240);color:oklch(0.72 0.11 240)"><span class="dot" style="background:oklch(0.72 0.11 240)"></span>Open</span><span class="desc">planning</span></div>
+      <div class="row"><span class="pill" style="background:oklch(0.32 0.05 80);color:oklch(0.78 0.12 80)"><span class="dot" style="background:oklch(0.78 0.12 80)"></span>In progress</span><span class="desc">at risk</span></div>
+      <div class="row"><span class="pill" style="background:oklch(0.32 0.06 15);color:oklch(0.7 0.16 15)"><span class="dot" style="background:oklch(0.7 0.16 15)"></span>Blocked</span><span class="desc">rejected</span></div>
+      <div class="row"><span class="pill" style="background:oklch(0.3 0.05 160);color:oklch(0.72 0.12 160)"><span class="dot" style="background:oklch(0.72 0.12 160)"></span>Done</span><span class="desc">achieved</span></div>
+      <div class="row"><span class="pill" style="background:oklch(0.32 0.06 255);color:oklch(0.7 0.14 255)"><span class="dot" style="background:oklch(0.7 0.14 255)"></span>Active</span></div>
+    </section>
+  </div>
+</body>
+</html>
