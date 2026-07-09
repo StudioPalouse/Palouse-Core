@@ -12,6 +12,7 @@ import {
   Skeleton,
 } from '@palouse/ui';
 import { DecisionList } from '@/components/decision-list';
+import { EmptyState } from '@/components/fieldwork/empty-state';
 import { DecisionDetailSheet } from '@/components/decision-detail-sheet';
 import { NewDecisionDialog } from '@/components/new-decision-dialog';
 import { api } from '@/lib/api';
@@ -82,7 +83,7 @@ export default function DecisionsPage() {
           </div>
         </div>
 
-        <div className="rounded-lg border">
+        <div className="overflow-hidden rounded-lg border">
           {decisions === null ? (
             <div className="flex flex-col gap-3 p-4">
               <Skeleton className="h-5 w-full" />
@@ -90,9 +91,11 @@ export default function DecisionsPage() {
               <Skeleton className="h-5 w-4/6" />
             </div>
           ) : decisions.length === 0 ? (
-            <p className="text-muted-foreground p-8 text-center text-sm">
-              No decisions yet. Log one to start your team&rsquo;s decision record.
-            </p>
+            <EmptyState
+              bordered={false}
+              title="No decisions yet"
+              description="Log one to start your team&rsquo;s decision record."
+            />
           ) : (
             <DecisionList decisions={decisions} onSelect={setSelectedId} />
           )}

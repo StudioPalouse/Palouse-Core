@@ -12,6 +12,7 @@ import {
   Skeleton,
 } from '@palouse/ui';
 import { ProjectList } from '@/components/project-list';
+import { EmptyState } from '@/components/fieldwork/empty-state';
 import { NewProjectDialog } from '@/components/new-project-dialog';
 import { api } from '@/lib/api';
 import { useActiveWorkspace } from '@/lib/workspace-context';
@@ -79,7 +80,7 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      <div className="rounded-lg border">
+      <div className="overflow-hidden rounded-lg border">
         {projects === null ? (
           <div className="flex flex-col gap-3 p-4">
             <Skeleton className="h-5 w-full" />
@@ -87,9 +88,11 @@ export default function ProjectsPage() {
             <Skeleton className="h-5 w-4/6" />
           </div>
         ) : projects.length === 0 ? (
-          <p className="text-muted-foreground p-8 text-center text-sm">
-            No projects yet. Start a board to organize related work.
-          </p>
+          <EmptyState
+            bordered={false}
+            title="No projects yet"
+            description="Start a board to organize related work."
+          />
         ) : (
           <ProjectList projects={projects} />
         )}

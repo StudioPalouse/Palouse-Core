@@ -12,6 +12,7 @@ import {
   Skeleton,
 } from '@palouse/ui';
 import { ObjectiveList } from '@/components/objective-list';
+import { EmptyState } from '@/components/fieldwork/empty-state';
 import { ObjectiveDetailSheet } from '@/components/objective-detail-sheet';
 import { NewObjectiveDialog } from '@/components/new-objective-dialog';
 import { ImportObjectivesDialog } from '@/components/import-objectives-dialog';
@@ -88,7 +89,7 @@ export default function ObjectivesPage() {
           </div>
         </div>
 
-        <div className="rounded-lg border">
+        <div className="overflow-hidden rounded-lg border">
           {objectives === null ? (
             <div className="flex flex-col gap-3 p-4">
               <Skeleton className="h-5 w-full" />
@@ -96,9 +97,11 @@ export default function ObjectivesPage() {
               <Skeleton className="h-5 w-4/6" />
             </div>
           ) : objectives.length === 0 ? (
-            <p className="text-muted-foreground p-8 text-center text-sm">
-              No objectives yet. Set a goal your team is working toward.
-            </p>
+            <EmptyState
+              bordered={false}
+              title="Nothing planted here yet"
+              description="Set a goal your team is working toward and track its progress here."
+            />
           ) : (
             <ObjectiveList objectives={objectives} onSelect={setSelectedId} />
           )}
