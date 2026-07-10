@@ -270,6 +270,82 @@ describe('assertMcpGrant', () => {
   });
 });
 
+describe('immediate key revocation', () => {
+  function fakeStore() {
+    const revoked = new Set<string>();
+    return {
+      revoked,
+      store: {
+        async markRevoked(keyId: string) {
+          revoked.add(keyId);
+        },
+        async isRevoked(keyId: string) {
+          return revoked.has(keyId);
+        },
+      },
+    };
+  }
+
+  async function seedKeyedAgent(ctx: { workspaceId: string; ownerId: string }) {
+    const agent = await createAgent(db, ctx.workspaceId, ctx.ownerId, {
+      name: 'Cached',
+      kind: 'mcp_generic',
+      metadata: {},
+    });
+    const { key, plaintext } = await createApiKey(db, ctx.workspaceId, ctx.ownerId, agent.id, {
+      scopes: ['*'],
+    });
+    return { agent, key, plaintext };
+  }
+
+  it('rejects a revoked key on the next request even when the verify cache is warm', async () => {
+    const ctx = await seed();
+    const { agent, key, plaintext } = await seedKeyedAgent(ctx);
+    const { store } = fakeStore();
+
+    // Warm the cache: without a tombstone this entry would live five minutes.
+    await expect(verifyApiKey(db, plaintext, store)).resolves.toMatchObject({ keyId: key.id });
+
+    await revokeApiKey(db, ctx.workspaceId, ctx.ownerId, agent.id, key.id, store);
+
+    await expect(verifyApiKey(db, plaintext, store)).rejects.toMatchObject({
+      code: 'UNAUTHORIZED',
+    });
+  });
+
+  it('archiving an agent tombstones every one of its keys', async () => {
+    const ctx = await seed();
+    const { agent, key, plaintext } = await seedKeyedAgent(ctx);
+    const { store, revoked } = fakeStore();
+
+    await expect(verifyApiKey(db, plaintext, store)).resolves.toMatchObject({ keyId: key.id });
+    await archiveAgent(db, ctx.workspaceId, ctx.ownerId, agent.id, store);
+
+    expect(revoked.has(key.id)).toBe(true);
+    await expect(verifyApiKey(db, plaintext, store)).rejects.toMatchObject({
+      code: 'UNAUTHORIZED',
+    });
+  });
+
+  it('fails open to the local cache when the revocation store errors', async () => {
+    const ctx = await seed();
+    const { key, plaintext } = await seedKeyedAgent(ctx);
+    const throwing = {
+      async markRevoked(): Promise<void> {
+        throw new Error('redis down');
+      },
+      async isRevoked(): Promise<boolean> {
+        throw new Error('redis down');
+      },
+    };
+
+    // First call misses the cache and hits the DB (store not consulted);
+    // second call hits the cache, the store throws, and auth still succeeds.
+    await expect(verifyApiKey(db, plaintext, throwing)).resolves.toMatchObject({ keyId: key.id });
+    await expect(verifyApiKey(db, plaintext, throwing)).resolves.toMatchObject({ keyId: key.id });
+  });
+});
+
 describe('agent delete', () => {
   it('deletes an agent with no history, cascading its keys', async () => {
     const ctx = await seed();

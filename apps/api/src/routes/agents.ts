@@ -9,6 +9,7 @@ import { agentService, workspaces } from '@palouse/core';
 import { loadEnv } from '@palouse/config';
 import { getDb } from '@palouse/db';
 import { requireSession, type SessionVars } from '../middleware/session.js';
+import { getKeyRevocationStore } from '../revocation.js';
 
 export const agentRoutes = new Hono<SessionVars>();
 
@@ -63,7 +64,13 @@ agentRoutes.post('/:id/archive', async (c) => {
   if (!workspaceId) throw validation('workspaceId required');
   const db = getDb(loadEnv().DATABASE_URL);
   await workspaces.requireRole(db, workspaceId, c.get('userId'), ['owner', 'admin']);
-  const agent = await agentService.archiveAgent(db, workspaceId, c.get('userId'), c.req.param('id'));
+  const agent = await agentService.archiveAgent(
+    db,
+    workspaceId,
+    c.get('userId'),
+    c.req.param('id'),
+    getKeyRevocationStore(),
+  );
   return c.json({ agent });
 });
 
@@ -112,6 +119,7 @@ agentRoutes.delete('/:id/keys/:keyId', async (c) => {
     c.get('userId'),
     c.req.param('id'),
     c.req.param('keyId'),
+    getKeyRevocationStore(),
   );
   return c.body(null, 204);
 });

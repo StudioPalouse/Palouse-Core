@@ -169,3 +169,44 @@ export async function listPollingSchedulers(queue: SyncQueue): Promise<string[]>
     .filter((k) => k.startsWith('poll-'))
     .map((k) => k.slice('poll-'.length));
 }
+
+// ---------------------------------------------------------------------------
+// Agent-key revocation tombstones
+// ---------------------------------------------------------------------------
+
+/**
+ * Shared tombstones for revoked agent API keys. Each process keeps a local
+ * verify cache (see @palouse/core agents service); revocation writes a
+ * tombstone here so every process rejects the key on its next request instead
+ * of riding out its local cache TTL. Tombstones self-expire once any cache
+ * entry created before the revocation has aged out.
+ */
+const REVOKED_KEY_PREFIX = 'agentkey:revoked:';
+// Must outlive the 5-minute verify-cache TTL with slack.
+const REVOKED_KEY_TTL_MS = 6 * 60_000;
+
+export interface KeyRevocationStore {
+  markRevoked(keyId: string): Promise<void>;
+  isRevoked(keyId: string): Promise<boolean>;
+}
+
+export function createKeyRevocationStore(redisUrl: string): KeyRevocationStore {
+  // Deliberately NOT createRedisConnection: BullMQ's maxRetriesPerRequest:
+  // null parks commands until Redis returns, which would hang every cached
+  // auth check through an outage. Auth wants a fast answer or a fast error;
+  // the caller fails open to its local cache TTL on error.
+  const connection = new IORedis(redisUrl, {
+    maxRetriesPerRequest: 1,
+    enableOfflineQueue: false,
+    connectTimeout: 2_000,
+    commandTimeout: 1_000,
+  });
+  return {
+    async markRevoked(keyId) {
+      await connection.set(`${REVOKED_KEY_PREFIX}${keyId}`, '1', 'PX', REVOKED_KEY_TTL_MS);
+    },
+    async isRevoked(keyId) {
+      return (await connection.exists(`${REVOKED_KEY_PREFIX}${keyId}`)) === 1;
+    },
+  };
+}
