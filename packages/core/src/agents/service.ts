@@ -233,7 +233,9 @@ export async function createApiKey(
   if (!agent) throw notFound('Agent not found');
   if (agent.archivedAt) throw conflict('This agent is archived. Restore it to create new keys.');
 
-  const prefix = randomBytes(6).toString('base64url').slice(0, 8);
+  // Hex, not base64url: an underscore in the prefix would collide with the
+  // key format's separators.
+  const prefix = randomBytes(4).toString('hex');
   const secret = randomBytes(32).toString('hex');
   const plaintext = `${KEY_PREFIX}_${prefix}_${secret}`;
   const digest = await argon2Hash(secret);
@@ -402,12 +404,20 @@ export async function verifyApiKey(
     return cached.value;
   }
 
-  const parts = rawKey.split('_');
-  // palouse_agk_<prefix>_<secret>
-  if (parts.length !== 4 || `${parts[0]}_${parts[1]}` !== KEY_PREFIX) {
+  // palouse_agk_<prefix>_<secret>. Split on the LAST underscore: prefixes
+  // minted before 2026-07 were base64url and could themselves contain
+  // underscores, so a fixed four-part split rejected ~1 in 9 valid keys.
+  // The secret is always hex and never contains one.
+  if (!rawKey.startsWith(`${KEY_PREFIX}_`)) {
     throw unauthorized('Malformed agent API key');
   }
-  const [, , prefix, secret] = parts;
+  const rest = rawKey.slice(KEY_PREFIX.length + 1);
+  const sep = rest.lastIndexOf('_');
+  if (sep <= 0 || sep === rest.length - 1) {
+    throw unauthorized('Malformed agent API key');
+  }
+  const prefix = rest.slice(0, sep);
+  const secret = rest.slice(sep + 1);
 
   const candidates = await db
     .select({

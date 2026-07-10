@@ -1,4 +1,6 @@
+import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { hash as argon2Hash } from '@node-rs/argon2';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { and, eq } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
@@ -267,6 +269,40 @@ describe('assertMcpGrant', () => {
     await expect(
       assertMcpGrant(db, { userId: b.ownerId, agentId: agent.id }),
     ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+  });
+});
+
+describe('key format parsing', () => {
+  it('verifies legacy keys whose base64url prefix contains underscores', async () => {
+    const ctx = await seed();
+    const agent = await createAgent(db, ctx.workspaceId, ctx.ownerId, {
+      name: 'Legacy',
+      kind: 'mcp_generic',
+      metadata: {},
+    });
+    // Prefixes minted before the hex switch could contain underscores; the
+    // parser must split on the last separator, not a fixed part count.
+    const prefix = 'ab_cd_9Z';
+    const secret = randomBytes(32).toString('hex');
+    await db.insert(agentApiKeys).values({
+      agentId: agent.id,
+      prefix,
+      hash: await argon2Hash(secret),
+      scopes: ['*'],
+    });
+
+    await expect(verifyApiKey(db, `palouse_agk_${prefix}_${secret}`)).resolves.toMatchObject({
+      agentId: agent.id,
+    });
+  });
+
+  it('rejects malformed keys', async () => {
+    await expect(verifyApiKey(db, 'palouse_agk_missingsecret')).rejects.toMatchObject({
+      code: 'UNAUTHORIZED',
+    });
+    await expect(verifyApiKey(db, 'not_a_palouse_key_at_all')).rejects.toMatchObject({
+      code: 'UNAUTHORIZED',
+    });
   });
 });
 
