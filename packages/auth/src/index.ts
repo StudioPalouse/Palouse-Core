@@ -43,6 +43,13 @@ function build() {
     trustedOrigins: [env.WEB_BASE_URL],
     // Tables use uuid PKs with gen_random_uuid() defaults — let Postgres mint ids.
     advanced: { database: { generateId: false } },
+    // Encrypt social-provider access/refresh/id tokens at rest (symmetric, with
+    // the auth secret) so a database-only compromise does not expose usable
+    // provider tokens. Better-Auth's isLikelyEncrypted heuristic reads any
+    // pre-existing plaintext rows transparently. Note: keyed off
+    // BETTER_AUTH_SECRET, not a separately managed/rotatable envelope key —
+    // revisit before social login is offered at scale.
+    account: { encryptOAuthTokens: true },
     // The jwt plugin's session-JWT endpoint is unused; only the OAuth token
     // endpoint should mint JWTs (recommended by the oauth-provider docs).
     disabledPaths: ['/token'],
