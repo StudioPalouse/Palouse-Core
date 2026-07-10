@@ -10,7 +10,7 @@
     "build": "echo 'TODO: tsup'",
     "typecheck": "tsc --noEmit",
     "lint": "echo 'TODO: eslint'",
-    "test": "echo 'TODO: vitest'"
+    "test": "vitest run"
   },
   "dependencies": {
     "@better-auth/oauth-provider": "^1.6.23",
@@ -38,8 +38,10 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@testcontainers/postgresql": "^11.14.0",
     "@types/node": "^22.20.0",
     "tsx": "^4.22.4",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.6"
   }
 }
