@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { hash as argon2Hash, verify as argon2Verify } from '@node-rs/argon2';
 import { and, count, desc, eq, exists, isNull } from 'drizzle-orm';
 import {
@@ -124,6 +124,7 @@ export async function archiveAgent(
   workspaceId: string,
   actorUserId: string,
   agentId: string,
+  revocations?: KeyRevocationStore,
 ): Promise<Agent> {
   const [row] = await db
     .update(agents)
@@ -147,6 +148,10 @@ export async function archiveAgent(
   await audit(db, workspaceId, actorUserId, 'agent.archived', agentId, {
     revokedKeyIds: revoked.map((k) => k.id),
   });
+  await tombstone(
+    revocations,
+    revoked.map((k) => k.id),
+  );
   return toDto(row);
 }
 
@@ -256,6 +261,7 @@ export async function revokeApiKey(
   actorUserId: string,
   agentId: string,
   keyId: string,
+  revocations?: KeyRevocationStore,
 ): Promise<void> {
   await db.transaction(async (tx) => {
     // Workspace ownership is part of the UPDATE itself so a caller who knows a
@@ -283,6 +289,8 @@ export async function revokeApiKey(
       keyId,
     });
   });
+  // After commit: the DB rejects the key on any cache miss from here on.
+  await tombstone(revocations, [keyId]);
 }
 
 /**
@@ -321,15 +329,78 @@ export interface VerifiedAgentKey {
   scopes: AgentKeyScope[];
 }
 
+/**
+ * Cross-process revocation signal. The verify cache below is per process, so
+ * revocation writes a short-lived tombstone that every process consults
+ * before trusting a cache hit. Backed by Redis in the apps
+ * (@palouse/queue createKeyRevocationStore); tests inject a fake.
+ */
+export interface KeyRevocationStore {
+  markRevoked(keyId: string): Promise<void>;
+  isRevoked(keyId: string): Promise<boolean>;
+}
+
+async function isTombstoned(
+  store: KeyRevocationStore | undefined,
+  keyId: string,
+): Promise<boolean> {
+  if (!store) return false;
+  try {
+    return await store.isRevoked(keyId);
+  } catch (err) {
+    // Fail open to the local TTL: a Redis outage must not take agent auth
+    // down with it. Worst case is the pre-existing 5-minute grace window.
+    console.warn(
+      `agent-key revocation store unreachable, trusting local cache: ${(err as Error).message}`,
+    );
+    return false;
+  }
+}
+
+/**
+ * Post-commit tombstone write. The database is already authoritative when
+ * this runs, so a failed write only means the revoked key can ride out the
+ * remaining cache TTL; warn and move on rather than failing the revocation.
+ */
+async function tombstone(store: KeyRevocationStore | undefined, keyIds: string[]): Promise<void> {
+  if (!store) return;
+  await Promise.all(
+    keyIds.map(async (keyId) => {
+      try {
+        await store.markRevoked(keyId);
+      } catch (err) {
+        console.warn(`agent-key tombstone write failed for ${keyId}: ${(err as Error).message}`);
+      }
+    }),
+  );
+}
+
 // Argon2 verification is deliberately slow; cache successes so MCP/OTLP calls
-// don't pay it per request. Entries expire after 5 minutes or on revocation
-// (revoked keys may live up to the TTL — acceptable for v1).
+// don't pay it per request. Keyed by a sha256 fingerprint so raw bearer
+// credentials never sit in process memory. Entries expire after 5 minutes;
+// every hit is checked against the shared revocation tombstones so a revoked
+// key dies on its next request instead of riding out the TTL.
 const verifyCache = new Map<string, { value: VerifiedAgentKey; expiresAt: number }>();
 const VERIFY_CACHE_TTL_MS = 5 * 60_000;
 
-export async function verifyApiKey(db: Database, rawKey: string): Promise<VerifiedAgentKey> {
-  const cached = verifyCache.get(rawKey);
-  if (cached && cached.expiresAt > Date.now()) return cached.value;
+function fingerprint(rawKey: string): string {
+  return createHash('sha256').update(rawKey).digest('hex');
+}
+
+export async function verifyApiKey(
+  db: Database,
+  rawKey: string,
+  revocations?: KeyRevocationStore,
+): Promise<VerifiedAgentKey> {
+  const cacheKey = fingerprint(rawKey);
+  const cached = verifyCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    if (await isTombstoned(revocations, cached.value.keyId)) {
+      verifyCache.delete(cacheKey);
+      throw unauthorized('Invalid agent API key');
+    }
+    return cached.value;
+  }
 
   const parts = rawKey.split('_');
   // palouse_agk_<prefix>_<secret>
@@ -366,7 +437,7 @@ export async function verifyApiKey(db: Database, rawKey: string): Promise<Verifi
         keyId: candidate.id,
         scopes: candidate.scopes as AgentKeyScope[],
       };
-      verifyCache.set(rawKey, { value, expiresAt: Date.now() + VERIFY_CACHE_TTL_MS });
+      verifyCache.set(cacheKey, { value, expiresAt: Date.now() + VERIFY_CACHE_TTL_MS });
       // Throttled touch: fire-and-forget, at most once per cache window.
       void db
         .update(agentApiKeys)

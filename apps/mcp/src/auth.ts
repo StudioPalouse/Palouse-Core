@@ -3,6 +3,7 @@ import { auditEvents, type Database } from '@palouse/db';
 import { agentService } from '@palouse/core';
 import { agentKeyScope, unauthorized, type AgentKeyScope } from '@palouse/shared';
 import { loadEnv } from '@palouse/config';
+import { getKeyRevocationStore } from './revocation.js';
 
 export type VerifiedAgentKey = agentService.VerifiedAgentKey;
 
@@ -86,7 +87,7 @@ export async function verifyKeyFromEnv(db: Database): Promise<VerifiedAgentKey> 
   if (!raw) {
     throw unauthorized('PALOUSE_API_KEY is not set — mint one with `palouse create-agent-key`');
   }
-  return agentService.verifyApiKey(db, raw);
+  return agentService.verifyApiKey(db, raw, getKeyRevocationStore());
 }
 
 /**
@@ -102,7 +103,7 @@ export async function verifyKeyFromHeader(
   if (!match) throw unauthorized('Missing Authorization: Bearer <agent api key or access token>');
   const credential = match[1]!;
   if (credential.startsWith(AGENT_KEY_PREFIX)) {
-    return agentService.verifyApiKey(db, credential);
+    return agentService.verifyApiKey(db, credential, getKeyRevocationStore());
   }
   return verifyOAuthToken(db, credential);
 }

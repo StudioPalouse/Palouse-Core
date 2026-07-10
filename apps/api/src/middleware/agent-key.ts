@@ -3,6 +3,7 @@ import { unauthorized, type AgentKeyScope } from '@palouse/shared';
 import { agentService } from '@palouse/core';
 import { loadEnv } from '@palouse/config';
 import { getDb } from '@palouse/db';
+import { getKeyRevocationStore } from '../revocation.js';
 
 export type AgentKeyVars = {
   Variables: {
@@ -20,7 +21,7 @@ export function requireAgentKey(scope: AgentKeyScope) {
     const match = c.req.header('authorization')?.match(/^Bearer\s+(\S+)$/i);
     if (!match) throw unauthorized('Missing Authorization: Bearer <agent api key>');
     const db = getDb(loadEnv().DATABASE_URL);
-    const key = await agentService.verifyApiKey(db, match[1]!);
+    const key = await agentService.verifyApiKey(db, match[1]!, getKeyRevocationStore());
     agentService.requireScope(key, scope);
     c.set('agentKey', key);
     await next();
