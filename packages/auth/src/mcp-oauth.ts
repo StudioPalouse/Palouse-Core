@@ -1,6 +1,7 @@
 import { jwt } from 'better-auth/plugins';
 import { oauthProvider } from '@better-auth/oauth-provider';
 import { APIError } from 'better-auth/api';
+import { agentService } from '@palouse/core';
 import { ALL_AGENT_KEY_SCOPES } from '@palouse/shared';
 import type { Database } from '@palouse/db';
 import type { loadEnv } from '@palouse/config';
@@ -84,21 +85,29 @@ export function mcpOAuthPlugins(env: Env, db: Database) {
           return selection.agentId;
         },
       },
-      customAccessTokenClaims: async ({ referenceId }) => {
+      // Runs on both the authorization-code and refresh-token grants, so this
+      // is where a revoked delegation stops minting new tokens. The grant is
+      // the consenting user's authority: an archived agent, a deactivated
+      // membership, or a removed member all refuse the mint.
+      customAccessTokenClaims: async ({ user, referenceId }) => {
         if (!referenceId) return {};
-        const agent = await db.query.agents.findFirst({
-          where: (t, { eq }) => eq(t.id, referenceId),
+        const revoked = new APIError('FORBIDDEN', {
+          message: 'This connection was revoked. Reconnect to continue.',
         });
-        // Archived agents are revoked credentials; refuse to mint for them.
-        if (!agent || agent.archivedAt) {
-          throw new APIError('FORBIDDEN', {
-            message: 'This connection was revoked. Reconnect to continue.',
+        if (!user?.id) throw revoked;
+        try {
+          const grant = await agentService.assertMcpGrant(db, {
+            userId: user.id,
+            agentId: referenceId,
           });
+          return {
+            palouse_agent_id: grant.agentId,
+            palouse_workspace_id: grant.workspaceId,
+            palouse_user_id: user.id,
+          };
+        } catch {
+          throw revoked;
         }
-        return {
-          palouse_agent_id: agent.id,
-          palouse_workspace_id: agent.workspaceId,
-        };
       },
     }),
   ];

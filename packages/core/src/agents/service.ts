@@ -7,6 +7,7 @@ import {
   agents,
   auditEvents,
   decisions,
+  memberships,
   oauthAccessTokens,
   oauthConsents,
   oauthRefreshTokens,
@@ -282,6 +283,35 @@ export async function revokeApiKey(
       keyId,
     });
   });
+}
+
+/**
+ * An MCP OAuth grant is delegated user authority, not standalone agent
+ * authority: it is only valid while the consenting user remains an active
+ * member of the agent's workspace and the agent is not archived. Called when
+ * minting or refreshing access tokens and on every MCP request, so removing
+ * or deactivating the user cuts the connection off even while already-issued
+ * JWTs are unexpired.
+ */
+export async function assertMcpGrant(
+  db: Database,
+  input: { userId: string; agentId: string },
+): Promise<{ agentId: string; workspaceId: string }> {
+  const [row] = await db
+    .select({ agentId: agents.id, workspaceId: agents.workspaceId })
+    .from(agents)
+    .innerJoin(
+      memberships,
+      and(
+        eq(memberships.workspaceId, agents.workspaceId),
+        eq(memberships.userId, input.userId),
+        eq(memberships.status, 'active'),
+      ),
+    )
+    .where(and(eq(agents.id, input.agentId), isNull(agents.archivedAt)))
+    .limit(1);
+  if (!row) throw unauthorized('This connection was revoked');
+  return row;
 }
 
 export interface VerifiedAgentKey {
