@@ -15,6 +15,19 @@ const nextConfig = {
   experimental: {
     typedRoutes: true,
   },
+  // The bare apex resolves to the same Fly app as app.palouse.ai, but auth
+  // (cookies, BETTER_AUTH_URL) is scoped to the app subdomain, so apex traffic
+  // must bounce to the canonical origin instead of being served directly.
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'palouse.ai' }],
+        destination: 'https://app.palouse.ai/:path*',
+        permanent: true,
+      },
+    ];
+  },
   // The browser only ever talks to the web origin; these paths proxy server-side
   // to the API. Keeps auth cookies first-party and hides infra hostnames.
   async rewrites() {
