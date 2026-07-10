@@ -2,8 +2,12 @@ import { createHash, randomBytes } from 'node:crypto';
 import { and, count, desc, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
 import {
   workspaceDeletionTokens,
+  agents,
   invitations,
   memberships,
+  oauthAccessTokens,
+  oauthConsents,
+  oauthRefreshTokens,
   organizations,
   sessions,
   usageRollupsDaily,
@@ -238,6 +242,50 @@ export async function updateMemberRole(
   return { ...current, role };
 }
 
+/**
+ * MCP OAuth grants are delegated user authority (see agents.assertMcpGrant):
+ * when a member loses access to a workspace, their consents, refresh tokens,
+ * and opaque access tokens for that workspace's agents go with it, so a
+ * reconnect needs fresh consent. Only the target user's rows are deleted; an
+ * agent that another active member also authorized keeps that member's grant,
+ * and the target user's grants in other workspaces are untouched.
+ */
+async function revokeUserMcpGrants(
+  tx: Database,
+  workspaceId: string,
+  targetUserId: string,
+): Promise<void> {
+  const agentRows = await tx
+    .select({ id: agents.id })
+    .from(agents)
+    .where(eq(agents.workspaceId, workspaceId));
+  const agentIds = agentRows.map((r) => r.id);
+  if (agentIds.length === 0) return;
+  // Deleting a refresh token cascades its access tokens via refresh_id, but
+  // tokens minted without offline_access have no cascade path; delete both.
+  await tx
+    .delete(oauthRefreshTokens)
+    .where(
+      and(
+        eq(oauthRefreshTokens.userId, targetUserId),
+        inArray(oauthRefreshTokens.referenceId, agentIds),
+      ),
+    );
+  await tx
+    .delete(oauthAccessTokens)
+    .where(
+      and(
+        eq(oauthAccessTokens.userId, targetUserId),
+        inArray(oauthAccessTokens.referenceId, agentIds),
+      ),
+    );
+  await tx
+    .delete(oauthConsents)
+    .where(
+      and(eq(oauthConsents.userId, targetUserId), inArray(oauthConsents.referenceId, agentIds)),
+    );
+}
+
 /** Remove a member. Requires actor to be owner/admin; cannot remove the last owner. */
 export async function removeMember(
   db: Database,
@@ -251,9 +299,12 @@ export async function removeMember(
   if (current.role === 'owner' && (await activeOwnerCount(db, workspaceId)) <= 1) {
     throw conflict('A workspace must keep at least one owner');
   }
-  await db
-    .delete(memberships)
-    .where(and(eq(memberships.workspaceId, workspaceId), eq(memberships.userId, targetUserId)));
+  await db.transaction(async (tx) => {
+    await revokeUserMcpGrants(tx as unknown as Database, workspaceId, targetUserId);
+    await tx
+      .delete(memberships)
+      .where(and(eq(memberships.workspaceId, workspaceId), eq(memberships.userId, targetUserId)));
+  });
 }
 
 /**
@@ -285,14 +336,20 @@ export async function setMemberStatus(
 
   if (current.status === status) return current;
 
-  await db
-    .update(memberships)
-    .set({
-      status,
-      deactivatedAt: status === 'inactive' ? new Date() : null,
-      updatedAt: new Date(),
-    })
-    .where(and(eq(memberships.workspaceId, workspaceId), eq(memberships.userId, targetUserId)));
+  await db.transaction(async (tx) => {
+    await tx
+      .update(memberships)
+      .set({
+        status,
+        deactivatedAt: status === 'inactive' ? new Date() : null,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(memberships.workspaceId, workspaceId), eq(memberships.userId, targetUserId)));
+    // Reactivation deliberately does not resurrect grants; the user reconnects.
+    if (status === 'inactive') {
+      await revokeUserMcpGrants(tx as unknown as Database, workspaceId, targetUserId);
+    }
+  });
 
   return { ...current, status };
 }
