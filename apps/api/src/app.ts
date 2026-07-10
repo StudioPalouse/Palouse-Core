@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { bodyLimits } from './middleware/body-limits.js';
 import {
   oauthProviderAuthServerMetadata,
   oauthProviderOpenIdConfigMetadata,
@@ -35,6 +36,9 @@ export function buildApp() {
       credentials: true,
     }),
   );
+
+  // Reject oversized bodies before any handler reads them.
+  app.use('*', bodyLimits());
 
   app.onError((err, c) => {
     if (err instanceof PalouseError) {

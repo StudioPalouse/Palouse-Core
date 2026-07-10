@@ -93,6 +93,22 @@ Consequences:
 - Direct API access at `https://palouse-staging-api.fly.dev` still works for
   health checks and machine-to-machine clients (CLI, MCP agents).
 
+## Request guards (CSRF, content-type, body size)
+
+Cookie-authenticated `/v1` mutations (POST/PUT/PATCH/DELETE) require an `Origin`
+header equal to `WEB_BASE_URL` and, when they carry a body, `Content-Type:
+application/json`. Browsers send Origin automatically and the rewrite proxy
+forwards it, so the normal web app is unaffected. If you script these routes
+directly with a session cookie (rather than an agent API key), set the `Origin`
+header yourself. Agent-key routes (`/v1/otlp`, MCP) and provider webhooks use
+bearer or signature auth and are exempt.
+
+Request bodies are capped before they are read: 1 MB by default, 64 KB for
+`/api/auth/*`, 256 KB for `/webhooks`, 2 MB for `/v1/objectives/import`, and
+5 MB for `/v1/otlp`. Over-limit requests get `413`. Raise the OTLP or import
+ceilings in `apps/api/src/middleware/body-limits.ts` if you ingest larger
+batches.
+
 ## Custom domains
 
 Domain split: the **app lives on `palouse.ai`** (`test.palouse.ai` staging,
