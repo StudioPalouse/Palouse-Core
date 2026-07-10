@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { bodyLimits } from './middleware/body-limits.js';
+import { rateLimit } from './middleware/rate-limit.js';
 import {
   oauthProviderAuthServerMetadata,
   oauthProviderOpenIdConfigMetadata,
@@ -39,6 +40,15 @@ export function buildApp() {
 
   // Reject oversized bodies before any handler reads them.
   app.use('*', bodyLimits());
+
+  // Per-IP rate limits on the most-abused unauthenticated surfaces. OTLP and
+  // CSV import are limited inside their routers, keyed by agent key / user.
+  app.use(
+    '/api/auth/*',
+    rateLimit({ bucket: 'auth', limit: env.RATE_LIMIT_AUTH_PER_MIN }),
+  );
+  app.use('/oauth/*', rateLimit({ bucket: 'oauth', limit: env.RATE_LIMIT_OAUTH_PER_MIN }));
+  app.use('/webhooks/*', rateLimit({ bucket: 'webhook', limit: env.RATE_LIMIT_WEBHOOK_PER_MIN }));
 
   app.onError((err, c) => {
     if (err instanceof PalouseError) {

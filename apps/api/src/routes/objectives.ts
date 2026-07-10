@@ -15,10 +15,18 @@ import { capabilityService, objectiveService, workspaces } from '@palouse/core';
 import { loadEnv } from '@palouse/config';
 import { getDb, type Database } from '@palouse/db';
 import { requireSession, type SessionVars } from '../middleware/session.js';
+import { rateLimit } from '../middleware/rate-limit.js';
 
 export const objectiveRoutes = new Hono<SessionVars>();
 
 objectiveRoutes.use('*', requireSession);
+
+// CSV import parses up to 5000 rows; limit it per user (session runs first).
+const importRateLimit = rateLimit({
+  bucket: 'objectives-import',
+  limit: loadEnv().RATE_LIMIT_IMPORT_PER_MIN,
+  key: (c) => c.get('userId'),
+});
 
 /** Membership + the objectives capability must both be satisfied. */
 async function requireObjectivesAccess(
@@ -69,7 +77,7 @@ objectiveRoutes.post('/', async (c) => {
   return c.json({ objective }, 201);
 });
 
-objectiveRoutes.post('/import', async (c) => {
+objectiveRoutes.post('/import', importRateLimit, async (c) => {
   const body = await c.req.json();
   const workspaceId = bodyWorkspaceId(body);
   const parsed = importObjectivesInput.safeParse(body);
