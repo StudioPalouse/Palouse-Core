@@ -116,7 +116,11 @@ export const microsoftTodoAdapter: ConnectorAdapter = {
   },
 
   /** Subscribes to the default task list (Graph caps To Do subs at ~3 days). */
-  async subscribeWebhook(ctx: PullContext, callbackUrl: string): Promise<WebhookSubscription> {
+  async subscribeWebhook(
+    ctx: PullContext,
+    callbackUrl: string,
+    opts?: { clientState?: string },
+  ): Promise<WebhookSubscription> {
     const lists = await graphGetAll<TodoList>('/me/todo/lists', ctx.accessToken);
     const target = lists.find((l) => l.wellknownListName === 'defaultList') ?? lists[0];
     if (!target) throw new Error('Microsoft account has no To Do lists');
@@ -124,7 +128,9 @@ export const microsoftTodoAdapter: ConnectorAdapter = {
       accessToken: ctx.accessToken,
       resource: `/me/todo/lists/${target.id}/tasks`,
       notificationUrl: callbackUrl,
-      clientState: ctx.integrationId,
+      // Callers pass a random secret; the integration id survives only as a
+      // legacy fallback until every pre-nonce subscription has rotated.
+      clientState: opts?.clientState ?? ctx.integrationId,
     });
   },
 

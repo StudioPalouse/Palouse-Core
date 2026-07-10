@@ -150,6 +150,38 @@ export async function runRenewSubscriptions(
   for (const row of rows) {
     const adapter = adapterFor(row.provider);
     if (!adapter.renewWebhook || !row.webhookSubscriptionId) continue;
+
+    // Legacy subscription (registered before nonced callback URLs): rotate it
+    // onto a nonced URL with a random clientState now instead of renewing.
+    // The old subscription is abandoned; its notifications no longer match
+    // the stored subscription id and Graph expires it within days.
+    if (row.webhookNonceHash === null && adapter.subscribeWebhook) {
+      const ctx: PullContext = {
+        integrationId: row.id,
+        workspaceId: row.workspaceId,
+        accessToken: await freshAccessToken(db, env, row),
+      };
+      try {
+        const armed = await integrationService.armWebhook(db, row.id);
+        const sub = await adapter.subscribeWebhook(
+          ctx,
+          `${env.API_BASE_URL}/webhooks/${row.provider}/${row.id}/${armed.nonce}`,
+          { clientState: armed.clientState },
+        );
+        await integrationService.setWebhookSubscription(db, row.id, sub.subscriptionId, sub.expiresAt);
+        logger.info(
+          { integrationId: row.id, provider: row.provider },
+          'Webhook subscription rotated onto nonced route',
+        );
+      } catch (err) {
+        logger.error(
+          { integrationId: row.id, err: (err as Error).message },
+          'Webhook rotation failed — will retry next sweep',
+        );
+      }
+      continue;
+    }
+
     if (
       row.webhookExpiresAt &&
       row.webhookExpiresAt.getTime() > Date.now() + RENEW_WINDOW_MS
@@ -177,9 +209,11 @@ export async function runRenewSubscriptions(
       );
       try {
         if (!adapter.subscribeWebhook) continue;
+        const armed = await integrationService.armWebhook(db, row.id);
         const sub = await adapter.subscribeWebhook(
           ctx,
-          `${env.API_BASE_URL}/webhooks/${row.provider}/${row.id}`,
+          `${env.API_BASE_URL}/webhooks/${row.provider}/${row.id}/${armed.nonce}`,
+          { clientState: armed.clientState },
         );
         await integrationService.setWebhookSubscription(db, row.id, sub.subscriptionId, sub.expiresAt);
         logger.info({ integrationId: row.id }, 'Webhook re-subscribed');

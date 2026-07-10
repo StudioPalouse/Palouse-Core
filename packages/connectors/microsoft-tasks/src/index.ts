@@ -65,9 +65,13 @@ export const microsoftTasksAdapter: ConnectorAdapter = {
     await adapter.push(ctx, payload);
   },
 
-  async subscribeWebhook(ctx: PullContext, callbackUrl: string): Promise<WebhookSubscription> {
+  async subscribeWebhook(
+    ctx: PullContext,
+    callbackUrl: string,
+    opts?: { clientState?: string },
+  ): Promise<WebhookSubscription> {
     if (!microsoftTodoAdapter.subscribeWebhook) throw new Error('To Do adapter has no webhook');
-    return microsoftTodoAdapter.subscribeWebhook(ctx, callbackUrl);
+    return microsoftTodoAdapter.subscribeWebhook(ctx, callbackUrl, opts);
   },
 
   async renewWebhook(ctx: PullContext, subscriptionId: string): Promise<WebhookSubscription> {

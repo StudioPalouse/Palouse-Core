@@ -55,6 +55,21 @@ export const integrations = pgTable(
     // Per-subscription signing secret (e.g. Asana X-Hook-Secret), AES-256-GCM encrypted.
     webhookSecretEnc: bytea('webhook_secret_enc'),
     webhookExpiresAt: timestamp('webhook_expires_at', { withTimezone: true, mode: 'date' }),
+    // Route hardening: callback URLs carry a random nonce and Graph
+    // notifications a random clientState; only sha256 hashes are stored (the
+    // plaintexts live solely in the URL/subscription registered with the
+    // provider, and renewal never re-sends them). NULL nonce hash = legacy
+    // subscription created before nonced routes; rotated by the renewal sweep.
+    webhookNonceHash: text('webhook_nonce_hash'),
+    // Handshake window: an Asana X-Hook-Secret is only accepted while this is
+    // in the future and webhook_status is 'pending'.
+    webhookNonceExpiresAt: timestamp('webhook_nonce_expires_at', {
+      withTimezone: true,
+      mode: 'date',
+    }),
+    webhookClientStateHash: text('webhook_client_state_hash'),
+    // 'none' | 'pending' (armed, awaiting handshake/registration) | 'active'.
+    webhookStatus: text('webhook_status').notNull().default('none'),
     // Provider-specific connection config. Notion stores { dataSourceId, fieldMap }
     // here, since its sync target (a shared database) can't be auto-discovered.
     config: jsonb('config'),
