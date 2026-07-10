@@ -101,6 +101,17 @@ oauthRoutes.get('/:provider/callback', async (c) => {
     return c.redirect(`${settingsUrl}?error=bad_state`);
   }
 
+  // The signed state outlives role changes for up to ten minutes; the user
+  // must still be an active owner/admin before we exchange the code or
+  // persist anything. Same generic error as any other failure so the
+  // response does not reveal whether the workspace exists.
+  const db = getDb(env.DATABASE_URL);
+  try {
+    await workspaces.requireRole(db, payload.workspaceId, payload.userId, ['owner', 'admin']);
+  } catch {
+    return c.redirect(`${settingsUrl}?error=oauth_failed`);
+  }
+
   try {
     const adapter = adapterFor(provider);
     const tokens = await adapter.exchangeCode({
@@ -109,7 +120,6 @@ oauthRoutes.get('/:provider/callback', async (c) => {
       code,
     });
 
-    const db = getDb(env.DATABASE_URL);
     const integration = await integrationService.createIntegration(
       db,
       env.PALOUSE_ENCRYPTION_KEY,
