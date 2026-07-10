@@ -17,6 +17,7 @@ import {
 } from '@palouse/db';
 import {
   archiveAgent,
+  assertMcpGrant,
   createAgent,
   createApiKey,
   deleteAgent,
@@ -202,6 +203,70 @@ describe('revokeApiKey workspace scoping', () => {
       revokeApiKey(db, ctx.workspaceId, ctx.ownerId, agent.id, key.id),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
     expect(await revocationAuditCount(ctx.workspaceId)).toBe(1);
+  });
+});
+
+describe('assertMcpGrant', () => {
+  async function seedAgent(ctx: { workspaceId: string; ownerId: string }) {
+    return createAgent(db, ctx.workspaceId, ctx.ownerId, {
+      name: 'MCP',
+      kind: 'mcp_generic',
+      metadata: {},
+    });
+  }
+
+  it('passes for an active member of the agent workspace', async () => {
+    const ctx = await seed();
+    const agent = await seedAgent(ctx);
+    await expect(assertMcpGrant(db, { userId: ctx.ownerId, agentId: agent.id })).resolves.toEqual({
+      agentId: agent.id,
+      workspaceId: ctx.workspaceId,
+    });
+  });
+
+  it('rejects a deactivated member', async () => {
+    const ctx = await seed();
+    const agent = await seedAgent(ctx);
+    await db
+      .update(memberships)
+      .set({ status: 'inactive', deactivatedAt: new Date() })
+      .where(and(eq(memberships.workspaceId, ctx.workspaceId), eq(memberships.userId, ctx.ownerId)));
+
+    await expect(
+      assertMcpGrant(db, { userId: ctx.ownerId, agentId: agent.id }),
+    ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+  });
+
+  it('rejects a removed member', async () => {
+    const ctx = await seed();
+    const agent = await seedAgent(ctx);
+    await db
+      .delete(memberships)
+      .where(and(eq(memberships.workspaceId, ctx.workspaceId), eq(memberships.userId, ctx.ownerId)));
+
+    await expect(
+      assertMcpGrant(db, { userId: ctx.ownerId, agentId: agent.id }),
+    ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+  });
+
+  it('rejects an archived agent even for an active member', async () => {
+    const ctx = await seed();
+    const agent = await seedAgent(ctx);
+    await archiveAgent(db, ctx.workspaceId, ctx.ownerId, agent.id);
+
+    await expect(
+      assertMcpGrant(db, { userId: ctx.ownerId, agentId: agent.id }),
+    ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+  });
+
+  it('rejects a user whose membership is in a different workspace', async () => {
+    const a = await seed();
+    const b = await seed();
+    const agent = await seedAgent(a);
+
+    await expect(
+      assertMcpGrant(db, { userId: b.ownerId, agentId: agent.id }),
+    ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
   });
 });
 

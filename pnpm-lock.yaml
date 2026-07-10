@@ -361,6 +361,9 @@ importers:
       '@palouse/config':
         specifier: workspace:*
         version: link:../config
+      '@palouse/core':
+        specifier: workspace:*
+        version: link:../core
       '@palouse/db':
         specifier: workspace:*
         version: link:../db

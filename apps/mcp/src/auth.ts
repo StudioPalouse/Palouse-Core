@@ -1,6 +1,5 @@
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
-import { eq } from 'drizzle-orm';
-import { agents, auditEvents, type Database } from '@palouse/db';
+import { auditEvents, type Database } from '@palouse/db';
 import { agentService } from '@palouse/core';
 import { agentKeyScope, unauthorized, type AgentKeyScope } from '@palouse/shared';
 import { loadEnv } from '@palouse/config';
@@ -47,12 +46,20 @@ async function verifyOAuthToken(db: Database, token: string): Promise<VerifiedAg
     throw unauthorized('Access token is not a Palouse MCP token');
   }
 
-  const [agent] = await db
-    .select({ id: agents.id, workspaceId: agents.workspaceId, archivedAt: agents.archivedAt })
-    .from(agents)
-    .where(eq(agents.id, agentId))
-    .limit(1);
-  if (!agent || agent.archivedAt || agent.workspaceId !== workspaceId) {
+  // The grant is the consenting user's delegated authority. palouse_user_id
+  // is stamped by newer tokens; sub carries the same user id on tokens minted
+  // before the claim existed, so those are enforceable too.
+  const userId =
+    typeof payload.palouse_user_id === 'string'
+      ? payload.palouse_user_id
+      : typeof payload.sub === 'string'
+        ? payload.sub
+        : undefined;
+  if (!userId) throw unauthorized('Access token is not a Palouse MCP token');
+
+  // Throws unless the agent is live and the user is still an active member.
+  const grant = await agentService.assertMcpGrant(db, { userId, agentId });
+  if (grant.workspaceId !== workspaceId) {
     throw unauthorized('This connection was revoked');
   }
 

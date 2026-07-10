@@ -16,6 +16,7 @@
   "dependencies": {
     "@better-auth/oauth-provider": "^1.6.23",
     "@palouse/config": "workspace:*",
+    "@palouse/core": "workspace:*",
     "@palouse/db": "workspace:*",
     "@palouse/mail": "workspace:*",
     "@palouse/shared": "workspace:*",
