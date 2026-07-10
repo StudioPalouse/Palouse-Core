@@ -109,6 +109,26 @@ Request bodies are capped before they are read: 1 MB by default, 64 KB for
 ceilings in `apps/api/src/middleware/body-limits.ts` if you ingest larger
 batches.
 
+### Rate limits
+
+Fixed-window per-minute limits (backed by Redis, fail-open on a Redis outage)
+protect the most-abused endpoints. Over-limit requests get `429` with a
+`Retry-After` header. Buckets are keyed per client IP (`Fly-Client-IP`, then the
+leftmost `X-Forwarded-For` hop), except OTLP (per agent key, since many agents
+share one egress IP) and CSV import (per user). Defaults, override via env, set
+any to `0` to disable that bucket:
+
+| Env var | Endpoint | Default (per min) |
+| --- | --- | --- |
+| `RATE_LIMIT_AUTH_PER_MIN` | `/api/auth/*` (sign-in, reset, sign-up) | 10 |
+| `RATE_LIMIT_OAUTH_PER_MIN` | `/oauth/*` (connector start + callback) | 20 |
+| `RATE_LIMIT_WEBHOOK_PER_MIN` | `/webhooks/*` | 240 |
+| `RATE_LIMIT_OTLP_PER_MIN` | `/v1/otlp` (per agent key) | 300 |
+| `RATE_LIMIT_IMPORT_PER_MIN` | `/v1/objectives/import` (per user) | 10 |
+
+The MCP HTTP endpoint (`apps/mcp`) is a separate process and is not yet
+rate-limited; edge limits (Fly) are the current backstop there.
+
 ## Custom domains
 
 Domain split: the **app lives on `palouse.ai`** (`test.palouse.ai` staging,

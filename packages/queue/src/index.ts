@@ -210,3 +210,50 @@ export function createKeyRevocationStore(redisUrl: string): KeyRevocationStore {
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// Fixed-window rate limiting
+// ---------------------------------------------------------------------------
+
+export interface RateLimitDecision {
+  allowed: boolean;
+  /** Seconds until the current window resets (for Retry-After). */
+  retryAfterSec: number;
+}
+
+export interface RateLimitStore {
+  /**
+   * Records one hit against (bucket, id) and reports whether it is within
+   * `limit` per `windowMs`. Fails OPEN (allowed) if Redis is unreachable — a
+   * rate limiter must never become an outage amplifier.
+   */
+  hit(bucket: string, id: string, limit: number, windowMs: number): Promise<RateLimitDecision>;
+}
+
+export function createRateLimitStore(redisUrl: string): RateLimitStore {
+  // Fail-fast connection (see createKeyRevocationStore): a stalled Redis must
+  // not park request handling.
+  const connection = new IORedis(redisUrl, {
+    maxRetriesPerRequest: 1,
+    enableOfflineQueue: false,
+    connectTimeout: 2_000,
+    commandTimeout: 1_000,
+  });
+  return {
+    async hit(bucket, id, limit, windowMs) {
+      const now = Date.now();
+      const windowIndex = Math.floor(now / windowMs);
+      const key = `rl:${bucket}:${id}:${windowIndex}`;
+      const resetMs = (windowIndex + 1) * windowMs - now;
+      const retryAfterSec = Math.max(1, Math.ceil(resetMs / 1000));
+      try {
+        const count = await connection.incr(key);
+        // Set the TTL once, when the window opens.
+        if (count === 1) await connection.pexpire(key, windowMs);
+        return { allowed: count <= limit, retryAfterSec };
+      } catch {
+        return { allowed: true, retryAfterSec: 0 };
+      }
+    },
+  };
+}

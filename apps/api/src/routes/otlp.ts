@@ -4,6 +4,7 @@ import { usageService } from '@palouse/core';
 import { loadEnv } from '@palouse/config';
 import { auditEvents, getDb } from '@palouse/db';
 import { requireAgentKey, type AgentKeyVars } from '../middleware/agent-key.js';
+import { rateLimit } from '../middleware/rate-limit.js';
 
 type OtlpPayload = Parameters<typeof usageService.ingestOtlp>[2];
 
@@ -18,6 +19,15 @@ type OtlpPayload = Parameters<typeof usageService.ingestOtlp>[2];
 export const otlpRoutes = new Hono<AgentKeyVars>();
 
 otlpRoutes.use('*', requireAgentKey('usage:write'));
+// Keyed by the agent key, not IP: many agents can share one egress IP.
+otlpRoutes.use(
+  '*',
+  rateLimit({
+    bucket: 'otlp',
+    limit: loadEnv().RATE_LIMIT_OTLP_PER_MIN,
+    key: (c) => c.get('agentKey').keyId,
+  }),
+);
 
 otlpRoutes.post('/v1/traces', async (c) => {
   const contentType = c.req.header('content-type') ?? '';

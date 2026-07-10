@@ -40,6 +40,14 @@ const envSchema = z.object({
   API_BASE_URL: z.string().url(),
   WEB_BASE_URL: z.string().url(),
 
+  // Per-minute rate limits per client (IP, or agent key for OTLP). Set any to
+  // 0 to disable that bucket. Documented in docs/deployment.md.
+  RATE_LIMIT_AUTH_PER_MIN: z.coerce.number().int().nonnegative().default(10),
+  RATE_LIMIT_OAUTH_PER_MIN: z.coerce.number().int().nonnegative().default(20),
+  RATE_LIMIT_WEBHOOK_PER_MIN: z.coerce.number().int().nonnegative().default(240),
+  RATE_LIMIT_OTLP_PER_MIN: z.coerce.number().int().nonnegative().default(300),
+  RATE_LIMIT_IMPORT_PER_MIN: z.coerce.number().int().nonnegative().default(10),
+
   PALOUSE_ENCRYPTION_KEY: z
     .string()
     .regex(/^[0-9a-f]{64}$/i, 'must be 64 hex chars (AES-256 key)'),
