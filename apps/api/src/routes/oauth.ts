@@ -132,13 +132,17 @@ oauthRoutes.get('/:provider/callback', async (c) => {
     // API_BASE_URL, which local dev usually doesn't have. Polling still works.
     if (adapter.subscribeWebhook) {
       try {
+        // Arm first: the callback URL carries a random nonce and Graph gets a
+        // random clientState; only their hashes are stored.
+        const armed = await integrationService.armWebhook(db, integration.id);
         const sub = await adapter.subscribeWebhook(
           {
             integrationId: integration.id,
             workspaceId: payload.workspaceId,
             accessToken: tokens.accessToken,
           },
-          `${env.API_BASE_URL}/webhooks/${provider}/${integration.id}`,
+          `${env.API_BASE_URL}/webhooks/${provider}/${integration.id}/${armed.nonce}`,
+          { clientState: armed.clientState },
         );
         await integrationService.setWebhookSubscription(
           db,

@@ -1,6 +1,7 @@
-import { and, eq } from 'drizzle-orm';
+import { createHash, randomBytes } from 'node:crypto';
+import { and, eq, gt } from 'drizzle-orm';
 import { integrations, syncCursors, type Database } from '@palouse/db';
-import { notFound, type Integration, type IntegrationProvider } from '@palouse/shared';
+import { conflict, notFound, type Integration, type IntegrationProvider } from '@palouse/shared';
 import { decryptSecret, encryptSecret, type OAuthTokenSet } from '@palouse/connector-core';
 
 export type IntegrationRow = typeof integrations.$inferSelect;
@@ -134,6 +135,44 @@ export async function saveRefreshedTokens(
     .where(eq(integrations.id, id));
 }
 
+/** sha256 hex of a webhook route nonce or Graph clientState. */
+export function hashWebhookToken(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+// How long an armed integration accepts a handshake / registration.
+const WEBHOOK_HANDSHAKE_TTL_MS = 15 * 60_000;
+
+export interface ArmedWebhook {
+  nonce: string;
+  clientState: string;
+}
+
+/**
+ * Prepares an integration for webhook (re)registration: mints a random route
+ * nonce and Graph clientState, stores only their sha256 hashes, and opens a
+ * 15-minute handshake window. The plaintexts are returned exactly once; they
+ * live on only in the callback URL and subscription registered with the
+ * provider. Arming again rotates both values and re-opens the window.
+ */
+export async function armWebhook(db: Database, id: string): Promise<ArmedWebhook> {
+  const nonce = randomBytes(24).toString('base64url');
+  const clientState = randomBytes(24).toString('base64url');
+  const updated = await db
+    .update(integrations)
+    .set({
+      webhookNonceHash: hashWebhookToken(nonce),
+      webhookNonceExpiresAt: new Date(Date.now() + WEBHOOK_HANDSHAKE_TTL_MS),
+      webhookClientStateHash: hashWebhookToken(clientState),
+      webhookStatus: 'pending',
+      updatedAt: new Date(),
+    })
+    .where(eq(integrations.id, id))
+    .returning({ id: integrations.id });
+  if (updated.length === 0) throw notFound('Integration not found');
+  return { nonce, clientState };
+}
+
 export async function setWebhookSubscription(
   db: Database,
   id: string,
@@ -145,21 +184,44 @@ export async function setWebhookSubscription(
     .set({
       webhookSubscriptionId: subscriptionId,
       webhookExpiresAt: expiresAt ?? null,
+      webhookStatus: 'active',
+      webhookNonceExpiresAt: null,
       updatedAt: new Date(),
     })
     .where(eq(integrations.id, id));
 }
 
+/**
+ * Persists an Asana handshake secret. Only an armed integration inside its
+ * handshake window may set (or rotate) the secret, so an unsolicited or
+ * replayed handshake cannot overwrite an established one; rotating requires
+ * an explicit re-arm (resubscription).
+ */
 export async function setWebhookSecret(
   db: Database,
   encryptionKey: string,
   id: string,
   secret: string,
 ): Promise<void> {
-  await db
+  const updated = await db
     .update(integrations)
-    .set({ webhookSecretEnc: encryptSecret(secret, encryptionKey), updatedAt: new Date() })
-    .where(eq(integrations.id, id));
+    .set({
+      webhookSecretEnc: encryptSecret(secret, encryptionKey),
+      webhookStatus: 'active',
+      webhookNonceExpiresAt: null,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(integrations.id, id),
+        eq(integrations.webhookStatus, 'pending'),
+        gt(integrations.webhookNonceExpiresAt, new Date()),
+      ),
+    )
+    .returning({ id: integrations.id });
+  if (updated.length === 0) {
+    throw conflict('Integration is not awaiting a webhook handshake');
+  }
 }
 
 export function decryptWebhookSecret(

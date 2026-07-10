@@ -96,6 +96,8 @@ export interface ConnectorAdapter {
   subscribeWebhook?(
     ctx: PullContext,
     callbackUrl: string,
+    /** clientState: random per-subscription secret; never the integration id. */
+    opts?: { clientState?: string },
   ): Promise<WebhookSubscription>;
 
   /** Extends an expiring subscription (MS Graph caps lifetimes at ~3 days). */
