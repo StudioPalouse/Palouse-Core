@@ -1,26 +1,34 @@
 import { fileURLToPath } from 'node:url';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  agents,
   closeDb,
   getDb,
   invitations,
   memberships,
+  oauthAccessTokens,
+  oauthClients,
+  oauthConsents,
+  oauthRefreshTokens,
   organizations,
   sessions,
   users,
   workspaces,
   type Database,
 } from '@palouse/db';
+import { assertMcpGrant } from '../agents/service.js';
 import {
   acceptInvite,
   createInvite,
   listInvites,
   listMembers,
+  removeMember,
   resendInvite,
   revokeInvite,
+  setMemberStatus,
 } from './service.js';
 
 const MIGRATIONS_DIR = fileURLToPath(new URL('../../../db/migrations', import.meta.url));
@@ -171,5 +179,137 @@ describe('listMembers lastActiveAt', () => {
 
     expect(owner?.lastActiveAt).toBe(newer.toISOString());
     expect(idle?.lastActiveAt).toBeNull();
+  });
+});
+
+describe('MCP grant revocation on membership change', () => {
+  async function seedOAuthClient(): Promise<string> {
+    const clientId = `client-${crypto.randomUUID().slice(0, 8)}`;
+    await db.insert(oauthClients).values({ clientId, redirectUris: [] });
+    return clientId;
+  }
+
+  async function seedAgent(workspaceId: string): Promise<string> {
+    const [agent] = await db
+      .insert(agents)
+      .values({ workspaceId, name: `Agent ${crypto.randomUUID().slice(0, 8)}` })
+      .returning();
+    return agent!.id;
+  }
+
+  async function seedGrant(clientId: string, userId: string, agentId: string): Promise<void> {
+    await db
+      .insert(oauthConsents)
+      .values({ clientId, userId, referenceId: agentId, scopes: ['tasks:read'] });
+    const [rt] = await db
+      .insert(oauthRefreshTokens)
+      .values({
+        token: `rt-${crypto.randomUUID()}`,
+        clientId,
+        userId,
+        referenceId: agentId,
+        expiresAt: new Date(Date.now() + 86_400_000),
+        scopes: ['tasks:read'],
+      })
+      .returning();
+    await db.insert(oauthAccessTokens).values({
+      token: `at-${crypto.randomUUID()}`,
+      clientId,
+      userId,
+      referenceId: agentId,
+      refreshId: rt!.id,
+      expiresAt: new Date(Date.now() + 3_600_000),
+      scopes: ['tasks:read'],
+    });
+  }
+
+  async function grantRowCounts(
+    userId: string,
+    agentId: string,
+  ): Promise<{ consents: number; refresh: number; access: number }> {
+    const [consents, refresh, access] = await Promise.all([
+      db
+        .select({ id: oauthConsents.id })
+        .from(oauthConsents)
+        .where(and(eq(oauthConsents.userId, userId), eq(oauthConsents.referenceId, agentId))),
+      db
+        .select({ id: oauthRefreshTokens.id })
+        .from(oauthRefreshTokens)
+        .where(
+          and(eq(oauthRefreshTokens.userId, userId), eq(oauthRefreshTokens.referenceId, agentId)),
+        ),
+      db
+        .select({ id: oauthAccessTokens.id })
+        .from(oauthAccessTokens)
+        .where(
+          and(eq(oauthAccessTokens.userId, userId), eq(oauthAccessTokens.referenceId, agentId)),
+        ),
+    ]);
+    return { consents: consents.length, refresh: refresh.length, access: access.length };
+  }
+
+  it('removeMember deletes only the removed user grants, keeping co-consented and other-workspace grants', async () => {
+    const w1 = await seed();
+    const clientId = await seedOAuthClient();
+    const memberB = await addUser(`b-${crypto.randomUUID().slice(0, 8)}@example.com`);
+    await db.insert(memberships).values({ workspaceId: w1.workspaceId, userId: memberB, role: 'member' });
+
+    // Shared agent both users authorized, plus B's own agent in W1.
+    const sharedAgent = await seedAgent(w1.workspaceId);
+    const bAgent = await seedAgent(w1.workspaceId);
+    await seedGrant(clientId, w1.ownerId, sharedAgent);
+    await seedGrant(clientId, memberB, sharedAgent);
+    await seedGrant(clientId, memberB, bAgent);
+
+    // B also owns a second workspace with its own grant; it must survive.
+    const w2 = await seed();
+    await db.insert(memberships).values({ workspaceId: w2.workspaceId, userId: memberB, role: 'member' });
+    const w2Agent = await seedAgent(w2.workspaceId);
+    await seedGrant(clientId, memberB, w2Agent);
+
+    await removeMember(db, w1.workspaceId, w1.ownerId, memberB);
+
+    expect(await grantRowCounts(memberB, sharedAgent)).toEqual({ consents: 0, refresh: 0, access: 0 });
+    expect(await grantRowCounts(memberB, bAgent)).toEqual({ consents: 0, refresh: 0, access: 0 });
+    expect(await grantRowCounts(w1.ownerId, sharedAgent)).toEqual({ consents: 1, refresh: 1, access: 1 });
+    expect(await grantRowCounts(memberB, w2Agent)).toEqual({ consents: 1, refresh: 1, access: 1 });
+
+    // The shared agent stays live for the remaining consenter, and the
+    // removed user no longer verifies against it.
+    const [shared] = await db.select().from(agents).where(eq(agents.id, sharedAgent));
+    expect(shared!.archivedAt).toBeNull();
+    await expect(assertMcpGrant(db, { userId: w1.ownerId, agentId: sharedAgent })).resolves.toBeTruthy();
+    await expect(assertMcpGrant(db, { userId: memberB, agentId: sharedAgent })).rejects.toMatchObject({
+      code: 'UNAUTHORIZED',
+    });
+  });
+
+  it('deactivation deletes grants and reactivation does not resurrect them', async () => {
+    const ctx = await seed();
+    const clientId = await seedOAuthClient();
+    const memberB = await addUser(`b-${crypto.randomUUID().slice(0, 8)}@example.com`);
+    await db.insert(memberships).values({ workspaceId: ctx.workspaceId, userId: memberB, role: 'member' });
+    const agentId = await seedAgent(ctx.workspaceId);
+    await seedGrant(clientId, memberB, agentId);
+
+    await setMemberStatus(db, ctx.workspaceId, ctx.ownerId, memberB, 'inactive');
+    expect(await grantRowCounts(memberB, agentId)).toEqual({ consents: 0, refresh: 0, access: 0 });
+
+    await setMemberStatus(db, ctx.workspaceId, ctx.ownerId, memberB, 'active');
+    expect(await grantRowCounts(memberB, agentId)).toEqual({ consents: 0, refresh: 0, access: 0 });
+  });
+
+  it('reactivating an untouched member leaves grants alone', async () => {
+    const ctx = await seed();
+    const clientId = await seedOAuthClient();
+    const agentId = await seedAgent(ctx.workspaceId);
+    await seedGrant(clientId, ctx.ownerId, agentId);
+
+    // Setting the same status twice is a no-op and must not clear grants.
+    const memberB = await addUser(`b-${crypto.randomUUID().slice(0, 8)}@example.com`);
+    await db.insert(memberships).values({ workspaceId: ctx.workspaceId, userId: memberB, role: 'member' });
+    await setMemberStatus(db, ctx.workspaceId, ctx.ownerId, memberB, 'active');
+
+    expect(await grantRowCounts(ctx.ownerId, agentId)).toEqual({ consents: 1, refresh: 1, access: 1 });
   });
 });
