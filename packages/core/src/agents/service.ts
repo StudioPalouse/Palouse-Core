@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { hash as argon2Hash, verify as argon2Verify } from '@node-rs/argon2';
-import { and, count, desc, eq, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, exists, isNull } from 'drizzle-orm';
 import {
   agentApiKeys,
   agentHandoffs,
@@ -256,25 +256,32 @@ export async function revokeApiKey(
   agentId: string,
   keyId: string,
 ): Promise<void> {
-  const [row] = await db
-    .update(agentApiKeys)
-    .set({ revokedAt: new Date() })
-    .where(
-      and(
-        eq(agentApiKeys.id, keyId),
-        eq(agentApiKeys.agentId, agentId),
-        isNull(agentApiKeys.revokedAt),
-      ),
-    )
-    .returning({ id: agentApiKeys.id, agentId: agentApiKeys.agentId });
-  if (!row) throw notFound('API key not found');
-  const [agent] = await db
-    .select({ workspaceId: agents.workspaceId })
-    .from(agents)
-    .where(eq(agents.id, agentId))
-    .limit(1);
-  if (!agent || agent.workspaceId !== workspaceId) throw notFound('Agent not found');
-  await audit(db, workspaceId, actorUserId, 'agent.key_revoked', agentId, { keyId });
+  await db.transaction(async (tx) => {
+    // Workspace ownership is part of the UPDATE itself so a caller who knows a
+    // key/agent ID from another workspace cannot mutate it; the same notFound
+    // covers missing, already-revoked, and cross-workspace keys.
+    const [row] = await tx
+      .update(agentApiKeys)
+      .set({ revokedAt: new Date() })
+      .where(
+        and(
+          eq(agentApiKeys.id, keyId),
+          eq(agentApiKeys.agentId, agentId),
+          isNull(agentApiKeys.revokedAt),
+          exists(
+            tx
+              .select({ id: agents.id })
+              .from(agents)
+              .where(and(eq(agents.id, agentApiKeys.agentId), eq(agents.workspaceId, workspaceId))),
+          ),
+        ),
+      )
+      .returning({ id: agentApiKeys.id });
+    if (!row) throw notFound('API key not found');
+    await audit(tx as unknown as Database, workspaceId, actorUserId, 'agent.key_revoked', agentId, {
+      keyId,
+    });
+  });
 }
 
 export interface VerifiedAgentKey {

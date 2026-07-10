@@ -1,8 +1,11 @@
 import { fileURLToPath } from 'node:url';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import { and, eq } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  agentApiKeys,
+  auditEvents,
   closeDb,
   getDb,
   memberships,
@@ -19,6 +22,7 @@ import {
   deleteAgent,
   getAgent,
   listAgents,
+  revokeApiKey,
   unarchiveAgent,
   verifyApiKey,
 } from './service.js';
@@ -131,6 +135,73 @@ describe('agent archive', () => {
     await expect(archiveAgent(db, b.workspaceId, b.ownerId, agent.id)).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
+  });
+});
+
+describe('revokeApiKey workspace scoping', () => {
+  async function seedAgentWithKey(ctx: { workspaceId: string; ownerId: string }) {
+    const agent = await createAgent(db, ctx.workspaceId, ctx.ownerId, {
+      name: 'Keyed',
+      kind: 'mcp_generic',
+      metadata: {},
+    });
+    const { key } = await createApiKey(db, ctx.workspaceId, ctx.ownerId, agent.id, {
+      scopes: ['*'],
+    });
+    return { agent, key };
+  }
+
+  async function revokedAt(keyId: string): Promise<Date | null> {
+    const [row] = await db
+      .select({ revokedAt: agentApiKeys.revokedAt })
+      .from(agentApiKeys)
+      .where(eq(agentApiKeys.id, keyId));
+    return row!.revokedAt;
+  }
+
+  async function revocationAuditCount(workspaceId: string): Promise<number> {
+    const rows = await db
+      .select({ id: auditEvents.id })
+      .from(auditEvents)
+      .where(
+        and(eq(auditEvents.workspaceId, workspaceId), eq(auditEvents.action, 'agent.key_revoked')),
+      );
+    return rows.length;
+  }
+
+  it('cannot revoke a key belonging to another workspace, and writes no audit event', async () => {
+    const a = await seed();
+    const b = await seed();
+    const target = await seedAgentWithKey(b);
+
+    await expect(
+      revokeApiKey(db, a.workspaceId, a.ownerId, target.agent.id, target.key.id),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+
+    expect(await revokedAt(target.key.id)).toBeNull();
+    expect(await revocationAuditCount(a.workspaceId)).toBe(0);
+    expect(await revocationAuditCount(b.workspaceId)).toBe(0);
+  });
+
+  it('revokes a key in its own workspace and audits it', async () => {
+    const ctx = await seed();
+    const { agent, key } = await seedAgentWithKey(ctx);
+
+    await revokeApiKey(db, ctx.workspaceId, ctx.ownerId, agent.id, key.id);
+
+    expect(await revokedAt(key.id)).not.toBeNull();
+    expect(await revocationAuditCount(ctx.workspaceId)).toBe(1);
+  });
+
+  it('revoking an already-revoked key reports not found', async () => {
+    const ctx = await seed();
+    const { agent, key } = await seedAgentWithKey(ctx);
+
+    await revokeApiKey(db, ctx.workspaceId, ctx.ownerId, agent.id, key.id);
+    await expect(
+      revokeApiKey(db, ctx.workspaceId, ctx.ownerId, agent.id, key.id),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    expect(await revocationAuditCount(ctx.workspaceId)).toBe(1);
   });
 });
 
