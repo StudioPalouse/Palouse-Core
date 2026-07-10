@@ -32,6 +32,38 @@ jobs:
 
       - run: pnpm build
 
+  security-scan:
+    name: Security scan
+    runs-on: ubuntu-latest
+    # Non-blocking for now: surfaces advisories without gating merges. Tighten
+    # to required once the backlog is clean (docs/security-fixes.md).
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Fails the (non-blocking) job on a known-vulnerable production dependency.
+      - name: pnpm audit (production)
+        run: pnpm audit --prod
+
+      # Scans dependencies and Dockerfile/compose config for known CVEs and
+      # misconfigurations.
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
   e2e:
     name: E2E
     uses: ./.github/workflows/e2e.yml
