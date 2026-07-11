@@ -22,7 +22,7 @@ jobs:
     name: Deploy api (runs migrations)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - run: flyctl deploy . --config fly/api.toml --dockerfile apps/api/Dockerfile --remote-only --yes
 
@@ -35,7 +35,7 @@ jobs:
       matrix:
         app: [web, worker, mcp]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - run: flyctl deploy . --config fly/${{ matrix.app }}.toml --dockerfile apps/${{ matrix.app }}/Dockerfile --remote-only --yes
 
