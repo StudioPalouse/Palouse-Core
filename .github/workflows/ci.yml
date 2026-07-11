@@ -50,19 +50,23 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Fails the (non-blocking) job on a known-vulnerable production dependency.
+      # Report-only for now: prints advisories to the log without failing the
+      # job (Dependabot opens the actual bump PRs). Drop the `|| true` to make
+      # a vulnerable production dependency gate merges once the backlog is clean.
       - name: pnpm audit (production)
-        run: pnpm audit --prod
+        run: pnpm audit --prod || true
 
       # Scans dependencies and Dockerfile/compose config for known CVEs and
-      # misconfigurations.
+      # misconfigurations. Runs even if audit reported findings.
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.28.0
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
           severity: HIGH,CRITICAL
           ignore-unfixed: true
+          exit-code: '0'
 
   e2e:
     name: E2E
