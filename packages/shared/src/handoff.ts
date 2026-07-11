@@ -50,7 +50,7 @@ export const handoffEventSchema = z.object({
   id: uuid,
   handoffId: uuid,
   kind: z.string(),
-  payload: z.record(z.unknown()),
+  payload: z.record(z.string(), z.unknown()),
   at: z.string().datetime(),
 });
 export type HandoffEvent = z.infer<typeof handoffEventSchema>;
