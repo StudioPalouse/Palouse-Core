@@ -21,7 +21,7 @@
     "db:seed": "pnpm --filter @palouse/cli dev seed"
   },
   "devDependencies": {
-    "@types/node": "^22.20.0",
+    "@types/node": "^26.1.1",
     "prettier": "^3.9.5",
     "turbo": "^2.10.4",
     "typescript": "^5.9.3"
