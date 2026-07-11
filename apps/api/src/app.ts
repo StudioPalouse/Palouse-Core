@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { bodyLimits } from './middleware/body-limits.js';
 import { rateLimit } from './middleware/rate-limit.js';
+import { securityHeaders } from './middleware/security-headers.js';
 import {
   oauthProviderAuthServerMetadata,
   oauthProviderOpenIdConfigMetadata,
@@ -29,6 +30,8 @@ import { logger } from './logger.js';
 export function buildApp() {
   const env = loadEnv();
   const app = new Hono();
+
+  app.use('*', securityHeaders());
 
   app.use(
     '*',
