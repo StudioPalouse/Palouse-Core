@@ -12,6 +12,9 @@ and track business decisions. Five goals drive this roadmap:
 4. Enable reporting around decisions.
 5. Deepen the relationship of decisions to projects and objectives.
 
+Each of the five themes below has a standalone implementation plan under `docs/plans/`,
+written to be picked up one at a time. See section 6 for the index.
+
 ## 1. Market landscape (verified findings)
 
 ### Meeting AI tools do not ship structured decisions
@@ -201,23 +204,31 @@ ladder to strategy.
 
 Each slice is thin end-to-end, shippable, and pausable for feedback.
 
-1. **Strategy linkage** (E1, E2): pure internal wiring, no migration risk beyond a
-   relations mapping, unlocks reporting stories. Fastest visible win.
-2. **Decision inbox + generic ingest + MCP provenance** (A1, A4): establishes the
-   capture landing zone; agents via MCP can already create decisions today, so this is
-   mostly provenance + review UX.
-3. **Copilot declarative agent** (A2): reuses `mcp.palouse.ai`; effort is OAuth client
-   registration + manifest + packaging + pilot via custom app upload.
-4. **Stakeholder input rounds + sign-off + notifications** (B1, B2, B4): builds the
-   notification rails Theme C needs.
-5. **Rollout + acknowledgements** (C1, C2): the market differentiator; depends on
-   slice 4 rails.
+This order reflects the open questions resolved on 2026-07-11 (see section 6).
+
+1. **Strategy linkage** (E1, E2, incl. first-class key results): mostly internal wiring.
+   The only DDL is a reverse index on `decision_relations (entity_type, entity_id)` and a
+   one-way `ALTER TYPE ... ADD VALUE 'key_result'`. Unlocks reporting stories. Fastest
+   visible win.
+2. **Copilot declarative agent** (A2): the fastest Microsoft 365 entry point, chosen to
+   lead Theme A. Reuses `mcp.palouse.ai`; effort is a static OAuth client registration +
+   manifest v2.4 + packaging + pilot via per-tenant custom app upload. No new connector or
+   LLM dependency.
+3. **Decision inbox + generic ingest + provenance** (A1, A4): the capture landing zone
+   and review UX. Agents (including the Copilot agent from slice 2) can already create
+   decisions via MCP, so this adds provenance + accept/merge/dismiss.
+4. **Stakeholder input rounds + sign-off + notification rails** (B1, B2, B4): builds the
+   reusable decision-event notification layer (email + in-app) that Theme C needs.
+5. **Rollout + acknowledgements** (C1, C2): the market differentiator; email and in-app,
+   workspace-wide audience, optional acknowledgement. Depends on slice 4 rails.
 6. **Teams meeting capture connector** (A3): highest external-surface risk (tenant
-   toggles, consent models); do it once the inbox has proven the review UX.
+   toggles, consent models, transcript extraction); do it once the inbox has proven the
+   review UX.
 7. **Outcome review + decision dashboard** (D1, D2): most valuable once volume exists.
 
-Capability gating: ship each theme behind the existing capability toggle pattern
-(either new sub-capability keys or a config JSONB on `workspace_capabilities`).
+Capability gating: ship each feature behind the existing `decisions` capability, with
+per-feature gating via a `config` JSONB on `workspace_capabilities` rather than new
+top-level capability keys (the five plans converged on this to avoid enum churn).
 
 ## 5. Constraints and gotchas to carry into design
 
@@ -239,3 +250,52 @@ Capability gating: ship each theme behind the existing capability toggle pattern
   metered pay-per-use" and "tenant Graph transcript access is already disabled by
   default everywhere." Verify current Microsoft terms at build time; the docs are
   moving (June/July 2026 updates, plugins-to-actions terminology shift).
+
+## 6. Per-theme implementation plans
+
+Each plan is self-contained (data model, services, API, MCP tools, web UI,
+queue/mail/connector work, capability gating, testing, an intra-theme tracer-slice
+breakdown with effort sizing, cross-theme dependencies, and open questions). They can
+be picked up one at a time. All were grounded in the actual code on 2026-07-11; migration
+numbers are left unassigned (current max is 0018) and assigned at implementation time.
+
+- Theme A, Capture: `docs/plans/decisions-theme-a-capture.md`
+- Theme B, Ownership and stakeholder input: `docs/plans/decisions-theme-b-ownership-input.md`
+- Theme C, Change management and enablement: `docs/plans/decisions-theme-c-change-management.md`
+- Theme D, Reporting and analytics: `docs/plans/decisions-theme-d-reporting.md`
+- Theme E, Strategy linkage: `docs/plans/decisions-theme-e-strategy-linkage.md`
+
+### Cross-theme build notes (reconciled across the five plans)
+
+- **Recommended first slice stays Theme E** (decision to objective and decision to key
+  result linking, end to end): no dependencies, `goal` is already in the
+  `decision_entity_type` enum, `project_item` linking is already wired (card-level linked
+  decisions already hydrate in `getProject`), so the main work is a reverse index,
+  read-side hydration of `goal`/`project`/`key_result`, UI pickers, and one one-way
+  `ALTER TYPE ... ADD VALUE 'key_result'` (per the 2026-07-11 decision to make key-result
+  linking first-class). Themes C and D both consume its reverse-lookup helpers.
+
+- **Open questions resolved with the user on 2026-07-11** (folded into each plan's intro):
+  Theme B `block` stance is advisory by default with template opt-in blocking; Theme C
+  ships both email and an in-app inbox, workspace-wide audience first, acknowledgement
+  optional by default; Theme D outcome review is configurable per decision (single or
+  recurring); Theme A leads with the Copilot declarative agent (fastest M365 path) and
+  defers the transcript connector; Theme E makes key-result linking first-class.
+- **Shared notification layer is currently unbuilt.** `QUEUE_NAMES.notifications` and
+  `housekeeping` exist as name-only stubs; only `sync` and `handoff` queues are actually
+  created and consumed. Theme B section B4 defines the reusable decision-event to
+  notification layer (queue factory, pure event mapper, worker in `apps/worker`, log on
+  send to avoid the prior silent `sendEmail` no-op). Theme C plugs in as additional job
+  kinds. Whichever theme ships first must build this seam; the other adopts it. Theme D's
+  outcome-review email is self-contained through `packages/mail` so it does not block on
+  this.
+- **Extraction pipeline (Theme A) is the only net-new external dependency:** no LLM SDK
+  exists in the repo today. Plan A recommends adding `@anthropic-ai/sdk`, defaulting to
+  Haiku, and no-op when the key is unset (mirroring the Resend mail pattern). The
+  `ConnectorAdapter` interface is task-shaped, so the `ms_meetings` adapter fit is an
+  open question flagged in plan A.
+- **Reminder/escalation and review-prompt sweeps** all follow the existing
+  `handoff.reap_expired` 30s `upsertJobScheduler` repeatable in the queue as their model.
+- Each theme reuses the existing `decisions` capability key; per-feature gating (inbox,
+  rollout, analytics) is proposed via a `config` JSONB on `workspace_capabilities` rather
+  than new top-level capability keys, to avoid enum churn.
