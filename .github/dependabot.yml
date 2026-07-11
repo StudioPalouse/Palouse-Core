@@ -1,0 +1,29 @@
+version: 2
+updates:
+  # JS dependencies across the pnpm workspace.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      # One PR for the low-risk bumps; majors still come individually.
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  # Base image digests in the app Dockerfiles.
+  - package-ecosystem: docker
+    directories:
+      - /apps/api
+      - /apps/web
+      - /apps/worker
+      - /apps/mcp
+    schedule:
+      interval: weekly
