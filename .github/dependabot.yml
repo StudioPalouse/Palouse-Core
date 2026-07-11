@@ -18,7 +18,9 @@ updates:
     schedule:
       interval: weekly
 
-  # Base image digests in the app Dockerfiles.
+  # Base image digests in the app Dockerfiles. Major Node bumps (e.g. 22->26)
+  # are a deliberate, tested change, not an automatic one; only take digest and
+  # minor/patch updates here.
   - package-ecosystem: docker
     directories:
       - /apps/api
@@ -27,3 +29,7 @@ updates:
       - /apps/mcp
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: node
+        update-types:
+          - version-update:semver-major
