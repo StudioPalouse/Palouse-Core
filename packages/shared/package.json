@@ -14,7 +14,7 @@
     "test": "echo 'TODO: vitest'"
   },
   "dependencies": {
-    "zod": "^3.25.76"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

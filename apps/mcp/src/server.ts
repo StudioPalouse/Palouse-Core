@@ -83,7 +83,8 @@ const CAPABILITY: Partial<Record<ToolName, CapabilityKey>> = {
   update_project_item: 'projects',
 };
 
-type ToolArgs<N extends ToolName> = z.objectOutputType<(typeof TOOL_INPUTS)[N], z.ZodTypeAny>;
+// zod 4 removed z.objectOutputType; infer the parsed shape via ZodObject.
+type ToolArgs<N extends ToolName> = z.infer<z.ZodObject<(typeof TOOL_INPUTS)[N]>>;
 
 /** Shown to the agent by MCP clients that surface server instructions. */
 const INSTRUCTIONS =

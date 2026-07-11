@@ -38,7 +38,7 @@ export const agentSchema = z.object({
   workspaceId: uuid,
   name: z.string(),
   kind: agentKind,
-  metadata: z.record(z.unknown()),
+  metadata: z.record(z.string(), z.unknown()),
   archivedAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
@@ -59,7 +59,7 @@ export type AgentApiKey = z.infer<typeof agentApiKeySchema>;
 export const createAgentInput = z.object({
   name: z.string().min(1).max(200),
   kind: agentKind.default('mcp_generic'),
-  metadata: z.record(z.unknown()).default({}),
+  metadata: z.record(z.string(), z.unknown()).default({}),
 });
 export type CreateAgentInput = z.infer<typeof createAgentInput>;
 
