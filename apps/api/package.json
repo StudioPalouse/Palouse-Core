@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@better-auth/oauth-provider": "^1.6.23",
-    "@hono/node-server": "^1.19.14",
+    "@hono/node-server": "^2.0.8",
     "@palouse/auth": "workspace:*",
     "@palouse/config": "workspace:*",
     "@palouse/connector-asana": "workspace:^",
