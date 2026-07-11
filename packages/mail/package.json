@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@palouse/config": "workspace:*",
-    "resend": "^6.16.0"
+    "resend": "^6.17.2"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

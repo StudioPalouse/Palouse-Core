@@ -18,7 +18,7 @@
     "@palouse/connector-core": "workspace:^",
     "@palouse/db": "workspace:*",
     "@palouse/shared": "workspace:*",
-    "drizzle-orm": "^0.36.4"
+    "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^11.14.0",
