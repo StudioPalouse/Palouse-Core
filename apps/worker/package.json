@@ -25,7 +25,7 @@
     "@palouse/db": "workspace:*",
     "@palouse/queue": "workspace:^",
     "@palouse/shared": "workspace:^",
-    "bullmq": "^5.80.1",
+    "bullmq": "^5.80.2",
     "drizzle-orm": "^0.45.2",
     "ioredis": "^5.11.1",
     "pino": "^10.3.1"
