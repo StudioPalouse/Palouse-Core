@@ -1,9 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { Bot, Plus, Sparkles, X } from 'lucide-react';
 import type {
+  DecisionStatus,
   KeyResult,
+  LinkedDecision,
   ObjectiveDetail,
   ObjectiveStatus,
   ProjectListItem,
@@ -34,6 +37,8 @@ import {
   OBJECTIVE_STATUS_ORDER,
   OBJECTIVE_STATUS_TONE,
 } from '@/lib/objective-meta';
+import { DECISION_STATUS_LABELS, DECISION_STATUS_TONE } from '@/lib/decision-meta';
+import { useActiveWorkspace } from '@/lib/workspace-context';
 import { Markdown } from './markdown';
 import { ProgressBar } from './objective-list';
 
@@ -54,6 +59,10 @@ export function ObjectiveDetailSheet({
   onClose: () => void;
   onChanged: () => void;
 }) {
+  const { capabilities } = useActiveWorkspace();
+  // Fail-open on unknown caps, matching the dashboard/nav convention.
+  const showDecisions = capabilities?.decisions ?? true;
+
   const [detail, setDetail] = useState<ObjectiveDetail | null>(null);
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -196,11 +205,51 @@ export function ObjectiveDetailSheet({
                   )
                 }
               />
+
+              {showDecisions && (
+                <>
+                  <Separator />
+                  <RelatedDecisionsSection decisions={detail.relatedDecisions} />
+                </>
+              )}
             </div>
           </>
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+/**
+ * Decisions linked to this goal or one of its key results (reverse lookup,
+ * resolved server-side). Rendered only when the decisions capability is on.
+ */
+function RelatedDecisionsSection({ decisions }: { decisions: LinkedDecision[] }) {
+  return (
+    <div className="flex flex-col gap-3">
+      <h3 className="text-sm font-medium">Decisions</h3>
+      {decisions.length === 0 ? (
+        <p className="text-muted-foreground text-sm">No decisions linked to this goal yet.</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {decisions.map((d) => (
+            <li key={d.relationId}>
+              <Link href="/decisions" className="flex items-center gap-2 text-sm hover:underline">
+                <span
+                  className={cn(
+                    'inline-flex shrink-0 rounded-md px-2 py-0.5 text-xs font-medium',
+                    DECISION_STATUS_TONE[d.status as DecisionStatus],
+                  )}
+                >
+                  {DECISION_STATUS_LABELS[d.status as DecisionStatus]}
+                </span>
+                <span className="min-w-0 flex-1 truncate">{d.title}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

@@ -6,6 +6,9 @@ import {
   decisionResources,
   decisionStakeholders,
   decisions,
+  keyResults,
+  objectives,
+  tasks,
   type Database,
 } from '@palouse/db';
 import {
@@ -80,7 +83,10 @@ function resourceToDto(row: typeof decisionResources.$inferSelect): DecisionReso
   };
 }
 
-function relationToDto(row: typeof decisionRelations.$inferSelect): DecisionRelation {
+function relationToDto(
+  row: typeof decisionRelations.$inferSelect,
+  resolved?: { label: string | null; targetStatus: string | null },
+): DecisionRelation {
   return {
     id: row.id,
     decisionId: row.decisionId,
@@ -88,7 +94,96 @@ function relationToDto(row: typeof decisionRelations.$inferSelect): DecisionRela
     entityId: row.entityId,
     createdByUserId: row.createdByUserId,
     createdAt: row.createdAt.toISOString(),
+    label: resolved?.label ?? null,
+    targetStatus: resolved?.targetStatus ?? null,
   };
+}
+
+/**
+ * Attainment of a key result as a whole-percent string, for the relation's
+ * `targetStatus` slot. Key results have no status column, so their progress
+ * stands in. Linear between start and target, clamped, and all-or-nothing when
+ * start equals target (mirrors objectiveService.keyResultProgress).
+ */
+function keyResultProgressLabel(kr: {
+  startValue: number;
+  targetValue: number;
+  currentValue: number;
+}): string {
+  const { startValue: s, targetValue: t, currentValue: c } = kr;
+  const pct = s === t ? (c >= t ? 100 : 0) : Math.min(1, Math.max(0, (c - s) / (t - s))) * 100;
+  return `${Math.round(pct)}%`;
+}
+
+/**
+ * Resolve each relation's linked entity to a display label + status-like context,
+ * scoped to the workspace. Runs one grouped query per resolvable entity type
+ * (goal, key_result, task) with no per-row fan-out. Types not resolved here, or
+ * ids pointing at a deleted entity (entityId is not a hard FK), yield
+ * `label: null` so the caller renders a placeholder rather than throwing.
+ */
+async function hydrateRelations(
+  db: Database,
+  workspaceId: string,
+  rows: (typeof decisionRelations.$inferSelect)[],
+): Promise<DecisionRelation[]> {
+  const idsByType = new Map<string, Set<string>>();
+  for (const r of rows) {
+    let set = idsByType.get(r.entityType);
+    if (!set) idsByType.set(r.entityType, (set = new Set()));
+    set.add(r.entityId);
+  }
+  const goalIds = [...(idsByType.get('goal') ?? [])];
+  const krIds = [...(idsByType.get('key_result') ?? [])];
+  const taskIds = [...(idsByType.get('task') ?? [])];
+
+  const [objectiveRows, krRows, taskRows] = await Promise.all([
+    goalIds.length
+      ? db
+          .select({ id: objectives.id, title: objectives.title, status: objectives.status })
+          .from(objectives)
+          .where(and(eq(objectives.workspaceId, workspaceId), inArray(objectives.id, goalIds)))
+      : Promise.resolve([] as { id: string; title: string; status: string }[]),
+    krIds.length
+      ? db
+          .select({
+            id: keyResults.id,
+            name: keyResults.name,
+            startValue: keyResults.startValue,
+            targetValue: keyResults.targetValue,
+            currentValue: keyResults.currentValue,
+          })
+          .from(keyResults)
+          // Key results carry no workspaceId; scope through the parent objective.
+          .innerJoin(objectives, eq(keyResults.objectiveId, objectives.id))
+          .where(and(eq(objectives.workspaceId, workspaceId), inArray(keyResults.id, krIds)))
+      : Promise.resolve(
+          [] as {
+            id: string;
+            name: string;
+            startValue: number;
+            targetValue: number;
+            currentValue: number;
+          }[],
+        ),
+    taskIds.length
+      ? db
+          .select({ id: tasks.id, title: tasks.title, status: tasks.status })
+          .from(tasks)
+          .where(and(eq(tasks.workspaceId, workspaceId), inArray(tasks.id, taskIds)))
+      : Promise.resolve([] as { id: string; title: string; status: string }[]),
+  ]);
+
+  // Key resolved values by `${type}:${id}` so ids never collide across types.
+  const resolved = new Map<string, { label: string | null; targetStatus: string | null }>();
+  for (const o of objectiveRows)
+    resolved.set(`goal:${o.id}`, { label: o.title, targetStatus: o.status });
+  for (const k of krRows)
+    resolved.set(`key_result:${k.id}`, { label: k.name, targetStatus: keyResultProgressLabel(k) });
+  for (const t of taskRows)
+    resolved.set(`task:${t.id}`, { label: t.title, targetStatus: t.status });
+
+  return rows.map((r) => relationToDto(r, resolved.get(`${r.entityType}:${r.entityId}`)));
 }
 
 /** At most one Accountable across a RACI roster. Throws VALIDATION otherwise. */
@@ -212,7 +307,7 @@ export async function getDecision(
     stakeholders: stakeholders.map(stakeholderToDto),
     comments: comments.map(commentToDto),
     resources: resources.map(resourceToDto),
-    relations: relations.map(relationToDto),
+    relations: await hydrateRelations(db, workspaceId, relations),
   };
 }
 

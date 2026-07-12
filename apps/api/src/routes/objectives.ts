@@ -28,16 +28,21 @@ const importRateLimit = rateLimit({
   key: (c) => c.get('userId'),
 });
 
-/** Membership + the objectives capability must both be satisfied. */
+/**
+ * Membership + the objectives capability must both be satisfied. Returns the
+ * workspace capability set so callers can gate cross-capability data (e.g. only
+ * include related decisions when the decisions capability is on).
+ */
 async function requireObjectivesAccess(
   db: Database,
   workspaceId: string,
   userId: string,
-): Promise<void> {
+): Promise<Awaited<ReturnType<typeof capabilityService.capabilitiesForWorkspace>>> {
   await workspaces.requireMembership(db, workspaceId, userId);
   const caps = await capabilityService.capabilitiesForWorkspace(db, workspaceId);
   if (caps.objectives === false)
     throw forbidden('The Objectives capability is turned off for this workspace.');
+  return caps;
 }
 
 function bodyWorkspaceId(body: unknown): string {
@@ -98,8 +103,10 @@ objectiveRoutes.get('/:id', async (c) => {
   const workspaceId = c.req.query('workspaceId') ?? '';
   if (!workspaceId) throw validation('workspaceId query param required');
   const db = getDb(loadEnv().DATABASE_URL);
-  await requireObjectivesAccess(db, workspaceId, c.get('userId'));
-  const result = await objectiveService.getObjective(db, workspaceId, c.req.param('id'));
+  const caps = await requireObjectivesAccess(db, workspaceId, c.get('userId'));
+  const result = await objectiveService.getObjective(db, workspaceId, c.req.param('id'), {
+    includeRelatedDecisions: caps.decisions !== false,
+  });
   return c.json(result);
 });
 

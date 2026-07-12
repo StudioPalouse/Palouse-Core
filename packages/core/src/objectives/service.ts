@@ -1,6 +1,8 @@
-import { and, asc, desc, eq, ilike, inArray, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from 'drizzle-orm';
 import {
   auditEvents,
+  decisionRelations,
+  decisions,
   keyResultProjects,
   keyResults,
   objectives,
@@ -16,6 +18,7 @@ import {
   type ImportObjectivesInput,
   type KeyResult,
   type KeyResultProject,
+  type LinkedDecision,
   type ListObjectivesQuery,
   type Objective,
   type ObjectiveDetail,
@@ -263,10 +266,65 @@ async function loadObjectiveRow(
   return row;
 }
 
+/**
+ * Reverse lookup: decisions linked to this objective, either directly
+ * (`entityType = 'goal'`) or through one of its key results
+ * (`entityType = 'key_result'`), so a key-result-level decision rolls up to the
+ * objective. Workspace-scoped through the `decisions` join, which is load-bearing
+ * since `decision_relations.entityId` is not a hard FK. Served by
+ * `decision_relations_entity_idx`. Deduped by decision, so a decision linked to
+ * both the objective and one of its KRs appears once. Loaded on demand, not
+ * folded into the hot progress query. Reused by Themes C and D.
+ */
+export async function listRelatedDecisions(
+  db: Database,
+  workspaceId: string,
+  objectiveId: string,
+): Promise<LinkedDecision[]> {
+  // Key results of this objective, so their `key_result` links roll up here.
+  const krRows = await db
+    .select({ id: keyResults.id })
+    .from(keyResults)
+    .where(eq(keyResults.objectiveId, objectiveId));
+  const krIds = krRows.map((r) => r.id);
+
+  const entityMatch = or(
+    and(eq(decisionRelations.entityType, 'goal'), eq(decisionRelations.entityId, objectiveId)),
+    krIds.length
+      ? and(
+          eq(decisionRelations.entityType, 'key_result'),
+          inArray(decisionRelations.entityId, krIds),
+        )
+      : undefined,
+  );
+
+  const rows = await db
+    .select({
+      relationId: decisionRelations.id,
+      decisionId: decisions.id,
+      title: decisions.title,
+      status: decisions.status,
+    })
+    .from(decisionRelations)
+    .innerJoin(decisions, eq(decisionRelations.decisionId, decisions.id))
+    .where(and(eq(decisions.workspaceId, workspaceId), entityMatch))
+    .orderBy(desc(decisions.updatedAt));
+
+  const seen = new Set<string>();
+  const deduped: LinkedDecision[] = [];
+  for (const r of rows) {
+    if (seen.has(r.decisionId)) continue;
+    seen.add(r.decisionId);
+    deduped.push(r);
+  }
+  return deduped;
+}
+
 export async function getObjective(
   db: Database,
   workspaceId: string,
   objectiveId: string,
+  options: { includeRelatedDecisions?: boolean } = {},
 ): Promise<ObjectiveDetail> {
   const row = await loadObjectiveRow(db, workspaceId, objectiveId);
   const krRows = await db
@@ -278,9 +336,15 @@ export async function getObjective(
     db,
     krRows.map((kr) => kr.id),
   );
+  // Gated by the caller: empty unless the decisions capability is on, so decision
+  // titles never leak through the objectives gate.
+  const relatedDecisions = options.includeRelatedDecisions
+    ? await listRelatedDecisions(db, workspaceId, objectiveId)
+    : [];
   return {
     objective: toDto(row),
     keyResults: krRows.map((kr) => keyResultToDto(kr, linkedByKr.get(kr.id) ?? [])),
+    relatedDecisions,
   };
 }
 

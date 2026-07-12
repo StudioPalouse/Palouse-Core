@@ -344,7 +344,11 @@ export async function buildServer(db: Database, key: VerifiedAgentKey): Promise<
   );
 
   register('get_objective', async (args) =>
-    objectiveService.getObjective(db, key.workspaceId, args.objectiveId),
+    objectiveService.getObjective(db, key.workspaceId, args.objectiveId, {
+      // Only surface related decisions when the decisions capability is on, so a
+      // disabled capability never leaks decision titles through objectives:read.
+      includeRelatedDecisions: caps.decisions !== false,
+    }),
   );
 
   register('create_objective', async (args) => ({

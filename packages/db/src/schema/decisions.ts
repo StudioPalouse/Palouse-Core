@@ -33,6 +33,7 @@ export const decisionEntityType = pgEnum('decision_entity_type', [
   'project',
   'project_item',
   'goal',
+  'key_result',
   'context',
 ]);
 
@@ -141,8 +142,8 @@ export const decisionRelations = pgTable(
       .notNull()
       .references(() => decisions.id, { onDelete: 'cascade' }),
     // Polymorphic: entityId is not a hard FK because it may point at any of the
-    // linked capabilities. Only 'task' is resolvable today; the rest are
-    // reserved for when those capabilities land.
+    // linked capabilities. 'task', 'goal', and 'key_result' resolve today;
+    // 'project'/'project_item'/'context' are reserved for later slices.
     entityType: decisionEntityType('entity_type').notNull(),
     entityId: uuid('entity_id').notNull(),
     createdByUserId: uuid('created_by_user_id').references(() => users.id, {
@@ -157,5 +158,7 @@ export const decisionRelations = pgTable(
       t.entityId,
     ),
     decisionIdx: index('decision_relations_decision_idx').on(t.decisionId),
+    // Reverse lookups: all decisions linked to a given objective/key result/project.
+    entityLookupIdx: index('decision_relations_entity_idx').on(t.entityType, t.entityId),
   }),
 );

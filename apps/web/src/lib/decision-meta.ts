@@ -57,6 +57,7 @@ export const ENTITY_TYPE_LABELS: Record<DecisionEntityType, string> = {
   project: 'Project',
   project_item: 'Card',
   goal: 'Goal',
+  key_result: 'Key result',
   context: 'Context',
 };
 

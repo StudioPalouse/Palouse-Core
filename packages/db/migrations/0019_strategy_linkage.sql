@@ -1,0 +1,2 @@
+ALTER TYPE "public"."decision_entity_type" ADD VALUE 'key_result' BEFORE 'context';--> statement-breakpoint
+CREATE INDEX "decision_relations_entity_idx" ON "decision_relations" USING btree ("entity_type","entity_id");

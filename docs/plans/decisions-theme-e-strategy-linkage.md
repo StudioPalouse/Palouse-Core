@@ -71,10 +71,12 @@ Largely none. That is the point of sequencing it first.
     natural user request and costs nothing extra to hydrate.
   - Add objective and project pickers to the relations section of
     `decision-detail-sheet.tsx`, which today only offers a task picker.
-  - **Key-result decision:** in slice 1, link decisions to the **objective**, not to
-    individual key results. Key results have no `status` column (they carry
-    start/current/target only), so a KR-level edge adds a new enum value and a new resolver
-    for marginal early value. Revisit as a fast-follow if users ask (open question O1).
+  - **Key-result decision (resolved 2026-07-11, O1: yes):** slice 1 links decisions to
+    individual key results as a first-class entity, not only to the parent objective. This
+    adds the `key_result` value to `decision_entity_type` (one-way `ALTER TYPE ... ADD VALUE`,
+    section 4) plus read-side hydration of the KR name and current/target progress. Key
+    results have no `status` column (they carry start/current/target only), so "at risk" for
+    a KR is derived from its parent objective's status when surfacing strategy signals (E3).
 - **E2. Reverse lookups.** A "Decisions" section on the objective detail sheet and on the
   project detail page: which decisions support this goal / affect this project. Requires
   querying `decision_relations` by `(entity_type, entity_id)` in the reverse direction,
@@ -130,10 +132,12 @@ All services live at `packages/core/src/<area>/service.ts` and are exported from
   the raw relation rows, bucket their `entityId`s by `entityType`; run one grouped query per
   resolvable type against the target table scoped to `workspaceId`:
   - `goal` -> `objectives` (title, status),
-  - `project` -> `projects` (name, status),
+  - `key_result` -> `key_results` (name; `targetStatus` carries the KR's current/target
+    progress since KRs have no status column, per O1),
   - `task` -> `tasks` (title, status) (fold the existing client-side task-title lookup into
     the server for consistency),
-  - `project_item`/`context` -> leave `label: null` for now (out of scope; render the id).
+  - `project`/`project_item`/`context` -> leave `label: null` for now (project-level
+    hydration is slice 2; render the id meanwhile).
 
   Return an enriched relation shape, e.g. `{ ...relation, label: string | null,
   targetStatus: string | null }`, following the grouped-query, no-fan-out pattern already
@@ -321,23 +325,24 @@ cell placeholders (`EMPTY` in `decision-meta.ts`).
 
 ## 13. Ordered tracer-slice breakdown (effort S / M / L)
 
-1. **Slice 1 — decision ↔ objective, end to end (M).** Reverse index migration (S) +
-   `getDecision` goal hydration (S) + `objectiveService.listRelatedDecisions` folded into
-   `getObjective` (S) + Objective picker in `decision-detail-sheet.tsx` (M) + "Decisions"
-   section on the objective detail sheet (S) + capability gating for the objective picker/
-   section (S). Verify the MCP `goal` path works and fix the tool description (S). This is
-   the smallest complete vertical slice and the pause-for-feedback point.
+1. **Slice 1 — decision ↔ objective and decision ↔ key result, end to end (M/L).** Reverse
+   index migration + one-way `ALTER TYPE ... ADD VALUE 'key_result'` (S) + `getDecision`
+   hydration for `goal` and `key_result` (S) + `objectiveService.listRelatedDecisions`
+   (matching both `goal` and `key_result` relations for the objective and its KRs) folded
+   into `getObjective` (S) + Objective and Key result pickers in `decision-detail-sheet.tsx`
+   (M) + "Decisions" section on the objective detail sheet (S) + capability gating for the
+   pickers/section (S). Verify the MCP `goal`/`key_result` path works and fix the tool
+   description (S). This is the smallest complete vertical slice that satisfies the resolved
+   O1 (first-class key results), and the pause-for-feedback point. Per the 2026-07-11
+   reconciliation, key-result linking is in slice 1, not deferred.
 2. **Slice 2 — decision ↔ project reverse roll-up (S/M).** `getDecision` project hydration
    + `projectService.listRelatedDecisions` (project-level) folded into `getProject` +
    Project picker in the decision sheet + project-level "Decisions" section on the project
    page. Card-level links already exist, so this is mostly the project-level roll-up and one
    more picker.
 3. **Slice 3 — strategy signals (S/M).** The two dashboard signals (open decisions on
-   at-risk goals; projects with proposed decisions), reusing already-fetched data and the
-   existing banner pattern.
-4. **Slice 4 (optional fast-follow) — first-class key results (M).** Only if O1 resolves
-   toward KR linking: `ALTER TYPE ... ADD VALUE 'key_result'`, a KR resolver in
-   `getDecision`, a KR picker, and a derived per-KR risk signal. Deferred by default.
+   at-risk goals, including goals whose at-risk key results carry open decisions; projects
+   with proposed decisions), reusing already-fetched data and the existing banner pattern.
 
 ## 14. Cross-theme dependencies and shared entities
 

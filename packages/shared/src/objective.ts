@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { uuid } from './ids.js';
+import { linkedDecisionSchema } from './project.js';
 
 // Keep these in sync with the pg enums in packages/db/src/schema/objectives.ts.
 export const objectiveStatus = z.enum([
@@ -80,6 +81,13 @@ export type ObjectiveListItem = z.infer<typeof objectiveListItemSchema>;
 export const objectiveDetailSchema = z.object({
   objective: objectiveSchema,
   keyResults: z.array(keyResultSchema),
+  /**
+   * Decisions linked to this objective (`goal` relations) or to any of its key
+   * results (`key_result` relations), resolved to title + status. Empty when the
+   * decisions capability is off for the workspace (gated server-side so a disabled
+   * capability never leaks decision titles through the objectives gate).
+   */
+  relatedDecisions: z.array(linkedDecisionSchema),
 });
 export type ObjectiveDetail = z.infer<typeof objectiveDetailSchema>;
 

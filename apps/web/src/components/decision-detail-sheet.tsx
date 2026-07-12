@@ -1,10 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Bot, ExternalLink, X } from 'lucide-react';
 import type {
+  AddRelationInput,
   DecisionDetail,
+  DecisionEntityType,
   DecisionStatus,
+  ObjectiveListItem,
   StakeholderAssignment,
   TaskListItem,
   WorkspaceMember,
@@ -34,11 +37,13 @@ import {
   DECISION_STATUS_LABELS,
   DECISION_STATUS_ORDER,
   DECISION_STATUS_TONE,
+  EMPTY,
   ENTITY_TYPE_LABELS,
   formatDate,
   RACI_LABELS,
   RACI_ORDER,
 } from '@/lib/decision-meta';
+import { useActiveWorkspace } from '@/lib/workspace-context';
 import { Markdown } from './markdown';
 import { RaciPicker } from './raci-picker';
 
@@ -53,9 +58,16 @@ export function DecisionDetailSheet({
   onClose: () => void;
   onChanged: () => void;
 }) {
+  const { capabilities } = useActiveWorkspace();
+  // Unknown (null) capabilities read as enabled, matching the dashboard/nav
+  // fail-open convention, so pickers do not flash off before caps load.
+  const showTasks = capabilities?.tasks ?? true;
+  const showObjectives = capabilities?.objectives ?? true;
+
   const [detail, setDetail] = useState<DecisionDetail | null>(null);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [tasks, setTasks] = useState<TaskListItem[]>([]);
+  const [objectives, setObjectives] = useState<ObjectiveListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -70,21 +82,32 @@ export function DecisionDetailSheet({
     void load();
   }, [load]);
 
-  // Members (for RACI) and tasks (to link and to label task relations) are
-  // loaded once per open; both are workspace-scoped and change rarely.
+  // Members (for RACI) plus the entities a relation can point at (tasks,
+  // objectives) are loaded once per open; all are workspace-scoped and change
+  // rarely. Each entity list is fetched only when its capability is enabled.
   useEffect(() => {
     if (!decisionId) return;
     api
       .listMembers(workspaceId)
       .then(({ members }) => setMembers(members))
       .catch(() => {});
-    api
-      .listTasks(workspaceId, { limit: 200 })
-      .then(({ tasks }) => setTasks(tasks))
-      .catch(() => {});
-  }, [workspaceId, decisionId]);
-
-  const taskTitles = useMemo(() => new Map(tasks.map((t) => [t.id, t.title])), [tasks]);
+    if (showTasks) {
+      api
+        .listTasks(workspaceId, { limit: 200 })
+        .then(({ tasks }) => setTasks(tasks))
+        .catch(() => {});
+    } else {
+      setTasks([]);
+    }
+    if (showObjectives) {
+      api
+        .listObjectives(workspaceId, { limit: 200 })
+        .then(({ objectives }) => setObjectives(objectives))
+        .catch(() => {});
+    } else {
+      setObjectives([]);
+    }
+  }, [workspaceId, decisionId, showTasks, showObjectives]);
 
   async function run(fn: () => Promise<unknown>) {
     setError(null);
@@ -184,15 +207,13 @@ export function DecisionDetailSheet({
 
               <RelationsSection
                 detail={detail}
+                workspaceId={workspaceId}
                 tasks={tasks}
-                taskTitles={taskTitles}
-                onAdd={(entityId) =>
-                  run(() =>
-                    api.addDecisionRelation(workspaceId, detail.decision.id, {
-                      entityType: 'task',
-                      entityId,
-                    }),
-                  )
+                objectives={objectives}
+                showTasks={showTasks}
+                showObjectives={showObjectives}
+                onAdd={(input) =>
+                  run(() => api.addDecisionRelation(workspaceId, detail.decision.id, input))
                 }
                 onRemove={(relationId) =>
                   run(() => api.removeDecisionRelation(workspaceId, detail.decision.id, relationId))
@@ -315,22 +336,31 @@ function RaciSection({
 
 function RelationsSection({
   detail,
+  workspaceId,
   tasks,
-  taskTitles,
+  objectives,
+  showTasks,
+  showObjectives,
   onAdd,
   onRemove,
 }: {
   detail: DecisionDetail;
+  workspaceId: string;
   tasks: TaskListItem[];
-  taskTitles: Map<string, string>;
-  onAdd: (entityId: string) => Promise<void>;
+  objectives: ObjectiveListItem[];
+  showTasks: boolean;
+  showObjectives: boolean;
+  onAdd: (input: AddRelationInput) => Promise<void>;
   onRemove: (relationId: string) => Promise<void>;
 }) {
-  const linkedTaskIds = new Set(
-    detail.relations.filter((r) => r.entityType === 'task').map((r) => r.entityId),
-  );
-  const available = tasks.filter((t) => !linkedTaskIds.has(t.id));
-  const [pick, setPick] = useState('');
+  // Already-linked ids per type, so pickers do not offer duplicates (the unique
+  // index would reject them anyway).
+  const linkedIds = (type: DecisionEntityType) =>
+    new Set(detail.relations.filter((r) => r.entityType === type).map((r) => r.entityId));
+  const linkedTaskIds = linkedIds('task');
+  const linkedGoalIds = linkedIds('goal');
+  const availableTasks = tasks.filter((t) => !linkedTaskIds.has(t.id));
+  const availableObjectives = objectives.filter((o) => !linkedGoalIds.has(o.id));
 
   return (
     <div className="flex flex-col gap-3">
@@ -342,9 +372,9 @@ function RelationsSection({
           {detail.relations.map((r) => (
             <Badge key={r.id} variant="outline" className="gap-1">
               <span className="text-muted-foreground">{ENTITY_TYPE_LABELS[r.entityType]}:</span>
-              <span>
-                {r.entityType === 'task' ? (taskTitles.get(r.entityId) ?? 'Task') : r.entityId}
-              </span>
+              {/* label is server-hydrated for task/goal/key_result; fall back to
+                  the placeholder (deleted or not-yet-resolved) rather than a raw id. */}
+              <span>{r.label ?? EMPTY}</span>
               <button
                 type="button"
                 aria-label="Remove link"
@@ -357,16 +387,158 @@ function RelationsSection({
           ))}
         </div>
       )}
-      {available.length > 0 && (
+
+      {showTasks && availableTasks.length > 0 && (
+        <RelationPicker
+          placeholder="Link a task…"
+          options={availableTasks.map((t) => ({ id: t.id, label: t.title }))}
+          onLink={(entityId) => onAdd({ entityType: 'task', entityId })}
+        />
+      )}
+
+      {showObjectives && availableObjectives.length > 0 && (
+        <RelationPicker
+          placeholder="Link a goal…"
+          options={availableObjectives.map((o) => ({ id: o.id, label: o.title }))}
+          onLink={(entityId) => onAdd({ entityType: 'goal', entityId })}
+        />
+      )}
+
+      {showObjectives && objectives.length > 0 && (
+        <KeyResultPicker
+          workspaceId={workspaceId}
+          objectives={objectives}
+          linkedKeyResultIds={linkedIds('key_result')}
+          onLink={(entityId) => onAdd({ entityType: 'key_result', entityId })}
+        />
+      )}
+    </div>
+  );
+}
+
+/** A single "pick one, then Link" row shared by the task and objective pickers. */
+function RelationPicker({
+  placeholder,
+  options,
+  onLink,
+}: {
+  placeholder: string;
+  options: { id: string; label: string }[];
+  onLink: (id: string) => Promise<void>;
+}) {
+  const [pick, setPick] = useState('');
+  return (
+    <div className="flex items-center gap-2">
+      <Select value={pick} onValueChange={setPick}>
+        <SelectTrigger size="sm" className="flex-1">
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((o) => (
+            <SelectItem key={o.id} value={o.id}>
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Button
+        size="sm"
+        variant="secondary"
+        disabled={!pick}
+        onClick={() => void onLink(pick).then(() => setPick(''))}
+      >
+        Link
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Two-step key-result picker: choose an objective, then one of its key results.
+ * The KRs load on demand from the objective detail so we never bulk-fetch every
+ * objective's key results just to populate a rarely-used picker.
+ */
+function KeyResultPicker({
+  workspaceId,
+  objectives,
+  linkedKeyResultIds,
+  onLink,
+}: {
+  workspaceId: string;
+  objectives: ObjectiveListItem[];
+  linkedKeyResultIds: Set<string>;
+  onLink: (id: string) => Promise<void>;
+}) {
+  const [objectiveId, setObjectiveId] = useState('');
+  const [krs, setKrs] = useState<{ id: string; name: string }[]>([]);
+  const [krId, setKrId] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!objectiveId) {
+      setKrs([]);
+      setKrId('');
+      return;
+    }
+    let active = true;
+    setLoading(true);
+    api
+      .getObjective(workspaceId, objectiveId)
+      .then((detail) => {
+        if (!active) return;
+        setKrs(detail.keyResults.map((kr) => ({ id: kr.id, name: kr.name })));
+      })
+      .catch(() => active && setKrs([]))
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [workspaceId, objectiveId]);
+
+  const availableKrs = krs.filter((kr) => !linkedKeyResultIds.has(kr.id));
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Select
+        value={objectiveId}
+        onValueChange={(v) => {
+          setObjectiveId(v);
+          setKrId('');
+        }}
+      >
+        <SelectTrigger size="sm" className="flex-1">
+          <SelectValue placeholder="Link a key result: pick a goal…" />
+        </SelectTrigger>
+        <SelectContent>
+          {objectives.map((o) => (
+            <SelectItem key={o.id} value={o.id}>
+              {o.title}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {objectiveId && (
         <div className="flex items-center gap-2">
-          <Select value={pick} onValueChange={setPick}>
+          <Select
+            value={krId}
+            onValueChange={setKrId}
+            disabled={loading || availableKrs.length === 0}
+          >
             <SelectTrigger size="sm" className="flex-1">
-              <SelectValue placeholder="Link a task…" />
+              <SelectValue
+                placeholder={
+                  loading
+                    ? 'Loading key results…'
+                    : availableKrs.length === 0
+                      ? 'No key results to link'
+                      : 'Pick a key result…'
+                }
+              />
             </SelectTrigger>
             <SelectContent>
-              {available.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {t.title}
+              {availableKrs.map((kr) => (
+                <SelectItem key={kr.id} value={kr.id}>
+                  {kr.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -374,8 +546,13 @@ function RelationsSection({
           <Button
             size="sm"
             variant="secondary"
-            disabled={!pick}
-            onClick={() => void onAdd(pick).then(() => setPick(''))}
+            disabled={!krId}
+            onClick={() =>
+              void onLink(krId).then(() => {
+                setKrId('');
+                setObjectiveId('');
+              })
+            }
           >
             Link
           </Button>

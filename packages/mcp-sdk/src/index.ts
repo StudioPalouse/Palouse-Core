@@ -65,7 +65,9 @@ const stakeholderAssignment = z.object({
   role: raciRole.describe('RACI role: responsible, accountable, consulted, or informed'),
 });
 const relationRef = z.object({
-  entityType: decisionEntityType.describe("Related entity kind; only 'task' is resolvable today"),
+  entityType: decisionEntityType.describe(
+    "Related entity kind. 'task', 'goal' (objective), and 'key_result' resolve to a title/status on read; 'project', 'project_item', and 'context' are reserved.",
+  ),
   entityId: z.string().uuid(),
 });
 const claimToken = z
@@ -326,9 +328,7 @@ export const TOOL_INPUTS = {
     projectId,
     name: z.string().min(1).max(300).optional(),
     descriptionMd: z.string().max(50_000).nullable().optional(),
-    status: projectStatus
-      .optional()
-      .describe('planning, active, on_hold, completed, or archived'),
+    status: projectStatus.optional().describe('planning, active, on_hold, completed, or archived'),
   },
   create_project_item: {
     projectId,
@@ -396,7 +396,7 @@ export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
   set_decision_stakeholders:
     "Replace a decision's RACI roster in full (responsible, accountable, consulted, informed). At most one accountable is allowed. Pass Palouse user ids.",
   add_decision_relation:
-    'Link a decision to a related entity so the record sits alongside the work it concerns. Only task links resolve today; project/goal/context are reserved for when those capabilities ship.',
+    'Link a decision to a related entity so the record sits alongside the work it concerns. Task, goal (objective), and key_result links resolve to a title and status on read (via get_decision), and goal/key_result links surface on the objective via get_objective. Project, project_item, and context are reserved.',
   list_objectives:
     'List the goals (objectives) your workspace is working toward, filterable by status, area, and title search. Use this to find an existing objective before creating a new one, and to report progress on the goals a person cares about.',
   get_objective:

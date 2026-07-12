@@ -18,7 +18,14 @@ export type DecisionOrigin = z.infer<typeof decisionOrigin>;
 export const raciRole = z.enum(['responsible', 'accountable', 'consulted', 'informed']);
 export type RaciRole = z.infer<typeof raciRole>;
 
-export const decisionEntityType = z.enum(['task', 'project', 'project_item', 'goal', 'context']);
+export const decisionEntityType = z.enum([
+  'task',
+  'project',
+  'project_item',
+  'goal',
+  'key_result',
+  'context',
+]);
 export type DecisionEntityType = z.infer<typeof decisionEntityType>;
 
 export const decisionResourceKind = z.enum(['link', 'document', 'other']);
@@ -79,6 +86,19 @@ export const decisionRelationSchema = z.object({
   entityId: uuid,
   createdByUserId: uuid.nullable(),
   createdAt: z.string().datetime(),
+  /**
+   * Server-resolved display name of the linked entity (objective title, key
+   * result name, task title, ...). Null when the type is not yet hydrated or the
+   * linked entity was deleted (entityId is not a hard FK); the client renders a
+   * placeholder rather than a raw id in that case.
+   */
+  label: z.string().nullable(),
+  /**
+   * Status-like context for the linked entity: the objective/task status, or a
+   * key result's `current/target` progress string (KRs have no status column).
+   * Null when unresolved.
+   */
+  targetStatus: z.string().nullable(),
 });
 export type DecisionRelation = z.infer<typeof decisionRelationSchema>;
 
