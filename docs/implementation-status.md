@@ -1,7 +1,44 @@
 # Implementation status & next steps
 
-Updated 2026-07-04. Living status doc for the current build phase. The GitHub Project
+Updated 2026-07-12. Living status doc for the current build phase. The GitHub Project
 "Palouse Roadmap" is the issue tracker; this doc captures in-flight state and the resume plan.
+
+## Resume here: Decisions expansion, now on Theme A / A2 (2026-07-12)
+
+Pick-up point for the decisions-capability expansion (`docs/decisions-roadmap.md`).
+
+**Just finished: Theme E (strategy linkage) is complete on `main`.** Slice 1
+decision to objective and key-result linking (`d68359a`), Slice 2 decision to project
+roll-up (`a7b0e47`), Slice 3 dashboard strategy signals (`e5d8aa7`). This closes roadmap
+goal 5 and gives Palouse a direct, queryable decision-to-OKR/key-result edge.
+
+**Uncommitted in the working tree right now (commit these first):**
+
+- **MCP `get_strategy_signals` tool** — `apps/mcp/src/server.ts`, `packages/mcp-sdk/src/index.ts`.
+  Exposes `decisionService.getStrategySignals` to agents (scope `decisions:read`, capability
+  `decisions`, per-signal gating on objectives/projects in the handler). Full typecheck green.
+- **`docs/plans/copilot-declarative-agent-a2.md`** (new) — the A2 Copilot declarative-agent
+  scoping doc.
+- This status update.
+
+**Next actions, in order:**
+
+1. Commit the working-tree changes above (branch off `main`; the MCP tool is a self-contained
+   change and can be its own commit/PR).
+2. Answer the **A2 open questions** in `docs/plans/copilot-declarative-agent-a2.md` §6 before
+   building: DCR-vs-static spike order, which tools the first pilot exposes, where the Teams app
+   package lives in the repo, which pilot tenant to sideload into, and the agent's branding.
+3. Start **A2 slice 1 (spike + verify)** in a test tenant, no production code: confirm the OAuth
+   **token endpoint returns no 307**, PKCE works, a minted token's **audience = `PUBLIC_MCP_URL`**
+   and **issuer = `${BETTER_AUTH_URL}/api/auth`** (so `apps/mcp/src/auth.ts` accepts it unchanged),
+   and `offline_access` yields a refresh token. Try the **`DynamicClientRegistration`** auth type
+   first (our provider already has DCR enabled) before committing to a static client. This is the
+   pause-for-feedback point. Build/verify steps and risks are in the scoping doc §4-§7.
+
+**Context / not blocking:** #126 (bullmq/ioredis bump) is closed; the deliberate-pin rationale
+lives in `docs/dependencies.md`. Theme D reporting is the natural place to later surface strategy
+signals more broadly. After A2, the roadmap continues with the Teams transcript connector (A3)
+and the extraction pipeline (A1/A4).
 
 ## Where things stand
 

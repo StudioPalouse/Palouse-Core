@@ -46,6 +46,7 @@ const SCOPES: Record<ToolName, AgentKeyScope> = {
   add_decision_comment: 'decisions:write',
   set_decision_stakeholders: 'decisions:write',
   add_decision_relation: 'decisions:write',
+  get_strategy_signals: 'decisions:read',
   list_objectives: 'objectives:read',
   get_objective: 'objectives:read',
   create_objective: 'objectives:write',
@@ -71,6 +72,7 @@ const CAPABILITY: Partial<Record<ToolName, CapabilityKey>> = {
   add_decision_comment: 'decisions',
   set_decision_stakeholders: 'decisions',
   add_decision_relation: 'decisions',
+  get_strategy_signals: 'decisions',
   list_objectives: 'objectives',
   get_objective: 'objectives',
   create_objective: 'objectives',
@@ -331,6 +333,15 @@ export async function buildServer(db: Database, key: VerifiedAgentKey): Promise<
       { entityType: args.entityType, entityId: args.entityId },
     ),
   }));
+
+  register('get_strategy_signals', async () =>
+    decisionService.getStrategySignals(db, key.workspaceId, {
+      // Gate each count on its supporting capability, mirroring the dashboard
+      // endpoint, so a disabled capability contributes zero.
+      includeObjectiveSignals: caps.objectives !== false,
+      includeProjectSignals: caps.projects !== false,
+    }),
+  );
 
   register('list_objectives', async (args) =>
     objectiveService.listObjectives(db, {

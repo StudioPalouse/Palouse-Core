@@ -34,6 +34,7 @@ export const TOOLS = [
   'add_decision_comment',
   'set_decision_stakeholders',
   'add_decision_relation',
+  'get_strategy_signals',
   'list_objectives',
   'get_objective',
   'create_objective',
@@ -270,6 +271,7 @@ export const TOOL_INPUTS = {
     entityType: decisionEntityType,
     entityId: z.string().uuid(),
   },
+  get_strategy_signals: {},
   list_objectives: {
     status: objectiveStatus.optional().describe('Filter by objective status'),
     area: z.string().max(200).optional().describe('Filter by the free-text area/grouping'),
@@ -397,6 +399,8 @@ export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
     "Replace a decision's RACI roster in full (responsible, accountable, consulted, informed). At most one accountable is allowed. Pass Palouse user ids.",
   add_decision_relation:
     'Link a decision to a related entity so the record sits alongside the work it concerns. Task, goal (objective), key_result, and project links resolve to a title and status on read (via get_decision). Goal/key_result links surface on the objective via get_objective, and project links surface on the project via get_project. project_item and context are reserved.',
+  get_strategy_signals:
+    'Summarize where open decisions and strategy intersect for this workspace: the count of open decisions (proposed or under review) on at-risk goals (directly or through their key results), and the count of projects carrying a decision still in the proposed stage. Use this to spot goals and projects that are blocked on a call that has not been made yet. Each count is zero when the matching capability (objectives or projects) is off.',
   list_objectives:
     'List the goals (objectives) your workspace is working toward, filterable by status, area, and title search. Use this to find an existing objective before creating a new one, and to report progress on the goals a person cares about.',
   get_objective:
