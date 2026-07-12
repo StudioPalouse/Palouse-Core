@@ -20,16 +20,21 @@ export const decisionRoutes = new Hono<SessionVars>();
 
 decisionRoutes.use('*', requireSession);
 
-/** Membership + the decisions capability must both be satisfied. */
+/**
+ * Membership + the decisions capability must both be satisfied. Returns the
+ * workspace capability set so callers can gate cross-capability data (e.g. only
+ * count objective/project strategy signals when those capabilities are on).
+ */
 async function requireDecisionsAccess(
   db: Database,
   workspaceId: string,
   userId: string,
-): Promise<void> {
+): Promise<Awaited<ReturnType<typeof capabilityService.capabilitiesForWorkspace>>> {
   await workspaces.requireMembership(db, workspaceId, userId);
   const caps = await capabilityService.capabilitiesForWorkspace(db, workspaceId);
   if (caps.decisions === false)
     throw forbidden('The Decisions capability is turned off for this workspace.');
+  return caps;
 }
 
 function bodyWorkspaceId(body: unknown): string {
@@ -64,6 +69,19 @@ decisionRoutes.post('/', async (c) => {
     parsed.data,
   );
   return c.json({ decision }, 201);
+});
+
+// Registered before '/:id' so the literal path is not captured as an id.
+decisionRoutes.get('/strategy-signals', async (c) => {
+  const workspaceId = c.req.query('workspaceId') ?? '';
+  if (!workspaceId) throw validation('workspaceId query param required');
+  const db = getDb(loadEnv().DATABASE_URL);
+  const caps = await requireDecisionsAccess(db, workspaceId, c.get('userId'));
+  const result = await decisionService.getStrategySignals(db, workspaceId, {
+    includeObjectiveSignals: caps.objectives !== false,
+    includeProjectSignals: caps.projects !== false,
+  });
+  return c.json(result);
 });
 
 decisionRoutes.get('/:id', async (c) => {

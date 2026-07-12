@@ -47,6 +47,8 @@ type DashboardData = {
   noIntegrations: boolean;
   decisionsTotal: number;
   decisionsUnderReview: number;
+  openDecisionsAtRisk: number;
+  projectsWithProposedDecisions: number;
   objectivesTotal: number;
   objectivesProgress: number;
   topObjectives: ObjectiveListItem[];
@@ -104,6 +106,7 @@ function DashboardContent() {
   const showTasks = capabilities?.tasks ?? true;
   const showDecisions = capabilities?.decisions ?? true;
   const showObjectives = capabilities?.objectives ?? true;
+  const showProjects = capabilities?.projects ?? true;
 
   const load = useCallback(() => {
     if (!workspace) return;
@@ -126,10 +129,13 @@ function DashboardContent() {
     const objectivesReq = showObjectives
       ? api.listObjectives(id, { limit: 50 })
       : Promise.resolve(null);
+    // Strategy signals cross-reference decisions with at-risk goals and projects;
+    // the endpoint zeroes each count when its supporting capability is off.
+    const signalsReq = showDecisions ? api.getStrategySignals(id) : Promise.resolve(null);
     const agentsReq = api.listAgents(id);
 
-    Promise.all([tasksReq, decisionsReq, objectivesReq, agentsReq])
-      .then(([taskData, decisionData, objectiveData, agents]) => {
+    Promise.all([tasksReq, decisionsReq, objectivesReq, signalsReq, agentsReq])
+      .then(([taskData, decisionData, objectiveData, signals, agents]) => {
         const handoffs = taskData ? taskData[4].handoffs : [];
         const decisions = decisionData ? decisionData.decisions : [];
         const objectives = objectiveData ? objectiveData.objectives : [];
@@ -185,6 +191,8 @@ function DashboardContent() {
           noIntegrations: taskData ? taskData[5].integrations.length === 0 : false,
           decisionsTotal: decisionData ? decisionData.total : 0,
           decisionsUnderReview: decisions.filter((d) => d.status === 'under_review').length,
+          openDecisionsAtRisk: signals ? signals.openDecisionsOnAtRiskObjectives : 0,
+          projectsWithProposedDecisions: signals ? signals.projectsWithProposedDecisions : 0,
           objectivesTotal: objectiveData ? objectiveData.total : 0,
           objectivesProgress,
           topObjectives: objectives.slice(0, 4),
@@ -198,7 +206,7 @@ function DashboardContent() {
       .catch((err) => {
         if (err instanceof ApiError && err.status === 401) router.replace('/sign-in');
       });
-  }, [workspace, router, showTasks, showDecisions, showObjectives]);
+  }, [workspace, router, showTasks, showDecisions, showObjectives, showProjects]);
 
   // Load on mount / workspace change, then poll so changes surface on their own.
   useEffect(() => {
@@ -220,30 +228,58 @@ function DashboardContent() {
       </div>
 
       {/* Alert banners */}
-      {data && (data.needsReview > 0 || data.noIntegrations) && (
-        <div className="flex flex-col gap-2">
-          {data.needsReview > 0 && (
-            <Link
-              href="/reviews"
-              className="border-destructive/40 bg-destructive/5 hover:bg-destructive/10 flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors"
-            >
-              <ClipboardCheck className="size-4 shrink-0" />
-              {data.needsReview} {data.needsReview === 1 ? 'item needs' : 'items need'} your review.
-              <span className="text-muted-foreground ml-auto">Go to Reviews</span>
-            </Link>
-          )}
-          {data.noIntegrations && (
-            <Link
-              href="/settings"
-              className="hover:bg-accent/50 flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors"
-            >
-              <TrendingUp className="size-4 shrink-0" />
-              No integrations connected yet. Connect a source to start syncing tasks.
-              <span className="text-muted-foreground ml-auto">Open Settings</span>
-            </Link>
-          )}
-        </div>
-      )}
+      {data &&
+        (data.needsReview > 0 ||
+          data.noIntegrations ||
+          (showObjectives && data.openDecisionsAtRisk > 0) ||
+          (showProjects && data.projectsWithProposedDecisions > 0)) && (
+          <div className="flex flex-col gap-2">
+            {data.needsReview > 0 && (
+              <Link
+                href="/reviews"
+                className="border-destructive/40 bg-destructive/5 hover:bg-destructive/10 flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors"
+              >
+                <ClipboardCheck className="size-4 shrink-0" />
+                {data.needsReview} {data.needsReview === 1 ? 'item needs' : 'items need'} your
+                review.
+                <span className="text-muted-foreground ml-auto">Go to Reviews</span>
+              </Link>
+            )}
+            {showObjectives && data.openDecisionsAtRisk > 0 && (
+              <Link
+                href="/decisions"
+                className="hover:bg-accent/50 flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors"
+              >
+                <Scale className="size-4 shrink-0" />
+                {data.openDecisionsAtRisk} open{' '}
+                {data.openDecisionsAtRisk === 1 ? 'decision' : 'decisions'} on at-risk goals.
+                <span className="text-muted-foreground ml-auto">Go to Decisions</span>
+              </Link>
+            )}
+            {showProjects && data.projectsWithProposedDecisions > 0 && (
+              <Link
+                href="/projects"
+                className="hover:bg-accent/50 flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors"
+              >
+                <Scale className="size-4 shrink-0" />
+                {data.projectsWithProposedDecisions}{' '}
+                {data.projectsWithProposedDecisions === 1 ? 'project has' : 'projects have'}{' '}
+                proposed decisions awaiting a call.
+                <span className="text-muted-foreground ml-auto">Go to Projects</span>
+              </Link>
+            )}
+            {data.noIntegrations && (
+              <Link
+                href="/settings"
+                className="hover:bg-accent/50 flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors"
+              >
+                <TrendingUp className="size-4 shrink-0" />
+                No integrations connected yet. Connect a source to start syncing tasks.
+                <span className="text-muted-foreground ml-auto">Open Settings</span>
+              </Link>
+            )}
+          </div>
+        )}
 
       {/* Objectives progress: real goal progress once objectives exist. */}
       {showObjectives &&

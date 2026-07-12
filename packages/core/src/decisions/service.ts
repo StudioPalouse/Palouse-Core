@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray, or, sql, type SQL } from 'drizzle-orm';
 import {
   auditEvents,
   decisionComments,
@@ -29,6 +29,7 @@ import {
   type DecisionStakeholder,
   type ListDecisionsQuery,
   type SetStakeholdersInput,
+  type StrategySignals,
   type UpdateDecisionInput,
 } from '@palouse/shared';
 
@@ -194,6 +195,102 @@ async function hydrateRelations(
     resolved.set(`project:${p.id}`, { label: p.name, targetStatus: p.status });
 
   return rows.map((r) => relationToDto(r, resolved.get(`${r.entityType}:${r.entityId}`)));
+}
+
+/**
+ * Count distinct open decisions (proposed or under_review) that touch an at-risk
+ * objective, either directly (`goal`) or through one of that objective's key
+ * results (`key_result`). Key results have no status of their own, so a KR counts
+ * as at-risk when its parent objective is at_risk. Served by
+ * `decision_relations_entity_idx`.
+ */
+async function countOpenDecisionsOnAtRiskObjectives(
+  db: Database,
+  workspaceId: string,
+): Promise<number> {
+  const atRiskObjectives = await db
+    .select({ id: objectives.id })
+    .from(objectives)
+    .where(and(eq(objectives.workspaceId, workspaceId), eq(objectives.status, 'at_risk')));
+  const objectiveIds = atRiskObjectives.map((o) => o.id);
+  if (objectiveIds.length === 0) return 0;
+
+  // KRs of at-risk objectives (objectiveIds are already workspace-scoped).
+  const krRows = await db
+    .select({ id: keyResults.id })
+    .from(keyResults)
+    .where(inArray(keyResults.objectiveId, objectiveIds));
+  const krIds = krRows.map((k) => k.id);
+
+  const matchers = [
+    and(
+      eq(decisionRelations.entityType, 'goal'),
+      inArray(decisionRelations.entityId, objectiveIds),
+    ),
+  ];
+  if (krIds.length > 0) {
+    matchers.push(
+      and(
+        eq(decisionRelations.entityType, 'key_result'),
+        inArray(decisionRelations.entityId, krIds),
+      ),
+    );
+  }
+
+  const [row] = await db
+    .select({ n: sql<number>`count(distinct ${decisions.id})::int` })
+    .from(decisions)
+    .innerJoin(decisionRelations, eq(decisionRelations.decisionId, decisions.id))
+    .where(
+      and(
+        eq(decisions.workspaceId, workspaceId),
+        inArray(decisions.status, ['proposed', 'under_review']),
+        or(...matchers),
+      ),
+    );
+  return row?.n ?? 0;
+}
+
+/** Count distinct projects carrying a project-level decision still in `proposed`. */
+async function countProjectsWithProposedDecisions(
+  db: Database,
+  workspaceId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ n: sql<number>`count(distinct ${projects.id})::int` })
+    .from(projects)
+    .innerJoin(decisionRelations, eq(decisionRelations.entityId, projects.id))
+    .innerJoin(decisions, eq(decisions.id, decisionRelations.decisionId))
+    .where(
+      and(
+        eq(projects.workspaceId, workspaceId),
+        eq(decisionRelations.entityType, 'project'),
+        eq(decisions.status, 'proposed'),
+      ),
+    );
+  return row?.n ?? 0;
+}
+
+/**
+ * Dashboard strategy signals (Theme E, E3). Each count is gated by the caller so
+ * a disabled capability contributes zero: objective signals need the objectives
+ * capability, project signals need the projects capability. Both are cheap
+ * index-served aggregates; reused by Theme D reporting.
+ */
+export async function getStrategySignals(
+  db: Database,
+  workspaceId: string,
+  options: { includeObjectiveSignals?: boolean; includeProjectSignals?: boolean } = {},
+): Promise<StrategySignals> {
+  const [openDecisionsOnAtRiskObjectives, projectsWithProposedDecisions] = await Promise.all([
+    options.includeObjectiveSignals
+      ? countOpenDecisionsOnAtRiskObjectives(db, workspaceId)
+      : Promise.resolve(0),
+    options.includeProjectSignals
+      ? countProjectsWithProposedDecisions(db, workspaceId)
+      : Promise.resolve(0),
+  ]);
+  return { openDecisionsOnAtRiskObjectives, projectsWithProposedDecisions };
 }
 
 /** At most one Accountable across a RACI roster. Throws VALIDATION otherwise. */

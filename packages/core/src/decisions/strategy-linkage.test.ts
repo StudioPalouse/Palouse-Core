@@ -14,7 +14,7 @@ import {
   type Database,
 } from '@palouse/db';
 import { userActor, type Actor } from '@palouse/shared';
-import { addRelation, createDecision, getDecision } from './service.js';
+import { addRelation, createDecision, getDecision, getStrategySignals } from './service.js';
 import { createObjective, getObjective, listRelatedDecisions } from '../objectives/service.js';
 import {
   createProject,
@@ -284,5 +284,145 @@ describe('strategy linkage: decision <-> project (slice 2)', () => {
 
     const related = await listProjectRelatedDecisions(db, a.workspaceId, projectA.id);
     expect(related).toHaveLength(0);
+  });
+});
+
+describe('strategy linkage: getStrategySignals (slice 3, E3)', () => {
+  const bothOn = { includeObjectiveSignals: true, includeProjectSignals: true };
+
+  it('counts open decisions on at-risk goals, directly and via their key results', async () => {
+    const { workspaceId, actor } = await seedWorkspace();
+    const atRisk = await createObjective(db, workspaceId, actor, {
+      title: 'At-risk goal',
+      status: 'at_risk',
+      keyResults: [{ name: 'KR1', startValue: 0, targetValue: 10 }],
+    });
+    const healthy = await createObjective(db, workspaceId, actor, {
+      title: 'Healthy goal',
+      status: 'active',
+    });
+    const krId = (await getObjective(db, workspaceId, atRisk.id)).keyResults[0]!.id;
+
+    // Counts: open (proposed) linked to the at-risk goal directly.
+    const dGoal = await createDecision(db, workspaceId, actor, { title: 'Goal-linked open' });
+    await addRelation(db, workspaceId, actor, dGoal.id, {
+      entityType: 'goal',
+      entityId: atRisk.id,
+    });
+    // Counts: under_review linked to the at-risk goal's KR.
+    const dKr = await createDecision(db, workspaceId, actor, {
+      title: 'KR-linked open',
+      status: 'under_review',
+    });
+    await addRelation(db, workspaceId, actor, dKr.id, { entityType: 'key_result', entityId: krId });
+    // Excluded: accepted (terminal) decision on the at-risk goal.
+    const dDone = await createDecision(db, workspaceId, actor, {
+      title: 'Accepted',
+      status: 'accepted',
+    });
+    await addRelation(db, workspaceId, actor, dDone.id, {
+      entityType: 'goal',
+      entityId: atRisk.id,
+    });
+    // Excluded: open decision on a healthy goal.
+    const dHealthy = await createDecision(db, workspaceId, actor, { title: 'On healthy goal' });
+    await addRelation(db, workspaceId, actor, dHealthy.id, {
+      entityType: 'goal',
+      entityId: healthy.id,
+    });
+
+    const signals = await getStrategySignals(db, workspaceId, bothOn);
+    expect(signals.openDecisionsOnAtRiskObjectives).toBe(2);
+  });
+
+  it('counts a decision linked to both an at-risk goal and its KR only once', async () => {
+    const { workspaceId, actor } = await seedWorkspace();
+    const atRisk = await createObjective(db, workspaceId, actor, {
+      title: 'At-risk',
+      status: 'at_risk',
+      keyResults: [{ name: 'KR', startValue: 0, targetValue: 5 }],
+    });
+    const krId = (await getObjective(db, workspaceId, atRisk.id)).keyResults[0]!.id;
+    const d = await createDecision(db, workspaceId, actor, { title: 'Linked to both' });
+    await addRelation(db, workspaceId, actor, d.id, { entityType: 'goal', entityId: atRisk.id });
+    await addRelation(db, workspaceId, actor, d.id, { entityType: 'key_result', entityId: krId });
+
+    const signals = await getStrategySignals(db, workspaceId, bothOn);
+    expect(signals.openDecisionsOnAtRiskObjectives).toBe(1);
+  });
+
+  it('counts projects carrying a proposed project-level decision', async () => {
+    const { workspaceId, actor } = await seedWorkspace();
+    const p1 = await createProject(db, workspaceId, actor, { name: 'P1' });
+    const p2 = await createProject(db, workspaceId, actor, { name: 'P2' });
+    // p1 has a proposed decision -> counts.
+    const proposed = await createDecision(db, workspaceId, actor, { title: 'Proposed' });
+    await addRelation(db, workspaceId, actor, proposed.id, {
+      entityType: 'project',
+      entityId: p1.id,
+    });
+    // p2 has only an accepted decision -> excluded.
+    const accepted = await createDecision(db, workspaceId, actor, {
+      title: 'Accepted',
+      status: 'accepted',
+    });
+    await addRelation(db, workspaceId, actor, accepted.id, {
+      entityType: 'project',
+      entityId: p2.id,
+    });
+
+    const signals = await getStrategySignals(db, workspaceId, bothOn);
+    expect(signals.projectsWithProposedDecisions).toBe(1);
+  });
+
+  it('zeroes each signal when its supporting capability is off', async () => {
+    const { workspaceId, actor } = await seedWorkspace();
+    const atRisk = await createObjective(db, workspaceId, actor, {
+      title: 'At-risk',
+      status: 'at_risk',
+    });
+    const dGoal = await createDecision(db, workspaceId, actor, { title: 'Open on at-risk' });
+    await addRelation(db, workspaceId, actor, dGoal.id, {
+      entityType: 'goal',
+      entityId: atRisk.id,
+    });
+    const project = await createProject(db, workspaceId, actor, { name: 'P' });
+    const dProj = await createDecision(db, workspaceId, actor, { title: 'Proposed on project' });
+    await addRelation(db, workspaceId, actor, dProj.id, {
+      entityType: 'project',
+      entityId: project.id,
+    });
+
+    // Objectives off -> goal signal zero; projects on -> project signal counts.
+    const objOff = await getStrategySignals(db, workspaceId, {
+      includeObjectiveSignals: false,
+      includeProjectSignals: true,
+    });
+    expect(objOff.openDecisionsOnAtRiskObjectives).toBe(0);
+    expect(objOff.projectsWithProposedDecisions).toBe(1);
+
+    // Nothing requested -> both zero (no queries run).
+    const none = await getStrategySignals(db, workspaceId);
+    expect(none).toEqual({
+      openDecisionsOnAtRiskObjectives: 0,
+      projectsWithProposedDecisions: 0,
+    });
+  });
+
+  it('does not count another workspace signals', async () => {
+    const a = await seedWorkspace();
+    const b = await seedWorkspace();
+    const atRiskB = await createObjective(db, b.workspaceId, b.actor, {
+      title: 'B at-risk',
+      status: 'at_risk',
+    });
+    const dB = await createDecision(db, b.workspaceId, b.actor, { title: 'B open' });
+    await addRelation(db, b.workspaceId, b.actor, dB.id, {
+      entityType: 'goal',
+      entityId: atRiskB.id,
+    });
+
+    const signalsA = await getStrategySignals(db, a.workspaceId, bothOn);
+    expect(signalsA.openDecisionsOnAtRiskObjectives).toBe(0);
   });
 });

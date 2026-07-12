@@ -113,6 +113,23 @@ export const decisionListItemSchema = decisionSchema.extend({
 });
 export type DecisionListItem = z.infer<typeof decisionListItemSchema>;
 
+/**
+ * Aggregate strategy signals for the dashboard (Theme E, E3). Counts, not titles,
+ * so they carry no cross-capability leak. Each count is zero when its supporting
+ * capability is off for the workspace (gated server-side).
+ */
+export const strategySignalsSchema = z.object({
+  /**
+   * Open decisions (proposed or under_review) linked to an at-risk objective,
+   * either directly (`goal`) or through one of that objective's key results
+   * (`key_result`). Counts distinct decisions.
+   */
+  openDecisionsOnAtRiskObjectives: z.number().int().nonnegative(),
+  /** Projects carrying at least one project-level decision still in `proposed`. */
+  projectsWithProposedDecisions: z.number().int().nonnegative(),
+});
+export type StrategySignals = z.infer<typeof strategySignalsSchema>;
+
 export const decisionDetailSchema = z.object({
   decision: decisionSchema,
   stakeholders: z.array(decisionStakeholderSchema),

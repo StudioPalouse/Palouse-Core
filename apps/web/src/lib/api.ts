@@ -15,6 +15,7 @@ import type {
   DecisionRelation,
   DecisionResource,
   DecisionStakeholder,
+  StrategySignals,
   Handoff,
   HandoffEvent,
   HandoffListItem,
@@ -226,6 +227,9 @@ export const api = {
 
   getDecision: (workspaceId: string, decisionId: string) =>
     request<DecisionDetail>(`/v1/decisions/${decisionId}?workspaceId=${workspaceId}`),
+
+  getStrategySignals: (workspaceId: string) =>
+    request<StrategySignals>(`/v1/decisions/strategy-signals?workspaceId=${workspaceId}`),
 
   createDecision: (workspaceId: string, input: CreateDecisionInput) =>
     request<{ decision: Decision }>('/v1/decisions', {
@@ -452,12 +456,7 @@ export const api = {
       body: JSON.stringify({ workspaceId, taskId }),
     }),
 
-  unlinkProjectItemTask: (
-    workspaceId: string,
-    projectId: string,
-    itemId: string,
-    taskId: string,
-  ) =>
+  unlinkProjectItemTask: (workspaceId: string, projectId: string, itemId: string, taskId: string) =>
     request<void>(
       `/v1/projects/${projectId}/items/${itemId}/tasks/${taskId}?workspaceId=${workspaceId}`,
       { method: 'DELETE' },
