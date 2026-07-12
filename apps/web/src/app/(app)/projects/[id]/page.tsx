@@ -1,9 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, KanbanSquare, GanttChartSquare } from 'lucide-react';
-import type { ProjectColumn, ProjectDetail, ProjectStatus } from '@palouse/shared';
+import type {
+  DecisionStatus,
+  LinkedDecision,
+  ProjectColumn,
+  ProjectDetail,
+  ProjectStatus,
+} from '@palouse/shared';
 import {
   Button,
   cn,
@@ -20,6 +27,7 @@ import { ProjectItemDetailSheet } from '@/components/project-item-detail-sheet';
 import { api, ApiError } from '@/lib/api';
 import { useActiveWorkspace } from '@/lib/workspace-context';
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_ORDER } from '@/lib/project-meta';
+import { DECISION_STATUS_LABELS, DECISION_STATUS_TONE } from '@/lib/decision-meta';
 
 const POLL_MS = 20_000;
 type View = 'board' | 'timeline';
@@ -28,7 +36,9 @@ export default function ProjectDetailPage() {
   const params = useParams<{ id: string }>();
   const projectId = params.id;
   const router = useRouter();
-  const { workspace } = useActiveWorkspace();
+  const { workspace, capabilities } = useActiveWorkspace();
+  // Fail-open on unknown caps, matching the dashboard/nav convention.
+  const showDecisions = capabilities?.decisions ?? true;
   const [detail, setDetail] = useState<ProjectDetail | null>(null);
   const [view, setView] = useState<View>('board');
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
@@ -107,7 +117,11 @@ export default function ProjectDetailPage() {
         </Select>
 
         <div className="ml-auto flex items-center gap-1 rounded-md border p-0.5">
-          <ViewButton active={view === 'board'} onClick={() => setView('board')} icon={KanbanSquare}>
+          <ViewButton
+            active={view === 'board'}
+            onClick={() => setView('board')}
+            icon={KanbanSquare}
+          >
             Board
           </ViewButton>
           <ViewButton
@@ -149,6 +163,8 @@ export default function ProjectDetailPage() {
         <ProjectGantt detail={detail} />
       )}
 
+      {showDecisions && <ProjectDecisions decisions={detail.relatedDecisions} />}
+
       <ProjectItemDetailSheet
         workspaceId={wsId}
         projectId={projectId}
@@ -157,6 +173,40 @@ export default function ProjectDetailPage() {
         onClose={() => setSelectedItemId(null)}
         onChanged={refresh}
       />
+    </div>
+  );
+}
+
+/**
+ * Decisions linked to the project as a whole (`entityType: 'project'`), distinct
+ * from the per-card decision links shown inside each card's detail sheet. Rendered
+ * only when the decisions capability is on.
+ */
+function ProjectDecisions({ decisions }: { decisions: LinkedDecision[] }) {
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border p-4">
+      <h2 className="text-sm font-medium">Decisions affecting this project</h2>
+      {decisions.length === 0 ? (
+        <p className="text-muted-foreground text-sm">No decisions affecting this project yet.</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {decisions.map((d) => (
+            <li key={d.relationId}>
+              <Link href="/decisions" className="flex items-center gap-2 text-sm hover:underline">
+                <span
+                  className={cn(
+                    'inline-flex shrink-0 rounded-md px-2 py-0.5 text-xs font-medium',
+                    DECISION_STATUS_TONE[d.status as DecisionStatus],
+                  )}
+                >
+                  {DECISION_STATUS_LABELS[d.status as DecisionStatus]}
+                </span>
+                <span className="min-w-0 flex-1 truncate">{d.title}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

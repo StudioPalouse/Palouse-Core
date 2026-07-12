@@ -8,6 +8,7 @@ import {
   decisions,
   keyResults,
   objectives,
+  projects,
   tasks,
   type Database,
 } from '@palouse/db';
@@ -118,8 +119,8 @@ function keyResultProgressLabel(kr: {
 /**
  * Resolve each relation's linked entity to a display label + status-like context,
  * scoped to the workspace. Runs one grouped query per resolvable entity type
- * (goal, key_result, task) with no per-row fan-out. Types not resolved here, or
- * ids pointing at a deleted entity (entityId is not a hard FK), yield
+ * (goal, key_result, task, project) with no per-row fan-out. Types not resolved
+ * here, or ids pointing at a deleted entity (entityId is not a hard FK), yield
  * `label: null` so the caller renders a placeholder rather than throwing.
  */
 async function hydrateRelations(
@@ -136,8 +137,9 @@ async function hydrateRelations(
   const goalIds = [...(idsByType.get('goal') ?? [])];
   const krIds = [...(idsByType.get('key_result') ?? [])];
   const taskIds = [...(idsByType.get('task') ?? [])];
+  const projectIds = [...(idsByType.get('project') ?? [])];
 
-  const [objectiveRows, krRows, taskRows] = await Promise.all([
+  const [objectiveRows, krRows, taskRows, projectRows] = await Promise.all([
     goalIds.length
       ? db
           .select({ id: objectives.id, title: objectives.title, status: objectives.status })
@@ -172,6 +174,12 @@ async function hydrateRelations(
           .from(tasks)
           .where(and(eq(tasks.workspaceId, workspaceId), inArray(tasks.id, taskIds)))
       : Promise.resolve([] as { id: string; title: string; status: string }[]),
+    projectIds.length
+      ? db
+          .select({ id: projects.id, name: projects.name, status: projects.status })
+          .from(projects)
+          .where(and(eq(projects.workspaceId, workspaceId), inArray(projects.id, projectIds)))
+      : Promise.resolve([] as { id: string; name: string; status: string }[]),
   ]);
 
   // Key resolved values by `${type}:${id}` so ids never collide across types.
@@ -182,6 +190,8 @@ async function hydrateRelations(
     resolved.set(`key_result:${k.id}`, { label: k.name, targetStatus: keyResultProgressLabel(k) });
   for (const t of taskRows)
     resolved.set(`task:${t.id}`, { label: t.title, targetStatus: t.status });
+  for (const p of projectRows)
+    resolved.set(`project:${p.id}`, { label: p.name, targetStatus: p.status });
 
   return rows.map((r) => relationToDto(r, resolved.get(`${r.entityType}:${r.entityId}`)));
 }

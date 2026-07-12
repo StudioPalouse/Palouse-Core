@@ -8,6 +8,7 @@ import type {
   DecisionEntityType,
   DecisionStatus,
   ObjectiveListItem,
+  ProjectListItem,
   StakeholderAssignment,
   TaskListItem,
   WorkspaceMember,
@@ -63,11 +64,13 @@ export function DecisionDetailSheet({
   // fail-open convention, so pickers do not flash off before caps load.
   const showTasks = capabilities?.tasks ?? true;
   const showObjectives = capabilities?.objectives ?? true;
+  const showProjects = capabilities?.projects ?? true;
 
   const [detail, setDetail] = useState<DecisionDetail | null>(null);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [tasks, setTasks] = useState<TaskListItem[]>([]);
   const [objectives, setObjectives] = useState<ObjectiveListItem[]>([]);
+  const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -107,7 +110,15 @@ export function DecisionDetailSheet({
     } else {
       setObjectives([]);
     }
-  }, [workspaceId, decisionId, showTasks, showObjectives]);
+    if (showProjects) {
+      api
+        .listProjects(workspaceId, { limit: 200 })
+        .then(({ projects }) => setProjects(projects))
+        .catch(() => {});
+    } else {
+      setProjects([]);
+    }
+  }, [workspaceId, decisionId, showTasks, showObjectives, showProjects]);
 
   async function run(fn: () => Promise<unknown>) {
     setError(null);
@@ -210,8 +221,10 @@ export function DecisionDetailSheet({
                 workspaceId={workspaceId}
                 tasks={tasks}
                 objectives={objectives}
+                projects={projects}
                 showTasks={showTasks}
                 showObjectives={showObjectives}
+                showProjects={showProjects}
                 onAdd={(input) =>
                   run(() => api.addDecisionRelation(workspaceId, detail.decision.id, input))
                 }
@@ -339,8 +352,10 @@ function RelationsSection({
   workspaceId,
   tasks,
   objectives,
+  projects,
   showTasks,
   showObjectives,
+  showProjects,
   onAdd,
   onRemove,
 }: {
@@ -348,8 +363,10 @@ function RelationsSection({
   workspaceId: string;
   tasks: TaskListItem[];
   objectives: ObjectiveListItem[];
+  projects: ProjectListItem[];
   showTasks: boolean;
   showObjectives: boolean;
+  showProjects: boolean;
   onAdd: (input: AddRelationInput) => Promise<void>;
   onRemove: (relationId: string) => Promise<void>;
 }) {
@@ -359,8 +376,10 @@ function RelationsSection({
     new Set(detail.relations.filter((r) => r.entityType === type).map((r) => r.entityId));
   const linkedTaskIds = linkedIds('task');
   const linkedGoalIds = linkedIds('goal');
+  const linkedProjectIds = linkedIds('project');
   const availableTasks = tasks.filter((t) => !linkedTaskIds.has(t.id));
   const availableObjectives = objectives.filter((o) => !linkedGoalIds.has(o.id));
+  const availableProjects = projects.filter((p) => !linkedProjectIds.has(p.id));
 
   return (
     <div className="flex flex-col gap-3">
@@ -372,8 +391,8 @@ function RelationsSection({
           {detail.relations.map((r) => (
             <Badge key={r.id} variant="outline" className="gap-1">
               <span className="text-muted-foreground">{ENTITY_TYPE_LABELS[r.entityType]}:</span>
-              {/* label is server-hydrated for task/goal/key_result; fall back to
-                  the placeholder (deleted or not-yet-resolved) rather than a raw id. */}
+              {/* label is server-hydrated for task/goal/key_result/project; fall back
+                  to the placeholder (deleted or not-yet-resolved) rather than a raw id. */}
               <span>{r.label ?? EMPTY}</span>
               <button
                 type="button"
@@ -401,6 +420,14 @@ function RelationsSection({
           placeholder="Link a goal…"
           options={availableObjectives.map((o) => ({ id: o.id, label: o.title }))}
           onLink={(entityId) => onAdd({ entityType: 'goal', entityId })}
+        />
+      )}
+
+      {showProjects && availableProjects.length > 0 && (
+        <RelationPicker
+          placeholder="Link a project…"
+          options={availableProjects.map((p) => ({ id: p.id, label: p.name }))}
+          onLink={(entityId) => onAdd({ entityType: 'project', entityId })}
         />
       )}
 

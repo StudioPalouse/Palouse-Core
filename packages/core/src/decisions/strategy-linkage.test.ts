@@ -16,6 +16,12 @@ import {
 import { userActor, type Actor } from '@palouse/shared';
 import { addRelation, createDecision, getDecision } from './service.js';
 import { createObjective, getObjective, listRelatedDecisions } from '../objectives/service.js';
+import {
+  createProject,
+  createProjectItem,
+  getProject,
+  listRelatedDecisions as listProjectRelatedDecisions,
+} from '../projects/service.js';
 
 const MIGRATIONS_DIR = fileURLToPath(new URL('../../../db/migrations', import.meta.url));
 
@@ -205,5 +211,78 @@ describe('strategy linkage: getObjective gating', () => {
 
     const related = await listRelatedDecisions(db, workspaceId, objective.id);
     expect(related).toHaveLength(1);
+  });
+});
+
+describe('strategy linkage: decision <-> project (slice 2)', () => {
+  it('hydrates a project relation to the project name and status in getDecision', async () => {
+    const { workspaceId, actor } = await seedWorkspace();
+    const project = await createProject(db, workspaceId, actor, {
+      name: 'Website relaunch',
+      status: 'active',
+    });
+    const decision = await createDecision(db, workspaceId, actor, { title: 'Choose a CMS' });
+    await addRelation(db, workspaceId, actor, decision.id, {
+      entityType: 'project',
+      entityId: project.id,
+    });
+
+    const detail = await getDecision(db, workspaceId, decision.id);
+    const rel = detail.relations.find((r) => r.entityType === 'project');
+    expect(rel!.label).toBe('Website relaunch');
+    expect(rel!.targetStatus).toBe('active');
+  });
+
+  it('listRelatedDecisions returns project-level links only, not card-level links', async () => {
+    const { workspaceId, actor } = await seedWorkspace();
+    const project = await createProject(db, workspaceId, actor, { name: 'App v2' });
+    const card = await createProjectItem(db, workspaceId, actor, project.id, { title: 'Card A' });
+
+    const projectDecision = await createDecision(db, workspaceId, actor, {
+      title: 'Project-level',
+    });
+    const cardDecision = await createDecision(db, workspaceId, actor, { title: 'Card-level' });
+    await addRelation(db, workspaceId, actor, projectDecision.id, {
+      entityType: 'project',
+      entityId: project.id,
+    });
+    await addRelation(db, workspaceId, actor, cardDecision.id, {
+      entityType: 'project_item',
+      entityId: card.id,
+    });
+
+    const related = await listProjectRelatedDecisions(db, workspaceId, project.id);
+    // Only the project-level link; the card-level (project_item) link is separate.
+    expect(related.map((r) => r.decisionId)).toEqual([projectDecision.id]);
+  });
+
+  it('getProject omits related decisions unless includeRelatedDecisions is set', async () => {
+    const { workspaceId, actor } = await seedWorkspace();
+    const project = await createProject(db, workspaceId, actor, { name: 'Gated project' });
+    const decision = await createDecision(db, workspaceId, actor, { title: 'Linked' });
+    await addRelation(db, workspaceId, actor, decision.id, {
+      entityType: 'project',
+      entityId: project.id,
+    });
+
+    const off = await getProject(db, workspaceId, project.id);
+    expect(off.relatedDecisions).toEqual([]);
+
+    const on = await getProject(db, workspaceId, project.id, { includeRelatedDecisions: true });
+    expect(on.relatedDecisions.map((r) => r.decisionId)).toEqual([decision.id]);
+  });
+
+  it('does not leak project-linked decisions from another workspace', async () => {
+    const a = await seedWorkspace();
+    const b = await seedWorkspace();
+    const projectA = await createProject(db, a.workspaceId, a.actor, { name: 'A project' });
+    const decisionB = await createDecision(db, b.workspaceId, b.actor, { title: 'B decision' });
+    await addRelation(db, b.workspaceId, b.actor, decisionB.id, {
+      entityType: 'project',
+      entityId: projectA.id,
+    });
+
+    const related = await listProjectRelatedDecisions(db, a.workspaceId, projectA.id);
+    expect(related).toHaveLength(0);
   });
 });

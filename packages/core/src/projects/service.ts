@@ -142,7 +142,10 @@ export async function listProjects(
       .orderBy(desc(projects.updatedAt))
       .limit(query.limit)
       .offset(query.offset),
-    db.select({ total: sql<number>`count(*)::int` }).from(projects).where(where),
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(projects)
+      .where(where),
   ]);
 
   // Count total and completed items per project on this page in one grouped
@@ -175,10 +178,43 @@ export async function listProjects(
   };
 }
 
+/**
+ * Reverse lookup: decisions linked to this project as a whole
+ * (`entityType = 'project'`), distinct from the card-level (`project_item`) links
+ * returned per item. Workspace-scoped through the `decisions` join, which is
+ * load-bearing since `decision_relations.entityId` is not a hard FK. Served by
+ * `decision_relations_entity_idx`. Loaded on demand, not folded into the hot
+ * board/Gantt query. Reused by Themes C and D.
+ */
+export async function listRelatedDecisions(
+  db: Database,
+  workspaceId: string,
+  projectId: string,
+): Promise<LinkedDecision[]> {
+  return db
+    .select({
+      relationId: decisionRelations.id,
+      decisionId: decisions.id,
+      title: decisions.title,
+      status: decisions.status,
+    })
+    .from(decisionRelations)
+    .innerJoin(decisions, eq(decisions.id, decisionRelations.decisionId))
+    .where(
+      and(
+        eq(decisions.workspaceId, workspaceId),
+        eq(decisionRelations.entityType, 'project'),
+        eq(decisionRelations.entityId, projectId),
+      ),
+    )
+    .orderBy(desc(decisions.updatedAt));
+}
+
 export async function getProject(
   db: Database,
   workspaceId: string,
   projectId: string,
+  options: { includeRelatedDecisions?: boolean } = {},
 ): Promise<ProjectDetail> {
   const row = await loadProjectRow(db, workspaceId, projectId);
   const [columnRows, itemRows, depRows] = await Promise.all([
@@ -266,10 +302,18 @@ export async function getProject(
     successorItemIds: successors.get(i.id) ?? [],
   }));
 
+  // Gated by the caller: empty unless the decisions capability is on, so decision
+  // titles never leak through the projects gate. Project-level links only; the
+  // per-card links above are separate.
+  const relatedDecisions = options.includeRelatedDecisions
+    ? await listRelatedDecisions(db, workspaceId, projectId)
+    : [];
+
   return {
     project: toDto(row),
     columns: columnRows.map(columnToDto),
     items,
+    relatedDecisions,
     dependencies: depRows.map((d) => ({
       id: d.id,
       projectId: d.projectId,
@@ -341,7 +385,9 @@ export async function deleteProject(
   projectId: string,
 ): Promise<void> {
   await loadProjectRow(db, workspaceId, projectId);
-  await db.delete(projects).where(and(eq(projects.id, projectId), eq(projects.workspaceId, workspaceId)));
+  await db
+    .delete(projects)
+    .where(and(eq(projects.id, projectId), eq(projects.workspaceId, workspaceId)));
   await audit(db, workspaceId, actor, 'project.deleted', projectId);
 }
 
@@ -413,7 +459,7 @@ export async function removeColumn(
     .from(projectItems)
     .where(eq(projectItems.columnId, columnId));
   if ((counted?.count ?? 0) > 0)
-    throw conflict('Move or delete this column\'s cards before deleting the column.');
+    throw conflict("Move or delete this column's cards before deleting the column.");
   await db.delete(projectColumns).where(eq(projectColumns.id, columnId));
   await touchProject(db, projectId);
   await audit(db, workspaceId, actor, 'project.column_removed', projectId, { columnId });
@@ -590,10 +636,7 @@ export async function addDependency(
       createdByUserId: actor.type === 'user' ? actor.id : null,
     })
     .onConflictDoNothing({
-      target: [
-        projectItemDependencies.predecessorItemId,
-        projectItemDependencies.successorItemId,
-      ],
+      target: [projectItemDependencies.predecessorItemId, projectItemDependencies.successorItemId],
     });
   await touchProject(db, projectId);
   await audit(db, workspaceId, actor, 'project.dependency_added', projectId, {
@@ -698,7 +741,11 @@ export async function linkDecision(
       createdByUserId: actor.type === 'user' ? actor.id : null,
     })
     .onConflictDoNothing({
-      target: [decisionRelations.decisionId, decisionRelations.entityType, decisionRelations.entityId],
+      target: [
+        decisionRelations.decisionId,
+        decisionRelations.entityType,
+        decisionRelations.entityId,
+      ],
     });
   await touchProject(db, projectId);
   await audit(db, workspaceId, actor, 'project.decision_linked', projectId, { itemId, decisionId });
@@ -724,7 +771,10 @@ export async function unlinkDecision(
       ),
     );
   await touchProject(db, projectId);
-  await audit(db, workspaceId, actor, 'project.decision_unlinked', projectId, { itemId, decisionId });
+  await audit(db, workspaceId, actor, 'project.decision_unlinked', projectId, {
+    itemId,
+    decisionId,
+  });
 }
 
 /** Bump the project's updatedAt so list ordering reflects child edits. */

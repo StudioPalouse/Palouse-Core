@@ -2,13 +2,7 @@ import { z } from 'zod';
 import { uuid } from './ids.js';
 
 // Keep these in sync with the pg enums in packages/db/src/schema/projects.ts.
-export const projectStatus = z.enum([
-  'planning',
-  'active',
-  'on_hold',
-  'completed',
-  'archived',
-]);
+export const projectStatus = z.enum(['planning', 'active', 'on_hold', 'completed', 'archived']);
 export type ProjectStatus = z.infer<typeof projectStatus>;
 
 export const projectOrigin = z.enum(['user', 'agent']);
@@ -115,6 +109,14 @@ export const projectDetailSchema = z.object({
   columns: z.array(projectColumnSchema),
   items: z.array(projectItemWithLinksSchema),
   dependencies: z.array(projectItemDependencySchema),
+  /**
+   * Decisions linked to the project as a whole (`entityType: 'project'`), resolved
+   * to title + status. Distinct from the per-card `linkedDecisions` on each item.
+   * Empty when the decisions capability is off for the workspace (gated
+   * server-side so a disabled capability never leaks decision titles through the
+   * projects gate).
+   */
+  relatedDecisions: z.array(linkedDecisionSchema),
 });
 export type ProjectDetail = z.infer<typeof projectDetailSchema>;
 

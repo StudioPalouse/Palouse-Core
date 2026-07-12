@@ -391,7 +391,11 @@ export async function buildServer(db: Database, key: VerifiedAgentKey): Promise<
   );
 
   register('get_project', async (args) =>
-    projectService.getProject(db, key.workspaceId, args.projectId),
+    projectService.getProject(db, key.workspaceId, args.projectId, {
+      // Only surface related decisions when the decisions capability is on, so a
+      // disabled capability never leaks decision titles through projects:read.
+      includeRelatedDecisions: caps.decisions !== false,
+    }),
   );
 
   register('create_project', async (args) => ({

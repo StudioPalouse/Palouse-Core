@@ -23,16 +23,21 @@ export const projectRoutes = new Hono<SessionVars>();
 
 projectRoutes.use('*', requireSession);
 
-/** Membership + the projects capability must both be satisfied. */
+/**
+ * Membership + the projects capability must both be satisfied. Returns the
+ * workspace capability set so callers can gate cross-capability data (e.g. only
+ * include related decisions when the decisions capability is on).
+ */
 async function requireProjectsAccess(
   db: Database,
   workspaceId: string,
   userId: string,
-): Promise<void> {
+): Promise<Awaited<ReturnType<typeof capabilityService.capabilitiesForWorkspace>>> {
   await workspaces.requireMembership(db, workspaceId, userId);
   const caps = await capabilityService.capabilitiesForWorkspace(db, workspaceId);
   if (caps.projects === false)
     throw forbidden('The Projects capability is turned off for this workspace.');
+  return caps;
 }
 
 function bodyWorkspaceId(body: unknown): string {
@@ -80,8 +85,10 @@ projectRoutes.post('/', async (c) => {
 projectRoutes.get('/:id', async (c) => {
   const workspaceId = queryWorkspaceId(c);
   const db = getDb(loadEnv().DATABASE_URL);
-  await requireProjectsAccess(db, workspaceId, c.get('userId'));
-  const result = await projectService.getProject(db, workspaceId, c.req.param('id'));
+  const caps = await requireProjectsAccess(db, workspaceId, c.get('userId'));
+  const result = await projectService.getProject(db, workspaceId, c.req.param('id'), {
+    includeRelatedDecisions: caps.decisions !== false,
+  });
   return c.json(result);
 });
 
@@ -107,7 +114,12 @@ projectRoutes.delete('/:id', async (c) => {
   const workspaceId = queryWorkspaceId(c);
   const db = getDb(loadEnv().DATABASE_URL);
   await requireProjectsAccess(db, workspaceId, c.get('userId'));
-  await projectService.deleteProject(db, workspaceId, userActor(c.get('userId')), c.req.param('id'));
+  await projectService.deleteProject(
+    db,
+    workspaceId,
+    userActor(c.get('userId')),
+    c.req.param('id'),
+  );
   return c.body(null, 204);
 });
 
