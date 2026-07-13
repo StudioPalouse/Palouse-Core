@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { ShieldAlert, ShieldCheck } from 'lucide-react';
 import type { AuditEventListItem, AuditVerifyResult } from '@palouse/shared';
 import {
-  Badge,
   Input,
   Select,
   SelectContent,
@@ -13,6 +12,7 @@ import {
   SelectValue,
   Skeleton,
 } from '@palouse/ui';
+import { AuditEventRow } from '@/components/audit-event-row';
 import { EmptyState } from '@/components/fieldwork/empty-state';
 import { api } from '@/lib/api';
 import { useActiveWorkspace } from '@/lib/workspace-context';
@@ -27,29 +27,6 @@ const TARGET_FILTERS: Array<{ value: string; label: string }> = [
   { value: 'project', label: 'Projects' },
   { value: 'agent', label: 'Agents' },
 ];
-
-/** Compact "time ago"; the full timestamp lives in the row's title attribute. */
-function timeAgo(iso: string): string {
-  const then = new Date(iso).getTime();
-  const secs = Math.round((Date.now() - then) / 1000);
-  if (secs < 60) return 'just now';
-  const mins = Math.round(secs / 60);
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
-
-function fullTimestamp(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
 
 /**
  * Tamper-evidence badge. The record is hash-chained; this shows whether a fresh
@@ -205,21 +182,7 @@ export default function ActivityPage() {
         ) : (
           <div className="divide-y">
             {events.map((event) => (
-              <div key={event.id} className="flex items-start gap-3 p-3 text-sm">
-                <Badge
-                  variant={event.actorType === 'agent' ? 'secondary' : 'outline'}
-                  className="mt-0.5 shrink-0"
-                >
-                  {event.actorType === 'agent' ? 'Agent' : 'Person'}
-                </Badge>
-                <span className="flex-1 leading-snug">{event.summary}</span>
-                <span
-                  className="text-muted-foreground shrink-0 tabular-nums"
-                  title={fullTimestamp(event.at)}
-                >
-                  {timeAgo(event.at)}
-                </span>
-              </div>
+              <AuditEventRow key={event.id} event={event} />
             ))}
           </div>
         )}

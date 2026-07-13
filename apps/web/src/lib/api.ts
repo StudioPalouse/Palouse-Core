@@ -306,6 +306,7 @@ export const api = {
       action?: string;
       actorType?: 'user' | 'agent';
       targetType?: string;
+      targetId?: string;
       search?: string;
       includeReads?: boolean;
       limit?: number;
@@ -316,6 +317,7 @@ export const api = {
     if (params?.action) qs.set('action', params.action);
     if (params?.actorType) qs.set('actorType', params.actorType);
     if (params?.targetType) qs.set('targetType', params.targetType);
+    if (params?.targetId) qs.set('targetId', params.targetId);
     if (params?.search) qs.set('search', params.search);
     if (params?.includeReads) qs.set('includeReads', 'true');
     if (params?.limit != null) qs.set('limit', String(params.limit));

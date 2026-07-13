@@ -170,6 +170,26 @@ describe('audit listEvents', () => {
     expect(tasksOnly.total).toBe(2);
   });
 
+  it('scopes to a single record with targetId (the per-entity Activity feed)', async () => {
+    const ctx = await seed();
+    const otherTaskId = crypto.randomUUID();
+    await addEvent(ctx, { action: 'task.created' });
+    await addEvent(ctx, { action: 'task.updated', payload: { fields: ['status'] } });
+    // An event on a different task in the same workspace must not leak in.
+    await addEvent(ctx, { action: 'task.created', targetId: otherTaskId });
+
+    const forTask = await listEvents(db, {
+      workspaceId: ctx.workspaceId,
+      targetType: 'task',
+      targetId: ctx.taskId,
+      includeReads: false,
+      limit: 50,
+      offset: 0,
+    });
+    expect(forTask.total).toBe(2);
+    expect(forTask.events.every((e) => e.targetId === ctx.taskId)).toBe(true);
+  });
+
   it('paginates with a stable total', async () => {
     const ctx = await seed();
     for (let i = 0; i < 5; i++) await addEvent(ctx, { action: 'task.updated' });

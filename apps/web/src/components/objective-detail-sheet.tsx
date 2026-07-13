@@ -39,6 +39,7 @@ import {
 } from '@/lib/objective-meta';
 import { DECISION_STATUS_LABELS, DECISION_STATUS_TONE } from '@/lib/decision-meta';
 import { useActiveWorkspace } from '@/lib/workspace-context';
+import { EntityActivity } from './entity-activity';
 import { Markdown } from './markdown';
 import { ProgressBar } from './objective-list';
 
@@ -212,6 +213,14 @@ export function ObjectiveDetailSheet({
                   <RelatedDecisionsSection decisions={detail.relatedDecisions} />
                 </>
               )}
+
+              <Separator />
+
+              <EntityActivity
+                workspaceId={workspaceId}
+                targetType="objective"
+                targetId={detail.objective.id}
+              />
             </div>
           </>
         )}

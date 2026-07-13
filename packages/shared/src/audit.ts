@@ -13,6 +13,10 @@ export const listAuditEventsQuery = z.object({
   action: z.string().max(200).optional(),
   actorType: z.enum(['user', 'agent']).optional(),
   targetType: z.string().max(100).optional(),
+  // Scope the feed to a single record (its detail-view Activity section). Pairs
+  // with `targetType`; agent-targeted `mcp.*` rows never match an entity id, so
+  // per-entity queries are naturally free of RPC chatter.
+  targetId: uuid.optional(),
   search: z.string().max(200).optional(),
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
