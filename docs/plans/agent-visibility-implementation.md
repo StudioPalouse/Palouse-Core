@@ -294,12 +294,14 @@ gapless per-workspace sequences under concurrent writers (8-way concurrent test)
 
 ## Slice 3 — Entity history + diffs  ·  status: done
 
-**Shipped to Test (staging) 2026-07-13 as PR #129** (squash `dd348ce`). Migration
-`0022_comment_agent_author` ran via the api `release_command`; the slice-2 backfill
-re-ran (0 rows on staging, no data). Full staging deploy (api/web/worker/mcp) + smoke
-green. This is the first release to carry the whole Activity capability (slices 1+2+3);
-prod cut as **v0.21.0** (v0.20.0 predates the audit feature, so the prod deploy applies
-migrations 0020→0022 and chains all existing prod audit rows for the first time).
+**SHIPPED TO PROD 2026-07-13 as v0.21.0** (PR #129, squash `dd348ce`; tag on docs
+commit `5b222c9`). This was the first prod release of the whole Activity capability
+(slices 1+2+3): v0.20.0 predated the audit feature, so the prod api `release_command`
+applied migrations 0020 (audit capability), 0021 (hash chain + backfill), and 0022
+(comment agent authors), chaining all existing prod audit rows for the first time. Both
+`deploy-staging` (on merge) and `deploy-prod` (on tag) ran green across api/web/worker/mcp
++ smoke. Migration `0022_comment_agent_author` confirmed applied on staging (`Migrations
+complete`).
 
 **Goal.** Before/after change payloads and a per-entity Activity section. Roadmap A3
 (store changed-field old/new values in the update payload, reusing the `auditToolCall`
