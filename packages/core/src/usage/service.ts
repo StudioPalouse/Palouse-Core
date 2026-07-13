@@ -1,6 +1,5 @@
 import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 import {
-  auditEvents,
   handoffSteps,
   llmGenerations,
   modelPrices,
@@ -19,6 +18,7 @@ import {
   type UsageSource,
 } from '@palouse/shared';
 import { computeCostUsd, resolvePrice } from './pricing.js';
+import { appendAuditEvent } from '../audit/chain.js';
 import {
   mapOtlpTraces,
   type MappedGeneration,
@@ -525,7 +525,7 @@ export async function upsertWorkspacePrice(
         createdByUserId: userId,
       })
       .returning();
-    await tx.insert(auditEvents).values({
+    await appendAuditEvent(tx, {
       workspaceId,
       actorType: 'user',
       actorId: userId,

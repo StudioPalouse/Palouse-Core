@@ -1,5 +1,6 @@
 import { and, desc, eq, ilike, inArray, sql, type SQL } from 'drizzle-orm';
-import { auditEvents, taskComments, taskSources, tasks, type Database } from '@palouse/db';
+import { taskComments, taskSources, tasks, type Database } from '@palouse/db';
+import { appendAuditEvent } from '../audit/chain.js';
 import {
   notFound,
   type Actor,
@@ -205,7 +206,7 @@ async function audit(
   targetId: string,
   payload: Record<string, unknown> = {},
 ): Promise<void> {
-  await db.insert(auditEvents).values({
+  await appendAuditEvent(db, {
     workspaceId,
     actorType: actor.type,
     actorId: actor.id,

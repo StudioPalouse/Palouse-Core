@@ -70,12 +70,15 @@ entity-targeted rows. The `mcp.*` rows are duplicates for mutations and low-valu
 path.** The feed excludes `action LIKE 'mcp.%'` by default; the query API can return
 them behind an explicit filter. This is reversible and keeps the hot write path
 untouched. Revisit stopping the double-write only if the duplicate rows become a storage
-or hash-chain concern (Theme B) — the hash chain will chain *all* rows, so we may prune
-the redundant `mcp.*` mutation rows before B1 lands. Tracked as an open item on slice 2.
+or hash-chain concern (Theme B). **Resolved in slice 2: chain *all* rows, do not prune** —
+the complete access record (including read-only tool calls) is the compliance value; the
+read-layer filter still hides `mcp.*` from the default feed.
 
 ---
 
-## Slice 1 — Complete record + activity feed  ·  status: in-progress
+## Slice 1 — Complete record + activity feed  ·  status: done
+
+**Shipped as PR #127** (merged to main 2026-07-13). Migration `0020_audit_capability`.
 
 **Built 2026-07-13** (typecheck + prettier green across the workspace; DB-backed tests
 written but not run locally — no Docker for Testcontainers, they run in CI):
@@ -224,7 +227,7 @@ tracked here; they do not belong in the default work-activity feed.
 
 ---
 
-## Slice 2 — Hash chain + verification  ·  status: todo
+## Slice 2 — Hash chain + verification  ·  status: done
 
 **Goal.** Make the record tamper-evident. Per-workspace `seq` / `prevHash` / `hash`
 columns on `audit_events`, a single `appendAuditEvent` write funnel replacing the
@@ -232,11 +235,55 @@ per-service `audit()` helpers, a backfill CLI to chain historical rows, `GET
 /v1/audit/verify`, `palouse verify-audit`, and an "Integrity verified" badge on the feed.
 Fully designed in `docs/agent-tasks-and-auditability.md` Phases 5–6. Maps to SEC 17a-4's
 audit-trail alternative to WORM; strongest regulated-industry differentiator per unit
-effort. **Prerequisite work:** decide the `mcp.*` redundancy before chaining (prune the
-duplicate mutation rows, or chain them and document). The per-workspace advisory lock
-serializes writers — measure before assuming it is fine at slice-1's higher volume.
-**Acceptance:** any row edit/delete breaks verification at a known `seq`;
-`verification.json` carries the genesis timestamp (backfill honesty). Size: M.
+effort. Size: M.
+
+**Built 2026-07-13** (typecheck + prettier green; core 137 + api 35 tests pass; the
+`pnpm --filter @palouse/db migrate` deploy path plus both CLIs verified against a real
+Postgres container locally). Files:
+- **shared**: `packages/shared/src/audit-chain.ts` — pure `canonicalJson` (RFC-8785-style
+  sorted-key serialization), `sha256Hex`, `genesisHash(workspaceId)`,
+  `computeAuditHash(fields)`, `AUDIT_CHAIN_VERSION = 1`. Lives in the leaf package so the
+  core funnel and the db backfill share ONE canonicalization implementation.
+  `AuditVerifyResult` schema added to `audit.ts`.
+- **db**: `seq`/`prev_hash`/`hash` columns (nullable) + `audit_events_workspace_seq_uq`
+  unique index on `schema/audit.ts`; migration `0021_audit_hash_chain`.
+  `packages/db/src/audit-backfill.ts` (`backfillAuditChain`, idempotent, `(at,id)` order,
+  advisory-locked per workspace) wired into `migrate.ts` after the catalog seed. Added a
+  `@palouse/shared` dep to `@palouse/db` (leaf, no cycle).
+- **core**: `packages/core/src/audit/chain.ts` — `appendAuditEvent(db|tx, evt)` (per-
+  workspace `pg_advisory_xact_lock`, tip read, hash, insert; runs in a savepoint when the
+  caller is already in a tx) and `verifyChain(db, workspaceId)`. All 6 service `audit()`
+  helpers and the 5 direct inserters (`tasks/upsert`, `usage/service`, `mcp/auth`
+  `auditToolCall`, `api/mcp-connect`, `api/otlp`) now funnel through it. Tests:
+  `chain-hash.test.ts` (pure, 9) + `chain.test.ts` (Testcontainers, 7: gapless seq,
+  concurrent writers, two-workspace isolation, tamper + deletion detection, backfill
+  order + idempotency).
+- **api**: `GET /v1/audit/verify` on the existing session + `audit`-capability-gated
+  router.
+- **cli**: `palouse verify-audit [--workspace <id>]` (non-zero exit on break) and
+  `palouse backfill-audit-chain`.
+- **web**: `api.verifyAudit` client + an "Integrity verified" / "Integrity check failed"
+  badge (lucide `ShieldCheck`/`ShieldAlert`, `text-status-done` token) in the Activity
+  header, re-walked on workspace change and each 20s poll.
+
+**`mcp.*` redundancy decision (was the open prerequisite): chain everything, do not
+prune.** A complete tamper-evident record of every tool call, including read-only access,
+is the compliance value; pruning would destroy the access-log and touch the hot write
+path. The slice-1 read-layer filter still hides `mcp.*` from the default feed. Revisit
+only if storage becomes a concern.
+
+**Acceptance met:** any row edit breaks verification at the tampered `seq`; a deleted row
+breaks at the missing `seq` (verified by tests). Advisory-lock serialization gives
+gapless per-workspace sequences under concurrent writers (8-way concurrent test).
+
+**Deferred to later slices (noted, not silently skipped):**
+- `verification.json` genesis-timestamp / backfill-honesty artifact lands with the audit
+  package export (slice 4); `verifyChain` already reports `unchainedCount` for honesty in
+  the meantime.
+- A straggler row written by old code during the deploy cutover window stays `seq NULL`
+  until the next `backfill-audit-chain` (which appends it after the live tip); surfaced as
+  `unchainedCount` on the badge. Documented in `audit-backfill.ts`.
+- Advisory-lock throughput at higher volume is not yet load-measured (roadmap §5 note).
 
 ## Slice 3 — Entity history + diffs  ·  status: todo
 

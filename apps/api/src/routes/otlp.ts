@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { validation } from '@palouse/shared';
-import { usageService } from '@palouse/core';
+import { appendAuditEvent, usageService } from '@palouse/core';
 import { loadEnv } from '@palouse/config';
-import { auditEvents, getDb } from '@palouse/db';
+import { getDb } from '@palouse/db';
 import { requireAgentKey, type AgentKeyVars } from '../middleware/agent-key.js';
 import { rateLimit } from '../middleware/rate-limit.js';
 
@@ -59,7 +59,7 @@ otlpRoutes.post('/v1/traces', async (c) => {
   );
 
   // Audit the ingest with actor_type='agent', mirroring MCP tool-call logging.
-  await db.insert(auditEvents).values({
+  await appendAuditEvent(db, {
     workspaceId: key.workspaceId,
     actorType: 'agent',
     actorId: key.agentId,

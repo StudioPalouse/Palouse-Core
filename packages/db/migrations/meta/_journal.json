@@ -148,6 +148,13 @@
       "when": 1783949438786,
       "tag": "0020_audit_capability",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1783974369830,
+      "tag": "0021_audit_hash_chain",
+      "breakpoints": true
     }
   ]
 }

@@ -4,6 +4,7 @@ import type {
   AgentKind,
   AgentKeyScope,
   AuditEventListItem,
+  AuditVerifyResult,
   AddRelationInput,
   AddResourceInput,
   CapabilityKey,
@@ -321,6 +322,9 @@ export const api = {
     if (params?.offset != null) qs.set('offset', String(params.offset));
     return request<{ events: AuditEventListItem[]; total: number }>(`/v1/audit/events?${qs}`);
   },
+
+  verifyAudit: (workspaceId: string) =>
+    request<AuditVerifyResult>(`/v1/audit/verify?workspaceId=${workspaceId}`),
 
   createObjective: (workspaceId: string, input: CreateObjectiveInput) =>
     request<{ objective: Objective }>('/v1/objectives', {

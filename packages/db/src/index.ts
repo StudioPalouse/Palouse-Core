@@ -4,6 +4,7 @@ import * as schema from './schema/index.js';
 
 export * from './schema/index.js';
 export * from './seed/model-prices.js';
+export { backfillAuditChain, type BackfillResult } from './audit-backfill.js';
 
 export type Database = PostgresJsDatabase<typeof schema>;
 

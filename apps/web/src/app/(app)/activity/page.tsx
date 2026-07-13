@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import type { AuditEventListItem } from '@palouse/shared';
+import { ShieldAlert, ShieldCheck } from 'lucide-react';
+import type { AuditEventListItem, AuditVerifyResult } from '@palouse/shared';
 import {
   Badge,
   Input,
@@ -50,9 +51,48 @@ function fullTimestamp(iso: string): string {
   });
 }
 
+/**
+ * Tamper-evidence badge. The record is hash-chained; this shows whether a fresh
+ * re-walk of the chain matches, so a business user can trust the timeline has
+ * not been altered. Read-only surface over GET /v1/audit/verify.
+ */
+function IntegrityBadge({ result }: { result: AuditVerifyResult | null }) {
+  if (result === null) {
+    return <span className="text-muted-foreground text-xs">Checking integrity…</span>;
+  }
+  if (!result.valid) {
+    return (
+      <span
+        className="text-destructive inline-flex items-center gap-1 text-xs font-medium"
+        title={
+          result.firstBrokenSeq != null
+            ? `Chain verification failed at entry #${result.firstBrokenSeq}.`
+            : 'Chain verification failed.'
+        }
+      >
+        <ShieldAlert className="size-3.5" />
+        Integrity check failed
+      </span>
+    );
+  }
+  const title =
+    `Verified ${result.checkedCount} chained entries.` +
+    (result.unchainedCount > 0 ? ` ${result.unchainedCount} awaiting backfill.` : '');
+  return (
+    <span
+      className="text-status-done inline-flex items-center gap-1 text-xs font-medium"
+      title={title}
+    >
+      <ShieldCheck className="size-3.5" />
+      Integrity verified
+    </span>
+  );
+}
+
 export default function ActivityPage() {
   const { workspace } = useActiveWorkspace();
   const [events, setEvents] = useState<AuditEventListItem[] | null>(null);
+  const [integrity, setIntegrity] = useState<AuditVerifyResult | null>(null);
   const [actorFilter, setActorFilter] = useState<string>('all');
   const [targetFilter, setTargetFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
@@ -82,18 +122,40 @@ export default function ActivityPage() {
     return () => clearInterval(t);
   }, [refresh]);
 
+  // Verifying re-walks the whole chain, so run it on workspace change (and once
+  // per feed poll), not on every filter keystroke.
+  useEffect(() => {
+    if (!workspace) return;
+    setIntegrity(null);
+    let cancelled = false;
+    const run = () =>
+      api
+        .verifyAudit(workspace.id)
+        .then((r) => !cancelled && setIntegrity(r))
+        .catch(() => !cancelled && setIntegrity(null));
+    run();
+    const t = setInterval(run, POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [workspace]);
+
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-lg font-semibold tracking-tight">
-        Activity
-        {workspace && (
-          <span className="text-muted-foreground ml-2 text-sm font-normal">{workspace.name}</span>
-        )}
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-lg font-semibold tracking-tight">
+          Activity
+          {workspace && (
+            <span className="text-muted-foreground ml-2 text-sm font-normal">{workspace.name}</span>
+          )}
+        </h1>
+        <IntegrityBadge result={integrity} />
+      </div>
 
       <p className="text-muted-foreground max-w-2xl text-sm">
         Everything people and agents did to your tasks, decisions, objectives, and projects, newest
-        first.
+        first. Every entry is hash-chained, so the record is tamper-evident.
       </p>
 
       <div className="flex flex-wrap items-center gap-2">

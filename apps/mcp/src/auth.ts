@@ -1,6 +1,6 @@
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
-import { auditEvents, type Database } from '@palouse/db';
-import { agentService } from '@palouse/core';
+import { type Database } from '@palouse/db';
+import { agentService, appendAuditEvent } from '@palouse/core';
 import { agentKeyScope, unauthorized, type AgentKeyScope } from '@palouse/shared';
 import { loadEnv } from '@palouse/config';
 import { getKeyRevocationStore } from './revocation.js';
@@ -130,7 +130,7 @@ export async function auditToolCall(
         ? `${value.slice(0, MAX_ARG_LENGTH)}…`
         : value;
   }
-  await db.insert(auditEvents).values({
+  await appendAuditEvent(db, {
     workspaceId: key.workspaceId,
     actorType: 'agent',
     actorId: key.agentId,
