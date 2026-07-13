@@ -1,0 +1,1 @@
+ALTER TYPE "public"."capability_key" ADD VALUE 'audit';

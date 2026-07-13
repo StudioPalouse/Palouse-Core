@@ -13,6 +13,7 @@ export const capabilityKey = pgEnum('capability_key', [
   'projects',
   'context',
   'objectives',
+  'audit',
 ]);
 
 /**

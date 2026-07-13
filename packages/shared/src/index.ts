@@ -11,3 +11,4 @@ export * from './integration.js';
 export * from './handoff.js';
 export * from './agent.js';
 export * from './usage.js';
+export * from './audit.js';

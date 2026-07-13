@@ -21,6 +21,7 @@ const DESCRIPTIONS: Record<CapabilityKey, string> = {
   projects: 'Group related work into projects.',
   context: 'Process, systems, and architecture notes.',
   objectives: 'Goals your team is working toward.',
+  audit: 'Activity feed of what people and agents did.',
 };
 
 const TOGGLEABLE = Object.keys(DESCRIPTIONS) as CapabilityKey[];

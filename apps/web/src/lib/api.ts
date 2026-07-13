@@ -3,6 +3,7 @@ import type {
   AgentApiKey,
   AgentKind,
   AgentKeyScope,
+  AuditEventListItem,
   AddRelationInput,
   AddResourceInput,
   CapabilityKey,
@@ -297,6 +298,29 @@ export const api = {
 
   getObjective: (workspaceId: string, objectiveId: string) =>
     request<ObjectiveDetail>(`/v1/objectives/${objectiveId}?workspaceId=${workspaceId}`),
+
+  listAuditEvents: (
+    workspaceId: string,
+    params?: {
+      action?: string;
+      actorType?: 'user' | 'agent';
+      targetType?: string;
+      search?: string;
+      includeReads?: boolean;
+      limit?: number;
+      offset?: number;
+    },
+  ) => {
+    const qs = new URLSearchParams({ workspaceId });
+    if (params?.action) qs.set('action', params.action);
+    if (params?.actorType) qs.set('actorType', params.actorType);
+    if (params?.targetType) qs.set('targetType', params.targetType);
+    if (params?.search) qs.set('search', params.search);
+    if (params?.includeReads) qs.set('includeReads', 'true');
+    if (params?.limit != null) qs.set('limit', String(params.limit));
+    if (params?.offset != null) qs.set('offset', String(params.offset));
+    return request<{ events: AuditEventListItem[]; total: number }>(`/v1/audit/events?${qs}`);
+  },
 
   createObjective: (workspaceId: string, input: CreateObjectiveInput) =>
     request<{ objective: Objective }>('/v1/objectives', {

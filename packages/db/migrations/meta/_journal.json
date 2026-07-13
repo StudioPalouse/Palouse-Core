@@ -141,6 +141,13 @@
       "when": 1783868266496,
       "tag": "0019_strategy_linkage",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1783949438786,
+      "tag": "0020_audit_capability",
+      "breakpoints": true
     }
   ]
 }

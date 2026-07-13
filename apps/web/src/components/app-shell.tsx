@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { useTheme } from 'next-themes';
 import {
+  Activity,
   BookOpen,
   Check,
   ChevronRight,
@@ -80,6 +81,7 @@ const NAV: NavItem[] = [
     ],
   },
   { href: '/objectives', label: 'Objectives', icon: Target, capability: 'objectives' },
+  { href: '/activity', label: 'Activity', icon: Activity, capability: 'audit' },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -150,9 +152,7 @@ function NavSection({ item, onNavigate }: { item: NavItem; onNavigate?: () => vo
           aria-expanded={expanded}
           className="text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground flex size-8 shrink-0 items-center justify-center rounded-md transition-colors"
         >
-          <ChevronRight
-            className={cn('size-4 transition-transform', expanded && 'rotate-90')}
-          />
+          <ChevronRight className={cn('size-4 transition-transform', expanded && 'rotate-90')} />
         </button>
       </div>
       {expanded &&
@@ -175,7 +175,9 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   // workspace that has a capability turned off must never flash it to its
   // users, so gated items appear only once the map confirms they are enabled.
   const items = NAV.filter(
-    (item) => !item.capability || (capabilities != null && isCapabilityEnabled(capabilities, item.capability)),
+    (item) =>
+      !item.capability ||
+      (capabilities != null && isCapabilityEnabled(capabilities, item.capability)),
   );
   return (
     <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4">
@@ -365,13 +367,7 @@ function UserMenu() {
 function UserAvatar({ image, initial }: { image: string | null; initial: string }) {
   if (image) {
     // eslint-disable-next-line @next/next/no-img-element -- data-URL avatar, no loader needed
-    return (
-      <img
-        src={image}
-        alt=""
-        className="size-8 shrink-0 rounded-full object-cover"
-      />
-    );
+    return <img src={image} alt="" className="size-8 shrink-0 rounded-full object-cover" />;
   }
   return (
     <span className="bg-primary text-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-medium">
