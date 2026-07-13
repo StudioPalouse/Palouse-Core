@@ -11,6 +11,7 @@ export const CAPABILITY_KEYS = [
   'projects',
   'context',
   'objectives',
+  'audit',
 ] as const;
 
 export const capabilityKey = z.enum(CAPABILITY_KEYS);

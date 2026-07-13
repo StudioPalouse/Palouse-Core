@@ -231,10 +231,12 @@ remain unbuilt.
 
 Each slice is thin end-to-end, shippable, and pausable for feedback.
 
-1. **Complete record + activity feed** (A1, A2 partial, B2, D1): entity-targeted
-   audit events, update logging on the highest-traffic mutations, the audit query
-   API, and the workspace activity feed page. One slice makes the capability visible
-   and useful immediately. (M)
+1. **Complete record + activity feed** (A1, A2, B2, D1): entity-targeted
+   audit events, create + update logging on all human and agent mutations (A2 in
+   full, per the 2026-07-13 decision below), the audit query API, and the workspace
+   activity feed page (nav label "Activity"). One slice makes the capability visible
+   and useful immediately, with a complete rather than partial timeline from day one.
+   (M/L)
 2. **Hash chain + verification** (B1): already fully designed in the M5 plan; adds
    the "Integrity verified" badge to the feed and reports. The single strongest
    regulated-industry differentiator per dollar of effort. (M)
@@ -259,10 +261,13 @@ customer conversation is warranted after slice 3, and again after slice 4 with t
 export artifact in hand.
 
 Capability gating: add a new top-level `audit` capability key (nav-level area like
-decisions/objectives/projects) gating the activity feed, entity history, and exports.
-Recording to `audit_events` is never gated; the toggle controls visibility surfaces
-only. Per-feature flags (signals, digests, approvals) via the `config` JSONB pattern
-the decisions plans converged on, to avoid enum churn.
+decisions/objectives/projects), rendered in the nav as **"Activity"** (the
+`CAPABILITY_LABELS` map already decouples key from label), gating the activity feed,
+entity history, and exports. It **defaults on**, matching the uniform default-enabled
+convention (`packages/shared/src/capability.ts`); recording to `audit_events` is never
+gated, so the toggle controls visibility surfaces only. Per-feature flags (signals,
+digests, approvals) via the `config` JSONB pattern the decisions plans converged on,
+to avoid enum churn.
 
 ## 5. Constraints and gotchas to carry into design
 
@@ -304,14 +309,23 @@ picked up, following the 15-section template used by the decisions theme plans. 
 grounded in the code as of 2026-07-12; current migration head is
 `0019_strategy_linkage.sql`; migration numbers assigned at implementation time.
 
-Open questions for the user before slice 1:
+Resolved decisions (2026-07-13, Jonathan):
 
-1. Naming: is the nav-level area called "Activity", "Audit", or "Agent activity"?
-   (Feed serves both human and agent actions; "Audit" reads compliance-first.)
-2. Should human-action logging (A2) cover all mutations from day one, or start with
-   agent-adjacent surfaces (tasks/decisions) and expand?
-3. Approval checkpoints (C4): per-workspace policy only, or per-agent overrides too?
-4. Retention (B4): is a six-year regulated preset the right default posture, or do we
-   ship configurable-only and document recommendations?
-5. Does the `audit` capability default on for all workspaces, or off until an admin
-   enables it (recording always on either way)?
+1. **Naming.** The nav-level area is **"Activity"** (business-readable; the feed
+   records both human and agent actions). Internal capability key stays `audit`;
+   compliance framing ("Audit package", "Integrity verified") lives on the export and
+   verification surfaces, not the everyday nav label.
+2. **Human-action logging (A2): all mutations from day one.** Slice 1 wires every
+   human web/REST mutation into the audit spine, not just agent-adjacent surfaces, so
+   the first feed is a complete timeline rather than a partial one. This enlarges
+   slice 1 (M → M/L); accepted deliberately.
+3. **Approval checkpoints (C4): per-workspace policy first.** Ship the workspace-level
+   policy over the existing review machinery; design the schema so per-agent overrides
+   can be added later without migration churn. (Slice 6; revisit at Theme C design.)
+4. **Retention (B4): configurable-only with an opt-in six-year preset.** Default
+   behavior is unchanged; regulated workspaces opt into a documented six-year FINRA
+   4511 preset. This avoids forcing the retention-vs-deletion tension (GDPR erasure,
+   workspace deletion) onto non-regulated customers.
+5. **`audit` capability defaults on.** Matches the uniform default-enabled convention;
+   existing workspaces see the Activity feed immediately and admins can hide it.
+   Recording to `audit_events` is always on regardless of the toggle.

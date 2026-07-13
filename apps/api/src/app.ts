@@ -11,6 +11,7 @@ import { PalouseError } from '@palouse/shared';
 import { getAuth } from '@palouse/auth';
 import { loadEnv } from '@palouse/config';
 import { agentRoutes } from './routes/agents.js';
+import { auditRoutes } from './routes/audit.js';
 import { decisionRoutes } from './routes/decisions.js';
 import { objectiveRoutes } from './routes/objectives.js';
 import { projectRoutes } from './routes/projects.js';
@@ -88,6 +89,7 @@ export function buildApp() {
   app.route('/v1/objectives', objectiveRoutes);
   app.route('/v1/projects', projectRoutes);
   app.route('/v1/agents', agentRoutes);
+  app.route('/v1/audit', auditRoutes);
   app.route('/v1', handoffRoutes); // /v1/tasks/:id/handoff + /v1/handoffs/*
   app.route('/v1', usageRoutes); // /v1/usage/* + /v1/model-prices*
   app.route('/v1/otlp', otlpRoutes); // agent-key auth; full path /v1/otlp/v1/traces

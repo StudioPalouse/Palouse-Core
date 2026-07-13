@@ -1,0 +1,331 @@
+# Agent visibility: implementation plan (slice tracker)
+
+Status doc for building the agent-visibility capability. Companion to
+`docs/agent-visibility-roadmap.md` (strategy, market landscape, themes A–E) and
+`docs/agent-tasks-and-auditability.md` (original M5 plan; Phases 1–4 shipped, 5–6
+absorbed into Theme B here). This file is the **execution** view: nine slices, each
+with enough detail to resume cold if a session is interrupted.
+
+Decisions locked 2026-07-13 (roadmap §6): nav area named **"Activity"** (internal
+capability key `audit`); A2 human logging covers **all mutations**; approvals
+per-workspace first; retention configurable + opt-in six-year preset; `audit`
+capability **defaults on** (recording always on regardless).
+
+Current migration head at planning time: `0019_strategy_linkage.sql`. Migration
+numbers below are assigned at implementation time.
+
+Status legend: `todo` · `in-progress` · `done` · `deferred`.
+
+---
+
+## Reconciliation: the audit spine is further along than the roadmap assumed
+
+A codebase map on 2026-07-13 found the roadmap's Theme A gap analysis to be partly
+stale. What the roadmap listed as slice-1 work (A1 entity targeting, A2 human logging,
+update logging) is **largely already implemented**:
+
+- **Every core service mutation already writes an entity-targeted audit event** with
+  the correct `targetType`/`targetId` and correct actor. Confirmed in
+  `packages/core/src/{tasks,decisions,objectives,projects}/service.ts`: create, update,
+  comment, and relation mutations each call a local `audit(db, workspaceId, actor,
+  action, targetId, payload)` helper that inserts `actorType: actor.type` (`user` |
+  `agent`), `actorId: actor.id`, and the entity as the target. Updates already record
+  `payload.fields = Object.keys(input)`.
+- **Human web/REST mutations are already audited.** The web app has no private mutation
+  path; it calls the REST API (`apps/api/src/routes/*.ts`), which builds
+  `userActor(c.get('userId'))` and calls the same core services. So human creates and
+  updates land in `audit_events` with `actorType: 'user'`. The roadmap's "human UI
+  actions are invisible" is not true for these entities.
+- **The actor abstraction already exists**: `packages/shared/src/actor.ts` —
+  `Actor = { type: 'user' | 'agent'; id: string }`, with `userActor()` / `agentActor()`
+  constructors threaded through every service and both entry points (MCP + REST).
+
+What is genuinely **not** built:
+
+- **No audit query API.** Nothing reads `audit_events` back out; compliance review would
+  require direct DB access. (Roadmap B2.)
+- **No activity feed / capability.** No web surface renders the log; no `audit`
+  capability key. (Roadmap D1.)
+- **Redundant MCP audit rows.** `apps/mcp/src/auth.ts:auditToolCall` writes a *second*
+  row per MCP call — `action: 'mcp.<tool>'`, `targetType: 'agent'`, `targetId:
+  agentId` — in addition to the entity event the underlying service already wrote. So
+  every agent mutation double-logs (one clean entity row + one `mcp.*` agent-targeted
+  row), and read-only MCP tools (`list_tasks`, `get_*`) produce *only* the `mcp.*` row.
+  This is the sole place "MCP events target the agent not the entity" is real.
+- **`audit_events` has no sanitizer on the service path.** The truncation / token-strip
+  sanitizer lives only in `auditToolCall` (`SENSITIVE_ARGS`, `MAX_ARG_LENGTH = 500`).
+  Service-path payloads today are just `{ fields: [...] }`, so low risk until A3 adds
+  before/after values.
+
+**Consequence for slice 1:** it shrinks. A1 and A2 are effectively done for the four
+core entities; slice 1 becomes **the read side** (query API + feed + capability) plus an
+**A1 cleanup decision** about the redundant `mcp.*` rows and an **A2 completeness sweep**
+for any mutation that bypasses the service `audit()` helper.
+
+### Slice-1 design decision: the `mcp.*` redundancy
+
+The default activity feed is a "what happened to the work" view, so its spine is the
+entity-targeted rows. The `mcp.*` rows are duplicates for mutations and low-value
+(agent reads) otherwise. **Decision: filter at the read layer, do not touch the write
+path.** The feed excludes `action LIKE 'mcp.%'` by default; the query API can return
+them behind an explicit filter. This is reversible and keeps the hot write path
+untouched. Revisit stopping the double-write only if the duplicate rows become a storage
+or hash-chain concern (Theme B) — the hash chain will chain *all* rows, so we may prune
+the redundant `mcp.*` mutation rows before B1 lands. Tracked as an open item on slice 2.
+
+---
+
+## Slice 1 — Complete record + activity feed  ·  status: in-progress
+
+**Built 2026-07-13** (typecheck + prettier green across the workspace; DB-backed tests
+written but not run locally — no Docker for Testcontainers, they run in CI):
+- Shared: `packages/shared/src/audit.ts` (`listAuditEventsQuery`, `auditEventListItem`,
+  result schema), exported from the shared index; `audit` added to `CAPABILITY_KEYS`.
+- DB: `audit` added to the `capability_key` pgEnum; migration
+  `0020_audit_capability.sql` (`ALTER TYPE ... ADD VALUE 'audit'`). **Not yet
+  applied to any DB** — run `pnpm --filter @palouse/db migrate` against staging/prod at
+  deploy.
+- Core: `packages/core/src/audit/service.ts` — `listEvents` (facets, `mcp.*`
+  read-layer filter, batched actor-name + target-label enrichment) and `summarize`
+  (data-driven plain-English renderer), exported as `auditService`. Tests in
+  `service.test.ts`.
+- API: `apps/api/src/routes/audit.ts` — `GET /v1/audit/events`, session + `audit`
+  capability gated; registered at `/v1/audit` in `app.ts`.
+- Web: `audit`→"Activity" label + `/activity` route mapping; nav item (lucide
+  `Activity` icon); `api.listAuditEvents` client; `app/(app)/activity/page.tsx` (feed
+  with search + actor/target filters + 20s poll); `audit` added to the settings
+  capabilities-card so admins can toggle the Activity area.
+
+**Remaining before shippable:** run the feed against a real DB (apply migration, click
+through with seeded human + agent events), confirm the capability toggle hides nav +
+403s the API, run the test suite in CI, then wire the version bump / changelog like
+prior capability rollouts.
+
+
+**Goal.** A workspace member with the `audit` capability opens a nav-level **Activity**
+page and sees a business-readable, filterable timeline of what humans and agents did to
+tasks, decisions, objectives, and projects — backed by a new `GET /v1/audit/events`.
+First slice that makes the capability visible and useful.
+
+**Roadmap items:** A1 (already satisfied at the service layer; this slice adds the
+read-layer `mcp.*` filter and a completeness sweep), A2 (verify all-mutations coverage),
+B2 (query API), D1 (feed page + `audit` capability).
+
+**Scope in / out.**
+- In: query API, enriched read model (actor name, target label, plain-English summary),
+  the Activity page (list + basic filters + poll), the `audit` capability wiring
+  (default on), the `mcp.*` read-layer filter, the A2 sweep.
+- Out (later slices): hash chain / "integrity verified" badge (slice 2), before/after
+  diffs and per-entity Activity tabs (slice 3), exports (slice 4), MCP `query_audit`
+  tool (defer; note the extension point), behavior signals / digests (slice 7).
+
+### File checklist
+
+Backend / shared:
+1. `packages/shared/src/audit.ts` (new) — `listAuditEventsQuery` (zod: workspaceId,
+   optional `action`, `actorType`, `targetType`, `search`, `from`/`to`, `limit`≤200,
+   `offset`, and `includeReads` default false to toggle the `mcp.*` filter) and
+   `auditEventListItem` (enriched: id, action, actorType, actorId, actorName, targetType,
+   targetId, targetLabel, summary, payload, at). Export from
+   `packages/shared/src/index.ts`.
+2. `packages/db/src/schema/capabilities.ts` — add `'audit'` to the `capabilityKey`
+   pgEnum. Requires migration (below).
+3. `packages/shared/src/capability.ts` — add `'audit'` to `CAPABILITY_KEYS`.
+4. `packages/db/migrations/00NN_add_audit_capability.sql` (generate via
+   `pnpm --filter @palouse/db generate`) — `ALTER TYPE "public"."capability_key" ADD
+   VALUE 'audit';`. Note: `ADD VALUE` cannot run in the same tx that uses the value;
+   confirm the generated migration isn't wrapped problematically.
+5. `packages/core/src/audit/service.ts` (new) — `listEvents(db, query)`:
+   filter by workspace + optional facets, exclude `action LIKE 'mcp.%'` unless
+   `includeReads`, order by `at desc`, paginate, return `{ events, total }`. Enrich:
+   batch-resolve actor display names (users + agents tables) and target labels
+   (per-`targetType` title lookup for task/decision/objective/project), and compute a
+   plain-English `summary` per action via a renderer (see below). Export
+   `auditService` from `packages/core/src/index.ts`.
+6. `apps/api/src/routes/audit.ts` (new) — `GET /v1/audit/events`. `requireSession`,
+   then `requireAuditAccess` (membership + `caps.audit !== false`, else `forbidden`).
+   Parse query, call `auditService.listEvents`, return JSON. Register `app.route('/v1/
+   audit', auditRoutes)` in `apps/api/src/index.ts`.
+
+Web:
+7. `apps/web/src/lib/capabilities.ts` — `CAPABILITY_LABELS.audit = 'Activity'`;
+   `ROUTE_CAPABILITIES` add `{ prefix: '/activity', capability: 'audit' }`.
+8. `apps/web/src/components/app-shell.tsx` — add NAV entry `{ href: '/activity', label:
+   'Activity', icon: Activity, capability: 'audit' }` (import `Activity` from
+   lucide-react), placed after Objectives, before Settings.
+9. `apps/web/src/lib/api.ts` — `listAuditEvents(workspaceId, params)` client.
+10. `apps/web/src/app/(app)/activity/page.tsx` (new) — list view mirroring the
+    objectives page: workspace-scoped fetch, search + action/actor filters, 20s poll,
+    skeleton + `EmptyState`, one row per event rendering `summary` with actor and target,
+    relative timestamp, and a source badge (agent vs person). Fail-closed capability
+    gate already handled by nav + route map.
+
+Tests:
+11. `packages/core/src/audit/service.test.ts` — seed mixed events, assert ordering,
+    facet filters, `mcp.*` exclusion by default and inclusion with `includeReads`,
+    enrichment (actor name + target label), pagination/total.
+12. Route smoke test if the repo has an API test harness for other routes (mirror
+    `decisions`/`objectives` route tests if present).
+
+### Plain-English rendering
+
+A small pure map from `action` → sentence template, fed the enriched actor/target
+labels. Examples: `task.created` → "{actor} created task '{target}'"; `task.updated` →
+"{actor} updated {fields} on task '{target}'"; `decision.updated` with a status field →
+"{actor} moved decision '{target}' to {status}". Keep it a data table so it is easy to
+extend and unit-test; unknown actions fall back to a generic "{actor} {action}
+{target}". No em-dashes in any user-facing string (CLAUDE.md).
+
+### API contract (draft)
+
+`GET /v1/audit/events?workspaceId=&action=&actorType=&targetType=&search=&from=&to=&limit=&offset=&includeReads=`
+→ `{ events: AuditEventListItem[], total: number }`. Default `limit` 50, max 200.
+Ordered newest-first. 403 if the `audit` capability is off for the workspace (recording
+still happens; only the read surface is gated).
+
+### Acceptance criteria
+
+- A human edit and an agent edit to the same task both appear in the feed with correct
+  attribution and a readable summary.
+- Read-only agent calls (`list_tasks`) do **not** clutter the default feed; they appear
+  only with `includeReads=true`.
+- Turning the `audit` capability off hides the nav item and returns 403 from the API;
+  turning it on restores both. New workspaces default to on.
+- Facet filters (actor type, action, target type, text search, date range) narrow the
+  list; pagination returns a stable `total`.
+- `pnpm typecheck` + `pnpm test` green; no em-dashes in copy.
+
+### A2 completeness sweep — result (2026-07-13)
+
+Swept every exported mutation vs its `audit()` call across the four core work-entity
+services. **All fully covered**, one-to-one:
+- tasks: create / update / comment (3/3).
+- decisions: create / update / stakeholders / comment / resource add+remove / relation
+  add+remove (8/8).
+- objectives: create / update / key-result add+update+remove / project link+unlink
+  (7/7); `importObjectives` delegates to the audited `createObjective` per row.
+- projects: create / update / delete / column add+update+remove / item add+update+remove
+  / dependency add+remove / task link+unlink / decision link+unlink (15/15).
+- agents: create / archive / unarchive / delete / key create+revoke, via the agents
+  service's own `audit()` helper.
+
+So "all mutations day one" is satisfied for the work record with no new instrumentation
+needed. **Deliberately deferred** (logged here, not silently skipped): workspace-admin
+mutations that are not part of the work record — capability toggles, workspace/member
+settings, and integration/connector config. Several already log through their own paths
+(e.g. agent management). Instrumenting these into the same spine is a small follow-up,
+tracked here; they do not belong in the default work-activity feed.
+
+### Open items for slice 1
+
+- Icon choice for the nav (`Activity` from lucide-react is the obvious pick).
+- Whether target-label resolution should be one batched query per `targetType` or a
+  single view; start with per-type batched lookups, optimize only if needed.
+
+---
+
+## Slice 2 — Hash chain + verification  ·  status: todo
+
+**Goal.** Make the record tamper-evident. Per-workspace `seq` / `prevHash` / `hash`
+columns on `audit_events`, a single `appendAuditEvent` write funnel replacing the
+per-service `audit()` helpers, a backfill CLI to chain historical rows, `GET
+/v1/audit/verify`, `palouse verify-audit`, and an "Integrity verified" badge on the feed.
+Fully designed in `docs/agent-tasks-and-auditability.md` Phases 5–6. Maps to SEC 17a-4's
+audit-trail alternative to WORM; strongest regulated-industry differentiator per unit
+effort. **Prerequisite work:** decide the `mcp.*` redundancy before chaining (prune the
+duplicate mutation rows, or chain them and document). The per-workspace advisory lock
+serializes writers — measure before assuming it is fine at slice-1's higher volume.
+**Acceptance:** any row edit/delete breaks verification at a known `seq`;
+`verification.json` carries the genesis timestamp (backfill honesty). Size: M.
+
+## Slice 3 — Entity history + diffs  ·  status: todo
+
+**Goal.** Before/after change payloads and a per-entity Activity section. Roadmap A3
+(store changed-field old/new values in the update payload, reusing the `auditToolCall`
+sanitizer discipline — truncation, token strip), A4 (`authorAgentId` on task + decision
+comments so agent comments are attributed directly, not inferred), D2 (an "Activity" tab
+on task / decision / objective / project detail views showing every audited action on
+that record, human and agent, with the diffs). Depends on slice 1's entity targeting
+(already satisfied) and the query API. **Acceptance:** opening a decision shows its full
+change history with old→new values; agent comments show the agent as author. Size: M.
+
+## Slice 4 — Auditor exports  ·  status: todo
+
+**Goal.** The "hand this to your auditor" moment. Per-handoff Activity Report PDF + CSV;
+workspace audit-package zip (chained JSONL, usage CSV, `verification.json`, a README
+documenting the hash recipe for independent re-verification). Roadmap B3; SEC 17a-4
+requires downloading records *with* their audit trail, and this package is that
+download. Depends on slice 2 (chain) and slice 1 (query API). First demo-able export
+artifact; warrants a beta-customer conversation after this lands. Size: M.
+
+## Slice 5 — Registry + access transparency  ·  status: todo
+
+**Goal.** Turn the Agents area into a compliance-grade registry (C1: accountable human
+owner, vendor/framework, purpose, models observed from `llm_generations`, environment,
+risk tier, next review date — grounded in observed activity, not self-declaration),
+plus access transparency (C2: per-agent granted scopes vs actually-used scopes from
+audit events, flagging over-provisioned/wildcard keys with least-privilege suggestions)
+and credential hygiene (C3: optional key expiry, rotation + stale-key surfacing, steer
+regulated workspaces toward OAuth). Size: M.
+
+## Slice 6 — Approval checkpoints  ·  status: todo
+
+**Goal.** Per-workspace policy for which agent actions need human review before taking
+effect, generalizing the existing handoff `review_required` gate (C4). Enforcement in
+the service layer; pending-approval queue reuses the reviews UX. **Decision (2026-07-13):
+per-workspace policy first; design the policy schema so per-agent overrides can be added
+later without migration churn.** Per-feature config via the `config` JSONB pattern, not
+new enums. Size: M/L.
+
+## Slice 7 — Digests + behavior signals + live status  ·  status: todo
+
+**Goal.** The proactive layer, most valuable once volume exists. D3: extend
+`narrateHandoff` to agent-level and workspace-level "what your agents did this week"
+digests (in-app card + optional email via the decisions-roadmap notification rails). D4:
+dashboard behavior signals computed from audit + usage data — off-hours activity, volume
+spikes, first use of a tool/scope, failure-rate spikes, cost spikes vs the rollup
+baseline; reuse the strategy-signals dashboard pattern, heuristic thresholds, no ML. D5:
+"what is running right now" from `agent_handoffs` / `handoff_steps` (active claims,
+current step, last heartbeat) — a read-side view over existing data. Size: M.
+
+## Slice 8 — Retention + compliance mapping  ·  status: todo
+
+**Goal.** B4 retention plumbing + E3 buyer-facing mapping. **Decision (2026-07-13):
+configurable-only with an opt-in six-year (FINRA 4511) preset — not default-on.** A
+workspace retention setting; audit + usage rows excluded from workspace-deletion flows
+while a hold is active; document what is and is not deletable (the retention-vs-GDPR-
+erasure tension is a deliberate policy call, not an implementation default). E3: a short,
+honest control-mapping doc (later a trust page) tying features to EU AI Act Art. 12,
+SOC 2, and SEC/FINRA recordkeeping expectations — precise, no over-claiming (we record
+agent actions *in the workspace*, not total agent behavior). Size: S/M.
+
+## Slice 9 — Content capture policy + external archive  ·  status: todo
+
+**Goal.** E1: an explicit workspace-level opt-in for prompt/completion content capture on
+OTLP ingest and MCP payloads, with masking rules — ship with capture **off** (the OTel
+GenAI spec excludes content by default; the Salesforce masking-gap finding shows how
+badly it reads when trust controls lag). E4: scheduled export of the audit stream to
+customer-owned storage (S3 with object lock for WORM, or a SIEM webhook) per the
+`cloud/audit-export` sketch. Cloud-tier feature. Size: L.
+
+---
+
+## Sequencing notes
+
+Slices 1–3 are the credible core ("complete, provable, explainable"). Beta-customer
+conversation warranted after slice 3, and again after slice 4 with the export artifact
+in hand. Themes cut *across* slices deliberately (e.g. Theme B appears in slices 2, 4,
+8), so build by slice, not by theme.
+
+## Cross-cutting constraints (from roadmap §5)
+
+- Audit writes are the hot path; slice 1 raises volume before slice 2 adds the chain.
+  Keep the funnel async-safe; measure before adding the advisory lock.
+- Self-reported data is labeled, not trusted — carry source badges (MCP-reported vs
+  OTLP vs observed) into the UI, mirroring the cost engine's self-reported/computed split.
+- Content is sensitive by default; do not widen payload capture without slice 9's opt-in
+  and masking. The current sanitizer (truncation, claim-token strip) is the floor.
+- No em-dashes in any user-facing copy (CLAUDE.md); en-dash `–` only for empty-cell
+  placeholders.
+</content>
+</invoke>

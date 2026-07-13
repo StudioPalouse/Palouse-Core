@@ -6,6 +6,7 @@ export const CAPABILITY_LABELS: Record<CapabilityKey, string> = {
   projects: 'Projects',
   context: 'Context',
   objectives: 'Objectives',
+  audit: 'Activity',
 };
 
 /** Path prefixes owned by each gateable capability. */
@@ -16,6 +17,7 @@ const ROUTE_CAPABILITIES: Array<{ prefix: string; capability: CapabilityKey }> =
   { prefix: '/projects', capability: 'projects' },
   { prefix: '/context', capability: 'context' },
   { prefix: '/objectives', capability: 'objectives' },
+  { prefix: '/activity', capability: 'audit' },
 ];
 
 /** The capability that owns a route, or null for ungated routes. */
