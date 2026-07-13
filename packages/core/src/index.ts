@@ -10,6 +10,7 @@ export * as agentService from './agents/service.js';
 export * as handoffService from './handoffs/state-machine.js';
 export * as usageService from './usage/service.js';
 export * as auditService from './audit/service.js';
+export { appendAuditEvent, verifyChain, type AuditEventInput } from './audit/chain.js';
 export * as pricing from './usage/pricing.js';
 export { narrateHandoff, prettyModel } from './handoffs/narrative.js';
 export * from './tasks/upsert.js';

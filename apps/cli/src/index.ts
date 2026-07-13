@@ -8,6 +8,8 @@ import { createAgentCommand } from './commands/create-agent.js';
 import { createAgentKeyCommand } from './commands/create-agent-key.js';
 import { seedModelPricesCommand } from './commands/seed-model-prices.js';
 import { rebuildRollupsCommand } from './commands/rebuild-rollups.js';
+import { verifyAuditCommand } from './commands/verify-audit.js';
+import { backfillAuditChainCommand } from './commands/backfill-audit-chain.js';
 
 const program = new Command();
 
@@ -24,6 +26,8 @@ program.addCommand(createAgentCommand());
 program.addCommand(createAgentKeyCommand());
 program.addCommand(seedModelPricesCommand());
 program.addCommand(rebuildRollupsCommand());
+program.addCommand(verifyAuditCommand());
+program.addCommand(backfillAuditChainCommand());
 
 program.parseAsync(process.argv).catch((err) => {
   console.error(err);

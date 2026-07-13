@@ -568,6 +568,9 @@ importers:
       '@palouse/config':
         specifier: workspace:*
         version: link:../config
+      '@palouse/shared':
+        specifier: workspace:*
+        version: link:../shared
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(kysely@0.29.2)(postgres@3.4.9)

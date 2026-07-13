@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
-import { auditEvents, taskSources, tasks, type Database } from '@palouse/db';
+import { taskSources, tasks, type Database } from '@palouse/db';
 import type { NormalizedExternalTask } from '@palouse/connector-core';
+import { appendAuditEvent } from '../audit/chain.js';
 
 export function idempotencyKeyFor(
   system: string,
@@ -94,7 +95,7 @@ export async function upsertExternalTask(
       idempotencyKey: idempotencyKeyFor(ext.externalSystem, integrationId, ext.externalId),
     });
 
-    await tx.insert(auditEvents).values({
+    await appendAuditEvent(tx, {
       workspaceId,
       actorType: 'system',
       actorId: null,

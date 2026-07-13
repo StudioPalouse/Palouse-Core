@@ -5,7 +5,6 @@ import {
   agentApiKeys,
   agentHandoffs,
   agents,
-  auditEvents,
   decisions,
   memberships,
   oauthAccessTokens,
@@ -26,6 +25,7 @@ import {
   type CreateAgentInput,
   type CreateAgentKeyInput,
 } from '@palouse/shared';
+import { appendAuditEvent } from '../audit/chain.js';
 
 const KEY_PREFIX = 'palouse_agk';
 
@@ -479,7 +479,7 @@ async function audit(
   targetId: string,
   payload: Record<string, unknown> = {},
 ): Promise<void> {
-  await db.insert(auditEvents).values({
+  await appendAuditEvent(db, {
     workspaceId,
     actorType: 'user',
     actorId: userId,

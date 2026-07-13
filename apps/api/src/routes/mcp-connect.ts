@@ -2,11 +2,10 @@ import { Hono } from 'hono';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { notFound, unauthorized, validation } from '@palouse/shared';
-import { agentService, workspaces } from '@palouse/core';
+import { agentService, appendAuditEvent, workspaces } from '@palouse/core';
 import { loadEnv } from '@palouse/config';
 import {
   agents,
-  auditEvents,
   getDb,
   mcpConnectSelections,
   oauthClients,
@@ -118,7 +117,7 @@ mcpConnectRoutes.post('/selection', async (c) => {
       },
     });
 
-  await db.insert(auditEvents).values({
+  await appendAuditEvent(db, {
     workspaceId,
     actorType: 'user',
     actorId: session.user.id,

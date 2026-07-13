@@ -46,3 +46,19 @@ export const auditEventListResultSchema = z.object({
   total: z.number().int(),
 });
 export type AuditEventListResult = z.infer<typeof auditEventListResultSchema>;
+
+/**
+ * Result of re-walking a workspace's audit hash chain. `valid` is true when
+ * every chained row's recomputed hash matches and sequences are gapless from 1.
+ * `firstBrokenSeq` names the earliest row that fails (tampered, deleted, or
+ * out-of-order). `unchainedCount` is historical rows not yet backfilled.
+ */
+export const auditVerifyResultSchema = z.object({
+  valid: z.boolean(),
+  checkedCount: z.number().int(),
+  headSeq: z.number().int().nullable(),
+  headHash: z.string().nullable(),
+  firstBrokenSeq: z.number().int().nullable(),
+  unchainedCount: z.number().int(),
+});
+export type AuditVerifyResult = z.infer<typeof auditVerifyResultSchema>;

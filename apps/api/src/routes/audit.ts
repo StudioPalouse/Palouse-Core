@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { forbidden, listAuditEventsQuery, validation } from '@palouse/shared';
-import { auditService, capabilityService, workspaces } from '@palouse/core';
+import { auditService, capabilityService, verifyChain, workspaces } from '@palouse/core';
 import { loadEnv } from '@palouse/config';
 import { getDb, type Database } from '@palouse/db';
 import { requireSession, type SessionVars } from '../middleware/session.js';
@@ -31,5 +31,19 @@ auditRoutes.get('/events', async (c) => {
   const db = getDb(loadEnv().DATABASE_URL);
   await requireAuditAccess(db, parsed.data.workspaceId, c.get('userId'));
   const result = await auditService.listEvents(db, parsed.data);
+  return c.json(result);
+});
+
+/**
+ * Re-walk the workspace's audit hash chain and report whether it verifies. The
+ * Activity feed uses this to show an "Integrity verified" badge; the same walk
+ * backs `palouse verify-audit`.
+ */
+auditRoutes.get('/verify', async (c) => {
+  const workspaceId = c.req.query('workspaceId');
+  if (!workspaceId) throw validation('workspaceId is required');
+  const db = getDb(loadEnv().DATABASE_URL);
+  await requireAuditAccess(db, workspaceId, c.get('userId'));
+  const result = await verifyChain(db, workspaceId);
   return c.json(result);
 });
