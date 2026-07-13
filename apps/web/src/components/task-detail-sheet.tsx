@@ -22,6 +22,7 @@ import {
 } from '@palouse/ui';
 import { api } from '@/lib/api';
 import { formatDate, PRIORITY_LABELS, STATUS_LABELS, STATUS_ORDER } from '@/lib/task-meta';
+import { EntityActivity } from './entity-activity';
 import { HandoffPanel } from './handoff-panel';
 import { Markdown } from './markdown';
 
@@ -159,7 +160,12 @@ export function TaskDetailSheet({
                 {comments.map((c) => (
                   <div key={c.id} className="rounded-md border p-3">
                     <Markdown>{c.bodyMd}</Markdown>
-                    <p className="text-muted-foreground mt-2 text-xs">{formatDate(c.createdAt)}</p>
+                    <p className="text-muted-foreground mt-2 flex items-center gap-1.5 text-xs">
+                      {c.authorAgentId && <Bot className="size-3" />}
+                      {c.authorName && <span>{c.authorName}</span>}
+                      {c.authorName && <span aria-hidden>·</span>}
+                      {formatDate(c.createdAt)}
+                    </p>
                   </div>
                 ))}
                 <form onSubmit={postComment} className="flex flex-col gap-2">
@@ -179,6 +185,10 @@ export function TaskDetailSheet({
                   </Button>
                 </form>
               </div>
+
+              <Separator />
+
+              <EntityActivity workspaceId={workspaceId} targetType="task" targetId={task.id} />
             </div>
           </>
         )}

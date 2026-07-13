@@ -292,16 +292,69 @@ gapless per-workspace sequences under concurrent writers (8-way concurrent test)
   `unchainedCount` on the badge. Documented in `audit-backfill.ts`.
 - Advisory-lock throughput at higher volume is not yet load-measured (roadmap §5 note).
 
-## Slice 3 — Entity history + diffs  ·  status: todo
+## Slice 3 — Entity history + diffs  ·  status: done
 
 **Goal.** Before/after change payloads and a per-entity Activity section. Roadmap A3
 (store changed-field old/new values in the update payload, reusing the `auditToolCall`
-sanitizer discipline — truncation, token strip), A4 (`authorAgentId` on task + decision
-comments so agent comments are attributed directly, not inferred), D2 (an "Activity" tab
-on task / decision / objective / project detail views showing every audited action on
-that record, human and agent, with the diffs). Depends on slice 1's entity targeting
-(already satisfied) and the query API. **Acceptance:** opening a decision shows its full
-change history with old→new values; agent comments show the agent as author. Size: M.
+sanitizer discipline: truncation, token strip), A4 (`authorAgentId` on task + decision
+comments so agent comments are attributed directly, not inferred), D2 (an "Activity"
+section on task / decision / objective / project detail views showing every audited
+action on that record, human and agent, with the diffs). Depends on slice 1's entity
+targeting (already satisfied) and the query API. **Acceptance:** opening a decision shows
+its full change history with old→new values; agent comments show the agent as author.
+Size: M.
+
+**Built 2026-07-13** (typecheck green across all 27 packages; prettier clean; core 146 +
+api 35 tests pass, including the new DB-backed entity-history suite run against a real
+Postgres container locally). Migration `0022_comment_agent_author`. Files:
+
+- **A3 — before/after diffs.** `packages/core/src/audit/changes.ts` — pure
+  `diffAuditChanges(before, after, fields)` diffs two entity DTOs over the changed input
+  keys and returns a `{ field: { from, to } }` map, sanitizing with the MCP discipline
+  (`MAX_AUDIT_VALUE_LENGTH = 500` truncation, Dates → ISO). Only genuinely-changed fields
+  land, so a no-op patch yields `{}`. Wired into all four `update*` mutations: `tasks`
+  now pre-fetches the current row (it did not before); `objectives`/`projects` captured
+  the row their `loadXRow` already fetched; `decisions` reused its existing `existing`.
+  The diff rides in `payload.changes`, so it is hash-chained and tamper-evident (slice 2).
+  Diffing at the DTO level (both sides through the service's own `toDto`) keeps date/enum
+  normalization identical on both sides. Exported from the core index.
+- **A4 — direct comment attribution.** Migration adds nullable `author_agent_id` (FK
+  agents, `on delete set null`) to `task_comments` + `decision_comments`; schema + shared
+  `taskCommentSchema`/`decisionCommentSchema` gain `authorAgentId` and a resolved
+  `authorName`. `packages/core/src/audit/comment-authors.ts` batch-resolves author display
+  names (users by name/email, agents by name), used by `getTask`/`getDecision` and on the
+  single row `addComment` returns. Both services now set `authorAgentId` on agent comments
+  instead of leaving the author null.
+- **D2 — per-entity Activity.** `targetId` filter added to `listAuditEventsQuery` + the
+  read service + the web `api.listAuditEvents` client. `audit-event-row.tsx` extracts the
+  feed row (now shared by the workspace feed and every entity view) and renders the
+  before/after diffs as `field: old → new` with the changed value struck through; the
+  activity page was refactored onto it. `entity-activity.tsx` fetches
+  `{ targetType, targetId }` and renders an "Activity" section (Separator-bounded, matching
+  the existing sheet-section pattern rather than a new tab component) on the task /
+  decision / objective detail sheets and the project detail page. Agent comments in the
+  task + decision sheets now show the agent name + a Bot glyph via `authorName`.
+
+**Design notes / deviations (logged, not silently skipped):**
+- The plan said "Activity **tab**"; the detail views are Sheets built from linear
+  Separator-bounded sections, so the Activity view is a section, not a tab, for
+  consistency and lower risk. Same information, native to the existing layout.
+- Per-entity queries are naturally free of `mcp.*` chatter: those rows target the agent,
+  never the entity id, so `targetId` scoping excludes them without needing `includeReads`.
+- The `mcp.*` sanitizer was **not** physically shared into core; `changes.ts` re-states
+  the same discipline (500-char truncation) close to where entity fields are diffed. The
+  MCP logger works on tool-call arg shapes, so a forced abstraction would have coupled two
+  differently-shaped call sites. Kept as parallel implementations with a comment linking
+  them.
+- Project **item** cards (`project-item-detail-sheet.tsx`) did not get an Activity
+  section this slice — item mutations audit under `targetType: 'project'` (the project id),
+  not a per-item target, so there is no per-card history to show yet. Noted for a later
+  slice if per-item audit targeting is added.
+
+**Remaining before shippable:** apply migration `0022` at deploy
+(`pnpm --filter @palouse/db migrate`), click through a seeded task/decision with mixed
+human + agent edits and comments to confirm the diffs and agent attribution render, then
+wire the version bump / changelog like prior capability rollouts.
 
 ## Slice 4 — Auditor exports  ·  status: todo
 

@@ -32,6 +32,7 @@ export async function listEvents(
   if (query.action) conditions.push(eq(auditEvents.action, query.action));
   if (query.actorType) conditions.push(eq(auditEvents.actorType, query.actorType));
   if (query.targetType) conditions.push(eq(auditEvents.targetType, query.targetType));
+  if (query.targetId) conditions.push(eq(auditEvents.targetId, query.targetId));
   if (query.from) conditions.push(gte(auditEvents.at, new Date(query.from)));
   if (query.to) conditions.push(lte(auditEvents.at, new Date(query.to)));
   if (!query.includeReads) conditions.push(sql`${auditEvents.action} not like 'mcp.%'`);

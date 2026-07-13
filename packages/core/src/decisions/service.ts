@@ -12,6 +12,8 @@ import {
   type Database,
 } from '@palouse/db';
 import { appendAuditEvent } from '../audit/chain.js';
+import { diffAuditChanges } from '../audit/changes.js';
+import { commentAuthorName, resolveCommentAuthors } from '../audit/comment-authors.js';
 import {
   notFound,
   validation,
@@ -62,11 +64,16 @@ function stakeholderToDto(row: typeof decisionStakeholders.$inferSelect): Decisi
   };
 }
 
-function commentToDto(row: typeof decisionComments.$inferSelect): DecisionComment {
+function commentToDto(
+  row: typeof decisionComments.$inferSelect,
+  authorName: string | null = null,
+): DecisionComment {
   return {
     id: row.id,
     decisionId: row.decisionId,
     authorUserId: row.authorUserId,
+    authorAgentId: row.authorAgentId,
+    authorName,
     bodyMd: row.bodyMd,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -409,10 +416,11 @@ export async function getDecision(
       .where(eq(decisionRelations.decisionId, decisionId))
       .orderBy(decisionRelations.createdAt),
   ]);
+  const authorNames = await resolveCommentAuthors(db, comments);
   return {
     decision: toDto(row),
     stakeholders: stakeholders.map(stakeholderToDto),
-    comments: comments.map(commentToDto),
+    comments: comments.map((c) => commentToDto(c, commentAuthorName(c, authorNames))),
     resources: resources.map(resourceToDto),
     relations: await hydrateRelations(db, workspaceId, relations),
   };
@@ -519,8 +527,10 @@ export async function updateDecision(
     .where(and(eq(decisions.id, decisionId), eq(decisions.workspaceId, workspaceId)))
     .returning();
   if (!row) throw notFound('Decision not found');
+  const changes = diffAuditChanges(toDto(existing), toDto(row), Object.keys(input));
   await audit(db, workspaceId, actor, 'decision.updated', decisionId, {
     fields: Object.keys(input),
+    changes,
   });
   return toDto(row);
 }
@@ -565,18 +575,19 @@ export async function addComment(
   input: CreateDecisionCommentInput,
 ): Promise<DecisionComment> {
   await loadDecisionRow(db, workspaceId, decisionId);
-  // Comments have a user author column only; agent comments keep it null and
-  // are attributed via the audit trail.
+  // Attribute the author directly: a user or an agent, whichever acted.
   const [row] = await db
     .insert(decisionComments)
     .values({
       decisionId,
       authorUserId: actor.type === 'user' ? actor.id : null,
+      authorAgentId: actor.type === 'agent' ? actor.id : null,
       bodyMd: input.bodyMd,
     })
     .returning();
   await audit(db, workspaceId, actor, 'decision.commented', decisionId);
-  return commentToDto(row!);
+  const authorNames = await resolveCommentAuthors(db, [row!]);
+  return commentToDto(row!, commentAuthorName(row!, authorNames));
 }
 
 export async function addResource(

@@ -62,6 +62,10 @@ export const decisionCommentSchema = z.object({
   id: uuid,
   decisionId: uuid,
   authorUserId: uuid.nullable(),
+  // Agent comments are attributed directly (not inferred from a null user).
+  authorAgentId: uuid.nullable(),
+  // Resolved display name for whichever author is set, filled by the service.
+  authorName: z.string().nullable(),
   bodyMd: z.string(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),

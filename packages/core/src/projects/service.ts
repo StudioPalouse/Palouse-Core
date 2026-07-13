@@ -11,6 +11,7 @@ import {
   type Database,
 } from '@palouse/db';
 import { appendAuditEvent } from '../audit/chain.js';
+import { diffAuditChanges } from '../audit/changes.js';
 import {
   conflict,
   notFound,
@@ -362,7 +363,7 @@ export async function updateProject(
   projectId: string,
   input: UpdateProjectInput,
 ): Promise<Project> {
-  await loadProjectRow(db, workspaceId, projectId);
+  const existing = await loadProjectRow(db, workspaceId, projectId);
   const patch: Partial<typeof projects.$inferInsert> = { updatedAt: new Date() };
   if (input.name !== undefined) patch.name = input.name;
   if (input.descriptionMd !== undefined) patch.descriptionMd = input.descriptionMd;
@@ -374,7 +375,11 @@ export async function updateProject(
     .where(and(eq(projects.id, projectId), eq(projects.workspaceId, workspaceId)))
     .returning();
   if (!row) throw notFound('Project not found');
-  await audit(db, workspaceId, actor, 'project.updated', projectId, { fields: Object.keys(input) });
+  const changes = diffAuditChanges(toDto(existing), toDto(row), Object.keys(input));
+  await audit(db, workspaceId, actor, 'project.updated', projectId, {
+    fields: Object.keys(input),
+    changes,
+  });
   return toDto(row);
 }
 

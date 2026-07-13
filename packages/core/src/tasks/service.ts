@@ -1,6 +1,8 @@
 import { and, desc, eq, ilike, inArray, sql, type SQL } from 'drizzle-orm';
 import { taskComments, taskSources, tasks, type Database } from '@palouse/db';
 import { appendAuditEvent } from '../audit/chain.js';
+import { diffAuditChanges } from '../audit/changes.js';
+import { commentAuthorName, resolveCommentAuthors } from '../audit/comment-authors.js';
 import {
   notFound,
   type Actor,
@@ -36,11 +38,16 @@ function toDto(row: typeof tasks.$inferSelect): Task {
   };
 }
 
-function commentToDto(row: typeof taskComments.$inferSelect): TaskComment {
+function commentToDto(
+  row: typeof taskComments.$inferSelect,
+  authorName: string | null = null,
+): TaskComment {
   return {
     id: row.id,
     taskId: row.taskId,
     authorUserId: row.authorUserId,
+    authorAgentId: row.authorAgentId,
+    authorName,
     bodyMd: row.bodyMd,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -77,7 +84,10 @@ export async function listTasks(
       .orderBy(desc(tasks.updatedAt))
       .limit(query.limit)
       .offset(query.offset),
-    db.select({ total: sql<number>`count(*)::int` }).from(tasks).where(where),
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(tasks)
+      .where(where),
   ]);
 
   // Attach the external systems each task is linked to (empty = native). Fetched
@@ -116,10 +126,19 @@ export async function getTask(
   if (!row) throw notFound('Task not found');
 
   const [comments, sources] = await Promise.all([
-    db.select().from(taskComments).where(eq(taskComments.taskId, taskId)).orderBy(taskComments.createdAt),
+    db
+      .select()
+      .from(taskComments)
+      .where(eq(taskComments.taskId, taskId))
+      .orderBy(taskComments.createdAt),
     db.select().from(taskSources).where(eq(taskSources.taskId, taskId)),
   ]);
-  return { task: toDto(row), comments: comments.map(commentToDto), sources: sources.map(sourceToDto) };
+  const authorNames = await resolveCommentAuthors(db, comments);
+  return {
+    task: toDto(row),
+    comments: comments.map((c) => commentToDto(c, commentAuthorName(c, authorNames))),
+    sources: sources.map(sourceToDto),
+  };
 }
 
 export async function createTask(
@@ -156,6 +175,14 @@ export async function updateTask(
   taskId: string,
   input: UpdateTaskInput,
 ): Promise<Task> {
+  // Load the current row so the audit event can record before/after values.
+  const [existing] = await db
+    .select()
+    .from(tasks)
+    .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)))
+    .limit(1);
+  if (!existing) throw notFound('Task not found');
+
   const patch: Partial<typeof tasks.$inferInsert> = { updatedAt: new Date() };
   if (input.title !== undefined) patch.title = input.title;
   if (input.descriptionMd !== undefined) patch.descriptionMd = input.descriptionMd;
@@ -170,7 +197,11 @@ export async function updateTask(
     .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)))
     .returning();
   if (!row) throw notFound('Task not found');
-  await audit(db, workspaceId, actor, 'task.updated', taskId, { fields: Object.keys(input) });
+  const changes = diffAuditChanges(toDto(existing), toDto(row), Object.keys(input));
+  await audit(db, workspaceId, actor, 'task.updated', taskId, {
+    fields: Object.keys(input),
+    changes,
+  });
   return toDto(row);
 }
 
@@ -188,14 +219,19 @@ export async function addComment(
     .limit(1);
   if (!task) throw notFound('Task not found');
 
-  // Comments have a user author column only; agent comments keep it null and
-  // are attributed via the audit trail.
+  // Attribute the author directly: a user or an agent, whichever acted.
   const [row] = await db
     .insert(taskComments)
-    .values({ taskId, authorUserId: actor.type === 'user' ? actor.id : null, bodyMd: input.bodyMd })
+    .values({
+      taskId,
+      authorUserId: actor.type === 'user' ? actor.id : null,
+      authorAgentId: actor.type === 'agent' ? actor.id : null,
+      bodyMd: input.bodyMd,
+    })
     .returning();
   await audit(db, workspaceId, actor, 'task.commented', taskId);
-  return commentToDto(row!);
+  const authorNames = await resolveCommentAuthors(db, [row!]);
+  return commentToDto(row!, commentAuthorName(row!, authorNames));
 }
 
 async function audit(

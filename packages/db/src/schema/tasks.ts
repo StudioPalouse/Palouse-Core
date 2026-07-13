@@ -12,7 +12,10 @@ import {
 import { agents } from './handoffs.js';
 import { users, workspaces } from './identity.js';
 
-const baseId = () => uuid('id').primaryKey().default(sql`gen_random_uuid()`);
+const baseId = () =>
+  uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`);
 const ts = (name: string) =>
   timestamp(name, { withTimezone: true, mode: 'date' }).notNull().defaultNow();
 
@@ -105,6 +108,7 @@ export const taskComments = pgTable(
       .notNull()
       .references(() => tasks.id, { onDelete: 'cascade' }),
     authorUserId: uuid('author_user_id').references(() => users.id, { onDelete: 'set null' }),
+    authorAgentId: uuid('author_agent_id').references(() => agents.id, { onDelete: 'set null' }),
     bodyMd: text('body_md').notNull(),
     createdAt: ts('created_at'),
     updatedAt: ts('updated_at'),

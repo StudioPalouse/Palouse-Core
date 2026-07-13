@@ -10,6 +10,7 @@ import {
   type Database,
 } from '@palouse/db';
 import { appendAuditEvent } from '../audit/chain.js';
+import { diffAuditChanges } from '../audit/changes.js';
 import {
   notFound,
   type Actor,
@@ -404,7 +405,7 @@ export async function updateObjective(
   objectiveId: string,
   input: UpdateObjectiveInput,
 ): Promise<Objective> {
-  await loadObjectiveRow(db, workspaceId, objectiveId);
+  const existing = await loadObjectiveRow(db, workspaceId, objectiveId);
 
   const patch: Partial<typeof objectives.$inferInsert> = { updatedAt: new Date() };
   if (input.title !== undefined) patch.title = input.title;
@@ -422,8 +423,10 @@ export async function updateObjective(
     .where(and(eq(objectives.id, objectiveId), eq(objectives.workspaceId, workspaceId)))
     .returning();
   if (!row) throw notFound('Objective not found');
+  const changes = diffAuditChanges(toDto(existing), toDto(row), Object.keys(input));
   await audit(db, workspaceId, actor, 'objective.updated', objectiveId, {
     fields: Object.keys(input),
+    changes,
   });
   return toDto(row);
 }

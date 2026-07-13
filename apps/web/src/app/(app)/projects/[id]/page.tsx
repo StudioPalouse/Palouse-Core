@@ -21,6 +21,7 @@ import {
   SelectValue,
   Skeleton,
 } from '@palouse/ui';
+import { EntityActivity } from '@/components/entity-activity';
 import { ProjectBoard } from '@/components/project-board';
 import { ProjectGantt } from '@/components/project-gantt';
 import { ProjectItemDetailSheet } from '@/components/project-item-detail-sheet';
@@ -164,6 +165,10 @@ export default function ProjectDetailPage() {
       )}
 
       {showDecisions && <ProjectDecisions decisions={detail.relatedDecisions} />}
+
+      <div className="rounded-lg border p-4">
+        <EntityActivity workspaceId={wsId} targetType="project" targetId={projectId} />
+      </div>
 
       <ProjectItemDetailSheet
         workspaceId={wsId}

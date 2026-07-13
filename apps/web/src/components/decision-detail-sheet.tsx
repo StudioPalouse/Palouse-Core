@@ -45,6 +45,7 @@ import {
   RACI_ORDER,
 } from '@/lib/decision-meta';
 import { useActiveWorkspace } from '@/lib/workspace-context';
+import { EntityActivity } from './entity-activity';
 import { Markdown } from './markdown';
 import { RaciPicker } from './raci-picker';
 
@@ -252,6 +253,14 @@ export function DecisionDetailSheet({
                 onPost={(body) =>
                   run(() => api.addDecisionComment(workspaceId, detail.decision.id, body))
                 }
+              />
+
+              <Separator />
+
+              <EntityActivity
+                workspaceId={workspaceId}
+                targetType="decision"
+                targetId={detail.decision.id}
               />
             </div>
           </>
@@ -708,8 +717,10 @@ function CommentsSection({
       {detail.comments.map((c) => (
         <div key={c.id} className="rounded-md border p-3">
           <Markdown>{c.bodyMd}</Markdown>
-          <p className="text-muted-foreground mt-2 text-xs">
-            {c.authorUserId ? '' : 'Agent · '}
+          <p className="text-muted-foreground mt-2 flex items-center gap-1.5 text-xs">
+            {c.authorAgentId && <Bot className="size-3" />}
+            {c.authorName && <span>{c.authorName}</span>}
+            {c.authorName && <span aria-hidden>·</span>}
             {formatDate(c.createdAt)}
           </p>
         </div>
