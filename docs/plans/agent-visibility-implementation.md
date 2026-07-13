@@ -229,6 +229,13 @@ tracked here; they do not belong in the default work-activity feed.
 
 ## Slice 2 — Hash chain + verification  ·  status: done
 
+**Shipped to Test (staging) 2026-07-13 as PR #128** (squash `0d67f85`). Migration
+`0021_audit_hash_chain` + the backfill ran via the api `release_command`
+(`pnpm --filter @palouse/db migrate`); staging deploy (api/web/worker/mcp) + smoke green.
+Follow-up commit kept `node:crypto` out of the web bundle by moving the hash utils to a
+`@palouse/shared/audit-chain` subpath export (the barrel is browser-facing). Remaining
+manual check: sign in to staging and confirm the Activity "Integrity verified" badge.
+
 **Goal.** Make the record tamper-evident. Per-workspace `seq` / `prevHash` / `hash`
 columns on `audit_events`, a single `appendAuditEvent` write funnel replacing the
 per-service `audit()` helpers, a backfill CLI to chain historical rows, `GET
