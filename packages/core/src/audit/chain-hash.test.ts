@@ -4,7 +4,7 @@ import {
   computeAuditHash,
   genesisHash,
   type AuditChainFields,
-} from '@palouse/shared';
+} from '@palouse/shared/audit-chain';
 
 // Pure hash/canonicalization tests. No database; these are the reproducibility
 // contract an external auditor relies on to re-verify an exported chain.

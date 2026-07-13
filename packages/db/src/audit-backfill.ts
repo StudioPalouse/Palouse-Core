@@ -1,5 +1,5 @@
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
-import { computeAuditHash, genesisHash } from '@palouse/shared';
+import { computeAuditHash, genesisHash } from '@palouse/shared/audit-chain';
 import { auditEvents } from './schema/index.js';
 import type { Database } from './index.js';
 

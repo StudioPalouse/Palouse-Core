@@ -12,7 +12,7 @@ import {
   workspaces,
   type Database,
 } from '@palouse/db';
-import { genesisHash } from '@palouse/shared';
+import { genesisHash } from '@palouse/shared/audit-chain';
 import { appendAuditEvent, verifyChain } from './chain.js';
 
 const MIGRATIONS_DIR = fileURLToPath(new URL('../../../db/migrations', import.meta.url));

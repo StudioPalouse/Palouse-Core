@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, isNotNull, sql } from 'drizzle-orm';
 import { auditEvents, type Database } from '@palouse/db';
-import { computeAuditHash, genesisHash, type AuditVerifyResult } from '@palouse/shared';
+import type { AuditVerifyResult } from '@palouse/shared';
+import { computeAuditHash, genesisHash } from '@palouse/shared/audit-chain';
 
 /**
  * Single write funnel for the tamper-evident audit chain. Every audit row is
