@@ -12,6 +12,16 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      # bullmq and ioredis are held back on purpose via pnpm.overrides in the
+      # root package.json (bullmq 5.78.0, ioredis 5.10.1). A lockfile-only
+      # Dependabot bump cannot edit the overrides block, so the two disagree and
+      # CI fails on `pnpm install --frozen-lockfile` (ERR_PNPM_LOCKFILE_CONFIG_MISMATCH).
+      # The unpin is a deliberate, coupled change (bump + queue-typing pass); do it
+      # by hand, not via an auto PR. See docs/dependencies.md. Ignore here to stop
+      # the recurring failing PRs (e.g. PR #126).
+      - dependency-name: bullmq
+      - dependency-name: ioredis
 
   - package-ecosystem: github-actions
     directory: /
