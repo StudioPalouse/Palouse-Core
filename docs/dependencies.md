@@ -98,3 +98,68 @@ rather than accepting a lockfile-only Dependabot PR that will fail
 
 To silence repeat Dependabot PRs in the meantime, add a narrow `ignore` for just
 `bullmq` and `ioredis` in `.github/dependabot.yml`.
+
+> **Done 2026-07-14.** The `bullmq` / `ioredis` `ignore` rule is now in
+> `.github/dependabot.yml` (npm ecosystem), with a comment pointing back here.
+
+## @better-auth/oauth-provider advisory (GHSA-p2fr-6hmx-4528): staying on 1.6.23
+
+Assessed 2026-07-14. `pnpm audit --prod` reports a moderate advisory
+(CVSS 6.4) against `@better-auth/oauth-provider`: **unbound resource
+indicators**. The provider does not bind the JWT `aud` claim to the grant, so a
+client can request an access token for any audience in `validAudiences`, and a
+refresh token can be redeemed for a different resource than originally granted.
+
+- **Affected:** `>= 1.4.8 < 1.7.0-beta.4`. We run `1.6.23` (declared `^1.6.23`
+  in `packages/auth`, `apps/web`, `apps/api`), so we are in range.
+- **Patched:** only `1.7.0-beta.4+`. The 1.6.x line is not patched, and 1.7.0
+  has no stable release (`latest` is `1.6.23`; the 1.7 line only reaches
+  `rc.1`).
+
+### Decision: stay on 1.6.23 and rely on our existing mitigations
+
+The fix ships as part of the 1.7.0 rewrite, which is **not a drop-in patch**:
+
+- `@better-auth/oauth-provider` and `better-auth` core move in lockstep, so
+  taking the fix upgrades the whole auth stack (sessions, JWT plugin, social
+  providers, drizzle adapter, the accounts-token encryption we just shipped).
+- 1.7.0 **removes `validAudiences` entirely**, replacing it with a `resources` /
+  `oauthClientResource` model. It requires a schema migration (new tables
+  `oauthResource`, `oauthClientResource`; new columns on `oauthClient`,
+  `oauthAccessToken.revoked`, `jwks.alg`/`crv`) plus other breaking changes
+  (back-channel logout, PKCE default on, custom claims can no longer override
+  protected fields, id_token verification rework).
+- It is still prerelease, so we would be pinning a moving `rc` on a
+  security-critical path and re-verifying on every bump.
+
+Our practical exposure is low because we already apply **both** workarounds the
+advisory documents:
+
+1. **Single audience.** `packages/auth/src/mcp-oauth.ts` sets
+   `validAudiences: [mcpAudience(env)]` — exactly one entry. With one valid
+   audience there is no second resource to re-target a token at.
+2. **Resource server pins `aud`.** `apps/mcp/src/auth.ts` verifies every MCP
+   access token with `audience: oauthAudience()` and rejects any mismatch.
+
+A regression test (`packages/auth/src/mcp-oauth.test.ts`) fails if anyone widens
+`validAudiences` beyond a single entry, so the mitigation can't silently erode.
+
+**Revisit when `better-auth` 1.7.0 reaches a stable (non-prerelease) release.**
+At that point do the coupled upgrade deliberately: bump provider + core together,
+run the auth schema migration, port `validAudiences` to the new `resources`
+model, and re-run the full MCP OAuth E2E (dynamic client registration, sign-in,
+workspace selection, consent, token mint, refresh, revocation).
+
+### Transitive moderates surfaced by the same audit
+
+`pnpm audit --prod` on 2026-07-14 also reported two transitive moderates, both
+outside the original backlog. Track separately:
+
+- **esbuild** GHSA-67mh-4wv8-2f99 (dev-server can be reached cross-site;
+  `<= 0.24.2`). Reaches us only through
+  `@better-auth/oauth-provider → better-auth → drizzle-kit → @esbuild-kit/... →
+  esbuild@0.18.20`, a build-time path with no prod-runtime impact. Clears with
+  the eventual better-auth 1.7 upgrade or a drizzle-kit bump.
+- **postcss** GHSA-qx2v-qp2m-jg93 (XSS via unescaped `</style>` in CSS stringify
+  output; `< 8.5.10`). Transitive via `next → postcss`; resolves on the next
+  Next.js patch that pulls `postcss >= 8.5.10`.
