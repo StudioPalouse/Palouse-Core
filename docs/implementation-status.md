@@ -1,9 +1,19 @@
 # Implementation status & next steps
 
+> **Backlog tracked in Specboard.** The forward backlog (scope, status, sequencing) now lives in
+> the Specboard product backlog across the releases **Decisions: Capture / Ownership & Input /
+> Change Management / Reporting**, **Security & Hardening**, **Integrations**, **Platform &
+> Access**, **Quality & Ops**, and **Agent Tracking**. This document is retained for shipped
+> history and current in-flight state. Reconciled 2026-07-14.
+
 Updated 2026-07-12. Living status doc for the current build phase. The GitHub Project
 "Palouse Roadmap" is the issue tracker; this doc captures in-flight state and the resume plan.
 
 ## Resume here: Decisions expansion, now on Theme A / A2 (2026-07-12)
+
+> Superseded 2026-07-14: the decisions backlog is now tracked in Specboard (the **Decisions
+> Capability Expansion** initiative; Theme E has shipped). The snapshot below is point-in-time and
+> no longer the source of truth for what is next.
 
 Pick-up point for the decisions-capability expansion (`docs/decisions-roadmap.md`).
 
@@ -152,41 +162,22 @@ plus the tasks first-run empty state).
 
 ## Next / backlog
 
-0. **MCP OAuth connect — SHIPPED to prod as v0.17.0 (2026-07-07)**: paste the MCP URL into
-   a client and sign in with Palouse credentials instead of minting a key by hand. Better
-   Auth `@better-auth/oauth-provider` + `jwt`; workspace selection at consent (postLogin
-   hook), consent pinned to an agent id, access-token JWT carries workspace/agent claims;
-   migration 0017 (oauth/jwks tables + `mcp_connect_selections`). Slice 1 = flow + migration
-   (PR #81); slice 2 = connect dialog leads with sign-in, OAuth connections surfaced in
-   Settings > Agents, archive is a full OAuth revoke (PR #82). Agent keys stay as the
-   manual/self-hosted path. Design: `docs/PLAN-mcp-oauth.md`. **Slice 3 (deferred, not yet
-   built):**
-   - Last-used / activity timestamp for OAuth connections (they have no `agent_api_keys`
-     row, so no `lastUsedAt`; derive from `audit_events` or stamp the agent on use).
-   - Granular scope selection on the consent screen (today consent grants the full
-     advertised scope set).
-   - Trusted first-party clients (skip consent) once we ship our own MCP clients.
-   - Policy: allow the `member` role to self-connect (today owner/admin only, matching key
-     minting).
-   - MCP tool gating by workspace capability inside `apps/mcp/src/server.ts` (still deferred
-     from v0.9.0; the OAuth path inherits the same gap).
-1. **Board bookkeeping**: close the shipped issues — Phase 4 (#20-#25), Team & access epic
-   (#43-#49). Open a Testing & CI epic; open issues for the user-management work if not tracked.
-2. **Manual dogfood on staging**: exercise the destructive account-deletion path end to end
-   (type-name → email link → delete a throwaway workspace) and confirm the cascade. The E2E smoke
-   does not cover it.
-3. **Agent dogfood on prod**: connect a real Claude Code instance to a prod workspace via the
-   new onboarding flow and run a task through the full handoff loop (claim → progress → review).
-4. **Expand E2E**: more roadmap flows (connect a source, create agent + key, hand off, accept
-   invite) and ideally a deletion-path spec.
-5. **User/account management follow-ups** (not yet built): transfer ownership as a first-class
-   action; leave-workspace (self-removal); global user hard-delete (deliberately deferred — admin
-   delete is remove-from-account only); pending-invite UX polish (resend, expiry countdown).
-6. **Multi-workspace orgs**: v1 is 1:1 org↔workspace (`createWorkspace` makes a backing org). The
-   switcher already supports a user in multiple workspaces via invites; true multi-workspace orgs
-   are a later change.
-7. **Ops tidy-up**: delete the empty `reqops`/Entorhi Fly org and stale `test.reqops.ai` DNS.
-   (The actions runner bump, #40, shipped in #56.)
+The forward backlog now lives in **Specboard** (source of truth for scope, status, and
+sequencing). Mapping:
+
+- **Platform & Access** release: MCP OAuth slice 3 (last-used timestamps, granular scopes,
+  trusted first-party clients, member self-connect policy, MCP tool capability gating), the
+  Account & workspace management epic (transfer ownership, leave-workspace, global user
+  hard-delete, pending-invite polish, multi-workspace orgs), and the Platform follow-ups epic
+  (SSE real-time push, agent-name resolution).
+- **Quality & Ops** release: expand E2E, manual account-deletion dogfood on staging, agent
+  dogfood on prod, board bookkeeping, and ops tidy-up (delete the empty `reqops`/Entorhi Fly org
+  and stale `test.reqops.ai` DNS).
+- **Security & Hardening**, **Integrations**, the four **Decisions** releases, and **Agent
+  Tracking** cover the remaining backlog; each source doc carries a banner pointing to its epic.
+
+Shipped since this list was last hand-maintained: MCP OAuth connect (v0.17.0; slice-3 detail in
+`docs/PLAN-mcp-oauth.md`) and the whole Activity capability (v0.21.0).
 
 ## Verify commands
 

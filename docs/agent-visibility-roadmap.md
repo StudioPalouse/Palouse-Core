@@ -1,5 +1,10 @@
 # Agent visibility capability: market landscape and enhancement roadmap
 
+> **Backlog tracked in Specboard.** Slices 1 to 3 shipped as v0.21.0. The remaining slices (4 to
+> 9) plus the fleet-visibility lanes are epics in the **Agent Tracking** release; see also
+> `docs/agent-fleet-visibility-options.md`. Specboard owns status; this document is retained as
+> market/roadmap reference. Reconciled 2026-07-14.
+
 Status: proposal (2026-07-12). Research inputs: deep market and regulatory research
 (23 claims verified against primary sources, July 2026) plus a full map of the existing
 agent runtime, audit, and usage implementation. Companion docs:

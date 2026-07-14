@@ -1,5 +1,9 @@
 # Agent visibility: implementation plan (slice tracker)
 
+> **Backlog tracked in Specboard.** Slices 1 to 3 are shipped (v0.21.0); slices 4 to 9 are epics
+> in the **Agent Tracking** release. Specboard owns status; this slice tracker is retained as
+> build-time reference. Reconciled 2026-07-14.
+
 Status doc for building the agent-visibility capability. Companion to
 `docs/agent-visibility-roadmap.md` (strategy, market landscape, themes A–E) and
 `docs/agent-tasks-and-auditability.md` (original M5 plan; Phases 1–4 shipped, 5–6

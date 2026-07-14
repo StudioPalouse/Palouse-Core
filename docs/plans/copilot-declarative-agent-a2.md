@@ -1,5 +1,10 @@
 # Scoping: Copilot declarative agent on the existing MCP server (Theme A, A2)
 
+> **Backlog tracked in Specboard.** This scoping backs the **A2 — Copilot declarative agent**
+> feature under the **Theme A — Capture** epic (release **Decisions: Capture**). Specboard owns
+> scope and status; this document is retained as the detailed scoping reference. Reconciled
+> 2026-07-14.
+
 Status: scoping (2026-07-12). Parent: `docs/decisions-roadmap.md` (Theme A, goal 1) and
 `docs/plans/decisions-theme-a-capture.md` (§13 slice 3). This is the fastest Microsoft 365
 entry point: it reuses `mcp.palouse.ai` and our existing OAuth provider and needs no new

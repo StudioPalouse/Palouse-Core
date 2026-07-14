@@ -1,5 +1,10 @@
 # Theme E: Strategy linkage (decisions to projects and objectives)
 
+> **Shipped.** Theme E (slices 1 to 3: decision to objective/key-result/project links plus the
+> `get_strategy_signals` MCP tool) is merged to `main`. It is recorded under the **Decisions
+> Capability Expansion** initiative in Specboard with no open backlog; this document is retained
+> as implementation reference. Reconciled 2026-07-14.
+
 Status: implementation plan (2026-07-11). Parent: `docs/decisions-roadmap.md` (goal 5,
 Theme E). This is the roadmap's recommended **first** slice.
 

@@ -1,5 +1,10 @@
 # Theme C: Change management and enablement — implementation plan
 
+> **Backlog tracked in Specboard.** This work is the **Theme C — Change Management** epic
+> (release **Decisions: Change Management**) in the **Decisions Capability Expansion** initiative;
+> its slices are the features C1, C2, C3, C4a, C4b, and C5. Specboard owns scope and status; this
+> document is retained as build-time implementation reference. Reconciled 2026-07-14.
+
 Status: proposal (2026-07-11). Parent: `docs/decisions-roadmap.md`, Theme C (goal 3).
 Sequencing slot: roadmap slice 5, after the Theme B notification rails (slice 4).
 

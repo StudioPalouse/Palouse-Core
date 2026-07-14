@@ -1,5 +1,10 @@
 # Dependency maintenance and deliberate pins
 
+> **Backlog tracked in Specboard.** Actionable dependency work is under the **Dependency
+> maintenance** epic (release **Security & Hardening**): the drizzle-orm upgrade, the
+> @better-auth/oauth-provider advisory review, and a Dependabot ignore rule for the pins below.
+> This document remains the canonical record of why each pin exists. Reconciled 2026-07-14.
+
 This document records dependencies we hold back on purpose, why, and what it
 would take to unpin them. Dependabot opens upgrade PRs automatically; when one is
 declined for a reason that is not obvious from the diff, capture that reasoning

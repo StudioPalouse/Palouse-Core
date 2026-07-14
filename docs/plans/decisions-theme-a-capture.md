@@ -1,5 +1,10 @@
 # Theme A: Capture — implementation plan
 
+> **Backlog tracked in Specboard.** This work is the **Theme A — Capture** epic (release
+> **Decisions: Capture**) in the **Decisions Capability Expansion** initiative; its slices are
+> the features A1, A2, A3, A4, A5, and the shared Extraction pipeline. Specboard owns scope and
+> status; this document is retained as build-time implementation reference. Reconciled 2026-07-14.
+
 Status: plan (2026-07-11). Companion to `docs/decisions-roadmap.md` (read §1 market
 findings, §3 Theme A, and §5 constraints first). This document turns Theme A into a
 buildable spec grounded in the current codebase. Every code reference below was verified

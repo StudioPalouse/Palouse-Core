@@ -1,5 +1,11 @@
 # Theme B implementation plan: Ownership and stakeholder input
 
+> **Backlog tracked in Specboard.** This work is the **Theme B — Ownership & Input** epic
+> (release **Decisions: Ownership & Input**) in the **Decisions Capability Expansion** initiative;
+> its slices are the features B2 (sign-off), B4 (notification rails), B1 (input rounds), and B3
+> (templates). Specboard owns scope and status; this document is retained as build-time
+> implementation reference. Reconciled 2026-07-14.
+
 Status: plan (2026-07-11). Parent: `docs/decisions-roadmap.md` (Theme B, goal 2).
 Verified against the codebase on 2026-07-11.
 

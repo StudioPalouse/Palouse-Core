@@ -1,5 +1,11 @@
 # PLAN: OAuth sign-in for the MCP endpoint
 
+> **Backlog tracked in Specboard.** Slices 1 to 2 shipped as v0.17.0. The deferred slice-3
+> work is the **MCP OAuth slice 3** epic (release **Platform & Access**): last-used timestamps,
+> granular scope selection, trusted first-party clients, member self-connect policy, and MCP tool
+> capability gating. Specboard owns status; this document is retained as design reference.
+> Reconciled 2026-07-14.
+
 Status: slice 1 in progress (2026-07-07). Owner: JB.
 
 ## Why

@@ -1,5 +1,10 @@
 # Palouse — Todoist Integration
 
+> **Backlog tracked in Specboard.** Remaining work is under the **Todoist connector** epic
+> (release **Integrations**): slice 2 webhooks, project-name grouping, and priority/deletion
+> handling. Slice 1 has shipped (v0.11.0). Specboard owns status; this document is retained as
+> integration reference. Reconciled 2026-07-14.
+
 Status: **slice 1 implemented** (OAuth connect + incremental pull + push write-back,
 poll-only). Webhooks are slice 2. Companion to `docs/architecture.md` §4 and the
 connector playbook in `docs/notion-integration.md`.

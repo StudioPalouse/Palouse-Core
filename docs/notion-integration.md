@@ -1,5 +1,10 @@
 # Palouse — Notion Integration Plan
 
+> **Backlog tracked in Specboard.** This work is the **Notion integration** epic (release
+> **Integrations**): features N1a (connect + backfill), N2 (webhooks), N3 (outbound writes), B1
+> (Activity Reports into Notion), and B2 (External Agents watch). Specboard owns scope and status;
+> this document is retained as the detailed integration plan. Reconciled 2026-07-14.
+
 Status: **planned** (next integration after M5 Phase 3 / OTLP). Two tracks, built in
 order: **(A) task sync** (like the existing Asana connector) and **(B) agent
 visibility** (surface Palouse agent activity into Notion). Companion to

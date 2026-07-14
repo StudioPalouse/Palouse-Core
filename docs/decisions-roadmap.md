@@ -1,5 +1,12 @@
 # Decisions capability: market landscape and enhancement roadmap
 
+> **Backlog tracked in Specboard.** Scope, status, and sequencing now live in the Specboard
+> product backlog under the **Decisions Capability Expansion** initiative, whose four theme
+> epics map to the releases **Decisions: Capture** (A), **Decisions: Ownership & Input** (B),
+> **Decisions: Change Management** (C), and **Decisions: Reporting** (D). Theme E (strategy
+> linkage) has shipped. Specboard is the source of truth for what is planned and its status;
+> this document is retained as market/positioning reference. Reconciled 2026-07-14.
+
 Status: proposal (2026-07-11). Research inputs: deep market research (verified against
 vendor docs, June/July 2026) plus a full map of the existing decisions implementation.
 

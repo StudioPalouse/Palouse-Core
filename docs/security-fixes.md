@@ -1,5 +1,10 @@
 # Security remediation backlog
 
+> **Backlog tracked in Specboard.** The remaining items (P1 to P3) are features under the
+> **Security remediation** epic (release **Security & Hardening**). The two P0 findings shipped in
+> v0.18.2 and are excluded from the epic. Specboard owns status; this document is retained as the
+> detailed remediation + acceptance-criteria reference. Reconciled 2026-07-14.
+
 This document records the findings from the July 2026 adversarial code review.
 It is a remediation backlog, not evidence that any production account or
 workspace has been compromised.

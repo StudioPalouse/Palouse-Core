@@ -1,5 +1,10 @@
 # Theme D: Reporting and analytics — implementation plan
 
+> **Backlog tracked in Specboard.** This work is the **Theme D — Reporting** epic (release
+> **Decisions: Reporting**) in the **Decisions Capability Expansion** initiative; its slices are
+> the features D1 through D7. Specboard owns scope and status; this document is retained as
+> build-time implementation reference. Reconciled 2026-07-14.
+
 Status: proposal (2026-07-11). Parent: `docs/decisions-roadmap.md` (goal 4, "Enable
 reporting around decisions"). This plan is self-contained: it names the exact files,
 tables, and functions to touch, verified against the codebase on 2026-07-11.
