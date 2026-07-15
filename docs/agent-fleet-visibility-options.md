@@ -1,8 +1,11 @@
 # Agent fleet visibility: gateway question and options assessment
 
-Status: proposal (2026-07-14). Research inputs: a codebase map of the MCP and audit
-implementation as of v0.21.0, plus a market survey of MCP gateways, agent
-observability platforms, and Anthropic-native telemetry (sources in section 7).
+Status: proposal (2026-07-14; F6 added 2026-07-15). Candidate slices F1 to F4 and
+F6 are tracked in Specboard under the Agent Tracking release; Specboard owns scope
+and status, this document is the assessment reference. Research inputs: a codebase
+map of the MCP and audit implementation as of v0.21.0, plus a market survey of MCP
+gateways, agent observability platforms, and Anthropic-native telemetry (sources
+in section 7).
 Companion docs: `docs/agent-visibility-roadmap.md` (themes A to E, slices 1 to 3
 shipped) and `docs/plans/agent-visibility-implementation.md` (execution tracker).
 
@@ -222,9 +225,23 @@ when picked up.
   automations. (S)
 - **F5 (deferred). MCP portal / policy gateway.** Only on demonstrated customer
   demand for pre-action enforcement; design would build on C4 approvals. (L)
+- **F6. Vendor audit-log ingest for hosted assistants.** Added 2026-07-15; tracked
+  in Specboard ("Vendor audit-log ingest (hosted Copilot / ChatGPT / Claude)",
+  Agent Tracking release). F3 assumes the customer can point the agent's OTel
+  exporter at Palouse; hosted Microsoft 365 Copilot, ChatGPT, and Claude.ai
+  sessions have no exporter to configure, and vanilla Copilot use (Word, Outlook,
+  Teams, Business Chat) never routes through any custom agent or MCP server, so
+  it is all "absent" class today, even after the A2 declarative agent ships.
+  Instead, ingest the vendors' own compliance exports: Microsoft Purview
+  `CopilotInteraction` records (auto-generated under Audit (Standard), included
+  in existing M365 licensing, metadata-only, retrievable via the Office 365
+  Management Activity API), with OpenAI's and Anthropic's Compliance APIs as the
+  ChatGPT/Claude analogs. Evidence class: reported, vendor-attested; chain on
+  receipt per the F3 posture with a distinct provenance marker. Depends on F1
+  and F3 (reported-activity storage); sequences after F3. (M)
 
 Sequencing suggestion: F1 folds into or immediately follows slice 4 (F2); F3 is the
-next major slice after that; F4 can ride along with either.
+next major slice after that; F4 can ride along with either; F6 follows F3.
 
 ## 6. Open questions for the team
 
