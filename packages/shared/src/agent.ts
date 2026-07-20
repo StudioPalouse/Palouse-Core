@@ -42,6 +42,10 @@ export const agentSchema = z.object({
   archivedAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+  // Most recent MCP tool call by this agent, derived from the audit log
+  // (actor_type='agent'). Null if it has never made a call. OAuth (sign-in)
+  // agents rely on this since they have no API key with a lastUsedAt.
+  lastActiveAt: z.string().datetime().nullable(),
 });
 export type Agent = z.infer<typeof agentSchema>;
 
