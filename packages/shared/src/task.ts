@@ -22,6 +22,10 @@ export const taskSchema = z.object({
   parentTaskId: uuid.nullable(),
   origin: taskOrigin,
   createdByAgentId: uuid.nullable(),
+  // Display name of the creating agent, resolved from the agents table. Null
+  // for user-created tasks or when the agent id cannot be resolved. Lets the UI
+  // name the agent instead of showing a generic badge.
+  createdByAgentName: z.string().nullable(),
   sourceOfTruth,
   lastSyncedAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),

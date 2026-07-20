@@ -1,5 +1,5 @@
 import { and, desc, eq, ilike, inArray, sql, type SQL } from 'drizzle-orm';
-import { taskComments, taskSources, tasks, type Database } from '@palouse/db';
+import { agents, taskComments, taskSources, tasks, type Database } from '@palouse/db';
 import { appendAuditEvent } from '../audit/chain.js';
 import { diffAuditChanges } from '../audit/changes.js';
 import { commentAuthorName, resolveCommentAuthors } from '../audit/comment-authors.js';
@@ -18,7 +18,7 @@ import {
   type UpdateTaskInput,
 } from '@palouse/shared';
 
-function toDto(row: typeof tasks.$inferSelect): Task {
+function toDto(row: typeof tasks.$inferSelect, createdByAgentName: string | null = null): Task {
   return {
     id: row.id,
     workspaceId: row.workspaceId,
@@ -31,11 +31,29 @@ function toDto(row: typeof tasks.$inferSelect): Task {
     parentTaskId: row.parentTaskId,
     origin: row.origin,
     createdByAgentId: row.createdByAgentId,
+    createdByAgentName,
     sourceOfTruth: row.sourceOfTruth,
     lastSyncedAt: row.lastSyncedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
+}
+
+/**
+ * Resolve display names for a set of creating-agent ids in one query, keyed by
+ * agent id. Mirrors the providers/comment-author enrichment: a small lookup
+ * scoped to the ids in hand rather than a join that complicates the main query.
+ */
+async function agentNamesByIds(
+  db: Database,
+  agentIds: (string | null)[],
+): Promise<Map<string, string>> {
+  const ids = [...new Set(agentIds.filter((id): id is string => id !== null))];
+  const names = new Map<string, string>();
+  if (ids.length === 0) return names;
+  const rows = await db.select({ id: agents.id, name: agents.name }).from(agents).where(inArray(agents.id, ids));
+  for (const a of rows) names.set(a.id, a.name);
+  return names;
 }
 
 function commentToDto(
@@ -107,8 +125,16 @@ export async function listTasks(
     }
   }
 
+  const agentNames = await agentNamesByIds(
+    db,
+    rows.map((r) => r.createdByAgentId),
+  );
+
   return {
-    tasks: rows.map((r) => ({ ...toDto(r), providers: providersByTask.get(r.id) ?? [] })),
+    tasks: rows.map((r) => ({
+      ...toDto(r, r.createdByAgentId ? (agentNames.get(r.createdByAgentId) ?? null) : null),
+      providers: providersByTask.get(r.id) ?? [],
+    })),
     total: count?.total ?? 0,
   };
 }
@@ -134,8 +160,9 @@ export async function getTask(
     db.select().from(taskSources).where(eq(taskSources.taskId, taskId)),
   ]);
   const authorNames = await resolveCommentAuthors(db, comments);
+  const agentNames = await agentNamesByIds(db, [row.createdByAgentId]);
   return {
-    task: toDto(row),
+    task: toDto(row, row.createdByAgentId ? (agentNames.get(row.createdByAgentId) ?? null) : null),
     comments: comments.map((c) => commentToDto(c, commentAuthorName(c, authorNames))),
     sources: sources.map(sourceToDto),
   };

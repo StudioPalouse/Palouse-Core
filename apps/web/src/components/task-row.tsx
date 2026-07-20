@@ -91,7 +91,7 @@ export function TaskRow({
         {task.origin === 'agent' && (
           <Badge variant="outline" className="gap-1">
             <Bot className="size-3" />
-            Agent
+            {task.createdByAgentName ?? 'Agent'}
           </Badge>
         )}
         {handoffState && (
