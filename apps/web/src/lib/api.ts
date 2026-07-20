@@ -157,6 +157,15 @@ export const api = {
   removeMember: (workspaceId: string, userId: string) =>
     request<void>(`/v1/workspaces/${workspaceId}/members/${userId}`, { method: 'DELETE' }),
 
+  transferOwnership: (workspaceId: string, targetUserId: string) =>
+    request<{ newOwner: WorkspaceMember; previousOwner: WorkspaceMember }>(
+      `/v1/workspaces/${workspaceId}/transfer-ownership`,
+      { method: 'POST', body: JSON.stringify({ targetUserId }) },
+    ),
+
+  leaveWorkspace: (workspaceId: string) =>
+    request<void>(`/v1/workspaces/${workspaceId}/leave`, { method: 'POST' }),
+
   listInvites: (workspaceId: string) =>
     request<{ invitations: Invitation[] }>(`/v1/workspaces/${workspaceId}/invitations`),
 

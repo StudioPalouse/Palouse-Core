@@ -34,6 +34,12 @@ export const updateMemberRoleInput = z.object({
 });
 export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleInput>;
 
+// Hand ownership to another active member (they become owner, caller becomes admin).
+export const transferOwnershipInput = z.object({
+  targetUserId: uuid,
+});
+export type TransferOwnershipInput = z.infer<typeof transferOwnershipInput>;
+
 // Deactivate (status 'inactive') or reactivate (status 'active') a member.
 export const setMemberStatusInput = z.object({
   status: membershipStatus,

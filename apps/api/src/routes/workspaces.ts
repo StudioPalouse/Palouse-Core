@@ -7,6 +7,7 @@ import {
   requestWorkspaceDeletionInput,
   setCapabilityInput,
   setMemberStatusInput,
+  transferOwnershipInput,
   updateMemberRoleInput,
   validation,
 } from '@palouse/shared';
@@ -80,6 +81,25 @@ workspaceRoutes.delete('/:workspaceId/members/:userId', async (c) => {
     c.get('userId'),
     c.req.param('userId'),
   );
+  return c.body(null, 204);
+});
+
+workspaceRoutes.post('/:workspaceId/transfer-ownership', async (c) => {
+  const parsed = transferOwnershipInput.safeParse(await c.req.json());
+  if (!parsed.success) throw validation('Invalid transfer input', parsed.error.flatten());
+  const db = getDb(loadEnv().DATABASE_URL);
+  const result = await workspaces.transferOwnership(
+    db,
+    c.req.param('workspaceId'),
+    c.get('userId'),
+    parsed.data.targetUserId,
+  );
+  return c.json(result);
+});
+
+workspaceRoutes.post('/:workspaceId/leave', async (c) => {
+  const db = getDb(loadEnv().DATABASE_URL);
+  await workspaces.leaveWorkspace(db, c.req.param('workspaceId'), c.get('userId'));
   return c.body(null, 204);
 });
 

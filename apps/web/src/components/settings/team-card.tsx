@@ -162,6 +162,43 @@ export function TeamCard({ workspace }: { workspace: Workspace }) {
     });
   }
 
+  function transfer(member: WorkspaceMember) {
+    setConfirm({
+      title: 'Transfer ownership?',
+      description: `${member.name ?? member.email} will become the owner of ${workspace.name}, and you will become an admin. Only the new owner can transfer it back.`,
+      actionLabel: 'Transfer ownership',
+      destructive: true,
+      run: async () => {
+        setError(null);
+        try {
+          await api.transferOwnership(workspace.id, member.userId);
+          // Reload so the workspace context picks up the caller's new admin role.
+          window.location.reload();
+        } catch (err) {
+          setError(err instanceof ApiError ? err.message : 'Failed to transfer ownership');
+        }
+      },
+    });
+  }
+
+  function leave() {
+    setConfirm({
+      title: 'Leave workspace?',
+      description: `You will lose access to ${workspace.name}. Your account and any other workspaces are unaffected.`,
+      actionLabel: 'Leave workspace',
+      destructive: true,
+      run: async () => {
+        setError(null);
+        try {
+          await api.leaveWorkspace(workspace.id);
+          window.location.assign('/');
+        } catch (err) {
+          setError(err instanceof ApiError ? err.message : 'Failed to leave workspace');
+        }
+      },
+    });
+  }
+
   function resendInvite(invite: Invitation) {
     void run(
       () => api.resendInvite(workspace.id, invite.id),
@@ -210,8 +247,11 @@ export function TeamCard({ workspace }: { workspace: Workspace }) {
 
   const loading = members === null;
   const activeCount = members?.filter((m) => m.status === 'active').length ?? 0;
+  const activeOwners = members?.filter((m) => m.role === 'owner' && m.status === 'active').length ?? 0;
+  const isOwner = workspace.role === 'owner';
+  const isLastOwner = isOwner && activeOwners <= 1;
   const pendingCount = invites?.length ?? 0;
-  const columnCount = manage ? 6 : 5;
+  const columnCount = 6;
 
   return (
     <Card>
@@ -273,7 +313,7 @@ export function TeamCard({ workspace }: { workspace: Workspace }) {
                 <TableHead className="w-24">Status</TableHead>
                 <TableHead className="w-32">Joined</TableHead>
                 <TableHead className="w-32">Last active</TableHead>
-                {manage && <TableHead className="w-12" />}
+                <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -301,7 +341,7 @@ export function TeamCard({ workspace }: { workspace: Workspace }) {
                     <TableCell>
                       <Skeleton className="h-4 w-16" />
                     </TableCell>
-                    {manage && <TableCell />}
+                    <TableCell />
                   </TableRow>
                 ))}
 
@@ -364,30 +404,53 @@ export function TeamCard({ workspace }: { workspace: Workspace }) {
                       <TableCell className="text-muted-foreground">
                         {formatLastActive(m.lastActiveAt)}
                       </TableCell>
-                      {manage && (
-                        <TableCell className="text-right">
-                          {!isSelf && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="size-8">
-                                  <MoreHorizontal />
-                                  <span className="sr-only">Member actions</span>
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                  onSelect={() => setStatus(m, inactive ? 'active' : 'inactive')}
-                                >
-                                  {inactive ? 'Reactivate' : 'Deactivate'}
+                      <TableCell className="text-right">
+                        {isSelf ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="size-8">
+                                <MoreHorizontal />
+                                <span className="sr-only">Your actions</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {isLastOwner ? (
+                                <DropdownMenuItem disabled>
+                                  Transfer ownership to leave
                                 </DropdownMenuItem>
-                                <DropdownMenuItem variant="destructive" onSelect={() => remove(m)}>
-                                  Remove from workspace
+                              ) : (
+                                <DropdownMenuItem variant="destructive" onSelect={leave}>
+                                  Leave workspace
                                 </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                        </TableCell>
-                      )}
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : manage ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="size-8">
+                                <MoreHorizontal />
+                                <span className="sr-only">Member actions</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {isOwner && m.status === 'active' && (
+                                <DropdownMenuItem onSelect={() => transfer(m)}>
+                                  Transfer ownership
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem
+                                onSelect={() => setStatus(m, inactive ? 'active' : 'inactive')}
+                              >
+                                {inactive ? 'Reactivate' : 'Deactivate'}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem variant="destructive" onSelect={() => remove(m)}>
+                                Remove from workspace
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : null}
+                      </TableCell>
                     </TableRow>
                   );
                 }

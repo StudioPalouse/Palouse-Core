@@ -23,12 +23,15 @@ import { assertMcpGrant } from '../agents/service.js';
 import {
   acceptInvite,
   createInvite,
+  leaveWorkspace,
   listInvites,
   listMembers,
   removeMember,
+  requireMembership,
   resendInvite,
   revokeInvite,
   setMemberStatus,
+  transferOwnership,
 } from './service.js';
 
 const MIGRATIONS_DIR = fileURLToPath(new URL('../../../db/migrations', import.meta.url));
@@ -77,6 +80,94 @@ async function addUser(email: string): Promise<string> {
   const [user] = await db.insert(users).values({ email }).returning();
   return user!.id;
 }
+
+async function addMember(
+  workspaceId: string,
+  role: 'owner' | 'admin' | 'member' = 'member',
+): Promise<string> {
+  const userId = await addUser(`m-${crypto.randomUUID().slice(0, 8)}@example.com`);
+  await db.insert(memberships).values({ workspaceId, userId, role });
+  return userId;
+}
+
+function roleOf(members: Awaited<ReturnType<typeof listMembers>>, userId: string): string | undefined {
+  return members.find((m) => m.userId === userId)?.role;
+}
+
+describe('transferOwnership', () => {
+  it('promotes the target to owner and demotes the previous owner to admin', async () => {
+    const ctx = await seed();
+    const memberId = await addMember(ctx.workspaceId, 'admin');
+
+    const result = await transferOwnership(db, ctx.workspaceId, ctx.ownerId, memberId);
+    expect(result.newOwner.userId).toBe(memberId);
+    expect(result.newOwner.role).toBe('owner');
+    expect(result.previousOwner.role).toBe('admin');
+
+    const members = await listMembers(db, ctx.workspaceId);
+    expect(roleOf(members, memberId)).toBe('owner');
+    expect(roleOf(members, ctx.ownerId)).toBe('admin');
+    expect(members.filter((m) => m.role === 'owner')).toHaveLength(1);
+  });
+
+  it('refuses a non-owner actor', async () => {
+    const ctx = await seed();
+    const adminId = await addMember(ctx.workspaceId, 'admin');
+    const memberId = await addMember(ctx.workspaceId, 'member');
+    await expect(
+      transferOwnership(db, ctx.workspaceId, adminId, memberId),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('refuses transfer to self', async () => {
+    const ctx = await seed();
+    await expect(
+      transferOwnership(db, ctx.workspaceId, ctx.ownerId, ctx.ownerId),
+    ).rejects.toMatchObject({ code: 'VALIDATION' });
+  });
+
+  it('refuses transfer to a non-member', async () => {
+    const ctx = await seed();
+    const stranger = await addUser(`stranger-${crypto.randomUUID().slice(0, 8)}@example.com`);
+    await expect(
+      transferOwnership(db, ctx.workspaceId, ctx.ownerId, stranger),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+});
+
+describe('leaveWorkspace', () => {
+  it('lets a non-owner member leave and immediately lose access', async () => {
+    const ctx = await seed();
+    const memberId = await addMember(ctx.workspaceId, 'member');
+
+    await leaveWorkspace(db, ctx.workspaceId, memberId);
+
+    await expect(requireMembership(db, ctx.workspaceId, memberId)).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+    // The owner is untouched.
+    const members = await listMembers(db, ctx.workspaceId);
+    expect(members.map((m) => m.userId)).toContain(ctx.ownerId);
+  });
+
+  it('refuses to let the last active owner leave', async () => {
+    const ctx = await seed();
+    await expect(leaveWorkspace(db, ctx.workspaceId, ctx.ownerId)).rejects.toMatchObject({
+      code: 'CONFLICT',
+    });
+  });
+
+  it('lets a former owner leave after transferring ownership', async () => {
+    const ctx = await seed();
+    const memberId = await addMember(ctx.workspaceId, 'admin');
+    await transferOwnership(db, ctx.workspaceId, ctx.ownerId, memberId);
+    // The previous owner is now an admin and can leave.
+    await leaveWorkspace(db, ctx.workspaceId, ctx.ownerId);
+    const members = await listMembers(db, ctx.workspaceId);
+    expect(members.map((m) => m.userId)).not.toContain(ctx.ownerId);
+    expect(roleOf(members, memberId)).toBe('owner');
+  });
+});
 
 async function getInviteRow(inviteId: string) {
   const [row] = await db.select().from(invitations).where(eq(invitations.id, inviteId)).limit(1);

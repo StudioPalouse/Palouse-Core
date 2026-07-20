@@ -308,6 +308,65 @@ export async function removeMember(
 }
 
 /**
+ * Transfer ownership to another active member: promote them to owner and demote
+ * the current owner to admin, in one transaction so the active-owner count never
+ * dips to zero mid-operation. Owner-only. Single-owner model: the workspace ends
+ * with exactly one owner (the target); the previous owner keeps admin access.
+ */
+export async function transferOwnership(
+  db: Database,
+  workspaceId: string,
+  actorUserId: string,
+  targetUserId: string,
+): Promise<{ newOwner: WorkspaceMember; previousOwner: WorkspaceMember }> {
+  await requireRole(db, workspaceId, actorUserId, OWNER_ROLES);
+  if (targetUserId === actorUserId) throw validation('You already own this workspace');
+  const actor = await getMember(db, workspaceId, actorUserId);
+  const target = await getMember(db, workspaceId, targetUserId);
+  if (!target) throw notFound('Member not found');
+  if (target.status !== 'active') {
+    throw conflict('Ownership can only be transferred to an active member');
+  }
+  await db.transaction(async (tx) => {
+    await tx
+      .update(memberships)
+      .set({ role: 'owner', updatedAt: new Date() })
+      .where(and(eq(memberships.workspaceId, workspaceId), eq(memberships.userId, targetUserId)));
+    await tx
+      .update(memberships)
+      .set({ role: 'admin', updatedAt: new Date() })
+      .where(and(eq(memberships.workspaceId, workspaceId), eq(memberships.userId, actorUserId)));
+  });
+  return {
+    newOwner: { ...target, role: 'owner' },
+    previousOwner: { ...actor!, role: 'admin' },
+  };
+}
+
+/**
+ * Self-service removal: the caller leaves a workspace they belong to. Mirrors
+ * removeMember (drops the membership row and revokes the caller's MCP grants for
+ * this workspace) but requires no admin role. The last active owner cannot leave;
+ * they must transfer ownership first, keeping every workspace with an owner.
+ */
+export async function leaveWorkspace(
+  db: Database,
+  workspaceId: string,
+  userId: string,
+): Promise<void> {
+  const role = await requireMembership(db, workspaceId, userId);
+  if (role === 'owner' && (await activeOwnerCount(db, workspaceId)) <= 1) {
+    throw conflict('Transfer ownership to another member before leaving this workspace');
+  }
+  await db.transaction(async (tx) => {
+    await revokeUserMcpGrants(tx as unknown as Database, workspaceId, userId);
+    await tx
+      .delete(memberships)
+      .where(and(eq(memberships.workspaceId, workspaceId), eq(memberships.userId, userId)));
+  });
+}
+
+/**
  * Deactivate or reactivate a member. Deactivating keeps the membership row (so
  * their work stays attributable) but blocks access: `requireMembership` only
  * matches active members, so it takes effect on the deactivated user's next
