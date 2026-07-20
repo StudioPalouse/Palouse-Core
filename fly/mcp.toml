@@ -15,6 +15,17 @@ primary_region = "iad"
   auto_start_machines = true
   min_machines_running = 0
 
+  # Gate deploys and proxy routing on real readiness: the MCP app cold-starts
+  # slowly (tsx compiles the workspace graph at boot), so without this the
+  # proxy would 502 requests to a not-yet-listening instance and the deploy
+  # smoke could go red on a healthy deploy. grace_period covers the cold boot.
+  [[http_service.checks]]
+    grace_period = "60s"
+    interval = "15s"
+    method = "GET"
+    timeout = "10s"
+    path = "/healthz"
+
 [env]
   NODE_ENV = "production"
   LOG_LEVEL = "info"
@@ -30,4 +41,6 @@ primary_region = "iad"
 
 [[vm]]
   size = "shared-cpu-1x"
-  memory = "256mb"
+  # 512mb (matching api/worker): 256mb starved the tsx boot compile and made
+  # cold starts run for minutes. More headroom shortens the cold start.
+  memory = "512mb"
