@@ -153,13 +153,20 @@ workspace selection, consent, token mint, refresh, revocation).
 ### Transitive moderates surfaced by the same audit
 
 `pnpm audit --prod` on 2026-07-14 also reported two transitive moderates, both
-outside the original backlog. Track separately:
+outside the original backlog.
 
+- **postcss** GHSA-qx2v-qp2m-jg93 (XSS via unescaped `</style>` in CSS stringify
+  output; `< 8.5.10`). Transitive via `next → postcss`. **Resolved 2026-07-20:**
+  added `"postcss": ">=8.5.10"` to `pnpm.overrides`, which lifts the transitive
+  `postcss@8.4.31` to `8.5.16`. `pnpm audit --prod` no longer reports it. Low
+  risk (patch/minor within the 8.x line; Next's PostCSS usage is stable across
+  8.4 to 8.5).
 - **esbuild** GHSA-67mh-4wv8-2f99 (dev-server can be reached cross-site;
   `<= 0.24.2`). Reaches us only through
   `@better-auth/oauth-provider → better-auth → drizzle-kit → @esbuild-kit/... →
-  esbuild@0.18.20`, a build-time path with no prod-runtime impact. Clears with
-  the eventual better-auth 1.7 upgrade or a drizzle-kit bump.
-- **postcss** GHSA-qx2v-qp2m-jg93 (XSS via unescaped `</style>` in CSS stringify
-  output; `< 8.5.10`). Transitive via `next → postcss`; resolves on the next
-  Next.js patch that pulls `postcss >= 8.5.10`.
+  esbuild@0.18.20`, a build-time path with no prod-runtime impact.
+  **Accepted 2026-07-20 (build-time-only transitive, no runtime exposure).** A
+  direct override to `>= 0.25.0` is not safe: `drizzle-kit`'s pinned
+  `@esbuild-kit/*` loader expects the old esbuild API. Clears naturally with the
+  eventual better-auth 1.7 upgrade or a `drizzle-kit` bump that drops the old
+  loader. Re-check on each `pnpm audit --prod` run.

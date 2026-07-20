@@ -35,7 +35,8 @@
     ],
     "overrides": {
       "bullmq": "5.78.0",
-      "ioredis": "5.10.1"
+      "ioredis": "5.10.1",
+      "postcss": ">=8.5.10"
     }
   },
   "prettier": {
