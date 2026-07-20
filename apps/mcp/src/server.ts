@@ -14,76 +14,11 @@ import {
 } from '@palouse/core';
 import type { Database } from '@palouse/db';
 import { enqueuePush } from '@palouse/queue';
-import {
-  agentActor,
-  forbidden,
-  PalouseError,
-  type AgentKeyScope,
-  type CapabilityKey,
-} from '@palouse/shared';
+import { agentActor, forbidden, PalouseError } from '@palouse/shared';
 import { auditToolCall, type VerifiedAgentKey } from './auth.js';
 import { getSyncQueue } from './queue.js';
 import { registerResources } from './resources.js';
-
-const SCOPES: Record<ToolName, AgentKeyScope> = {
-  list_tasks: 'tasks:read',
-  get_task: 'tasks:read',
-  create_task: 'tasks:write',
-  start_task: 'handoffs:claim',
-  claim_task: 'handoffs:claim',
-  update_task: 'tasks:write',
-  add_comment: 'tasks:write',
-  heartbeat: 'handoffs:claim',
-  log_step: 'usage:write',
-  report_usage: 'usage:write',
-  request_review: 'handoffs:complete',
-  complete_task: 'handoffs:complete',
-  fail_task: 'handoffs:complete',
-  list_decisions: 'decisions:read',
-  get_decision: 'decisions:read',
-  create_decision: 'decisions:write',
-  update_decision: 'decisions:write',
-  add_decision_comment: 'decisions:write',
-  set_decision_stakeholders: 'decisions:write',
-  add_decision_relation: 'decisions:write',
-  get_strategy_signals: 'decisions:read',
-  list_objectives: 'objectives:read',
-  get_objective: 'objectives:read',
-  create_objective: 'objectives:write',
-  update_objective: 'objectives:write',
-  list_projects: 'projects:read',
-  get_project: 'projects:read',
-  create_project: 'projects:write',
-  update_project: 'projects:write',
-  create_project_item: 'projects:write',
-  update_project_item: 'projects:write',
-};
-
-/**
- * Tools gated behind a workspace capability. When a tool appears here, the
- * register wrapper rejects the call if that capability is turned off for the
- * key's workspace. Tools not listed are always available (subject to scope).
- */
-const CAPABILITY: Partial<Record<ToolName, CapabilityKey>> = {
-  list_decisions: 'decisions',
-  get_decision: 'decisions',
-  create_decision: 'decisions',
-  update_decision: 'decisions',
-  add_decision_comment: 'decisions',
-  set_decision_stakeholders: 'decisions',
-  add_decision_relation: 'decisions',
-  get_strategy_signals: 'decisions',
-  list_objectives: 'objectives',
-  get_objective: 'objectives',
-  create_objective: 'objectives',
-  update_objective: 'objectives',
-  list_projects: 'projects',
-  get_project: 'projects',
-  create_project: 'projects',
-  update_project: 'projects',
-  create_project_item: 'projects',
-  update_project_item: 'projects',
-};
+import { CAPABILITY, isToolAvailable, SCOPES } from './tool-access.js';
 
 // zod 4 removed z.objectOutputType; infer the parsed shape via ZodObject.
 type ToolArgs<N extends ToolName> = z.infer<z.ZodObject<(typeof TOOL_INPUTS)[N]>>;
@@ -113,9 +48,7 @@ export async function buildServer(db: Database, key: VerifiedAgentKey): Promise<
 
   /** A tool is available when the key holds its scope and its capability is on. */
   function isAvailable(name: ToolName): boolean {
-    if (!agentService.hasScope(key, SCOPES[name])) return false;
-    const capability = CAPABILITY[name];
-    return !capability || caps[capability] !== false;
+    return isToolAvailable(name, key.scopes, caps);
   }
 
   function register<N extends ToolName>(name: N, handler: (args: ToolArgs<N>) => Promise<unknown>) {
