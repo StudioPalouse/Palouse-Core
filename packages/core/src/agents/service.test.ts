@@ -29,6 +29,7 @@ import {
   unarchiveAgent,
   verifyApiKey,
 } from './service.js';
+import { appendAuditEvent } from '../audit/chain.js';
 
 const MIGRATIONS_DIR = fileURLToPath(new URL('../../../db/migrations', import.meta.url));
 
@@ -138,6 +139,63 @@ describe('agent archive', () => {
     await expect(archiveAgent(db, b.workspaceId, b.ownerId, agent.id)).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
+  });
+});
+
+describe('agent lastActiveAt (derived from audit log)', () => {
+  it('is null until the agent makes an MCP call, then reflects the latest event', async () => {
+    const ctx = await seed();
+    const agent = await createAgent(db, ctx.workspaceId, ctx.ownerId, {
+      name: 'OAuth agent',
+      kind: 'mcp_generic',
+      metadata: { oauthClientId: 'client_abc' },
+    });
+
+    const before = await getAgent(db, ctx.workspaceId, agent.id);
+    expect(before.agent.lastActiveAt).toBeNull();
+
+    // A tool call over MCP lands in the audit log as actor_type='agent'.
+    await appendAuditEvent(db, {
+      workspaceId: ctx.workspaceId,
+      actorType: 'agent',
+      actorId: agent.id,
+      action: 'mcp.list_tasks',
+      targetType: 'agent',
+      targetId: agent.id,
+      payload: { tool: 'list_tasks' },
+    });
+
+    const after = await getAgent(db, ctx.workspaceId, agent.id);
+    expect(after.agent.lastActiveAt).not.toBeNull();
+
+    const listed = await listAgents(db, ctx.workspaceId);
+    expect(listed.find((a) => a.id === agent.id)?.lastActiveAt).toBe(after.agent.lastActiveAt);
+  });
+
+  it("does not attribute another agent's activity", async () => {
+    const ctx = await seed();
+    const a = await createAgent(db, ctx.workspaceId, ctx.ownerId, {
+      name: 'A',
+      kind: 'mcp_generic',
+      metadata: {},
+    });
+    const b = await createAgent(db, ctx.workspaceId, ctx.ownerId, {
+      name: 'B',
+      kind: 'mcp_generic',
+      metadata: {},
+    });
+    await appendAuditEvent(db, {
+      workspaceId: ctx.workspaceId,
+      actorType: 'agent',
+      actorId: a.id,
+      action: 'mcp.list_tasks',
+      targetType: 'agent',
+      targetId: a.id,
+      payload: {},
+    });
+
+    const { agent: bAgent } = await getAgent(db, ctx.workspaceId, b.id);
+    expect(bAgent.lastActiveAt).toBeNull();
   });
 });
 

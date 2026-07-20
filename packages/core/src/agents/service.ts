@@ -1,10 +1,11 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { hash as argon2Hash, verify as argon2Verify } from '@node-rs/argon2';
-import { and, count, desc, eq, exists, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, exists, inArray, isNull, max } from 'drizzle-orm';
 import {
   agentApiKeys,
   agentHandoffs,
   agents,
+  auditEvents,
   decisions,
   memberships,
   oauthAccessTokens,
@@ -29,7 +30,7 @@ import { appendAuditEvent } from '../audit/chain.js';
 
 const KEY_PREFIX = 'palouse_agk';
 
-function toDto(row: typeof agents.$inferSelect): Agent {
+function toDto(row: typeof agents.$inferSelect, lastActiveAt: Date | null = null): Agent {
   return {
     id: row.id,
     workspaceId: row.workspaceId,
@@ -39,7 +40,39 @@ function toDto(row: typeof agents.$inferSelect): Agent {
     archivedAt: row.archivedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    lastActiveAt: lastActiveAt?.toISOString() ?? null,
   };
+}
+
+/**
+ * Most-recent MCP tool call per agent, derived from the audit log. Every tool
+ * call writes an `actor_type='agent'` event (apps/mcp auditToolCall), so this
+ * reflects real usage including read-only calls. Key-based agents also surface
+ * per-key `lastUsedAt`; OAuth (sign-in) agents have only this. Pass `agentIds`
+ * to scope the grouped scan to the agents in hand.
+ */
+async function agentLastActive(
+  db: Database,
+  workspaceId: string,
+  agentIds: string[],
+): Promise<Map<string, Date>> {
+  const map = new Map<string, Date>();
+  if (agentIds.length === 0) return map;
+  const rows = await db
+    .select({ actorId: auditEvents.actorId, lastAt: max(auditEvents.at) })
+    .from(auditEvents)
+    .where(
+      and(
+        eq(auditEvents.workspaceId, workspaceId),
+        eq(auditEvents.actorType, 'agent'),
+        inArray(auditEvents.actorId, agentIds),
+      ),
+    )
+    .groupBy(auditEvents.actorId);
+  for (const r of rows) {
+    if (r.actorId && r.lastAt) map.set(r.actorId, r.lastAt);
+  }
+  return map;
 }
 
 function keyToDto(row: typeof agentApiKeys.$inferSelect): AgentApiKey {
@@ -88,7 +121,12 @@ export async function listAgents(
       ),
     )
     .orderBy(desc(agents.createdAt));
-  return rows.map(toDto);
+  const active = await agentLastActive(
+    db,
+    workspaceId,
+    rows.map((r) => r.id),
+  );
+  return rows.map((r) => toDto(r, active.get(r.id) ?? null));
 }
 
 export async function getAgent(
@@ -107,7 +145,8 @@ export async function getAgent(
     .from(agentApiKeys)
     .where(eq(agentApiKeys.agentId, agentId))
     .orderBy(desc(agentApiKeys.createdAt));
-  return { agent: toDto(row), keys: keys.map(keyToDto) };
+  const active = await agentLastActive(db, workspaceId, [agentId]);
+  return { agent: toDto(row, active.get(agentId) ?? null), keys: keys.map(keyToDto) };
 }
 
 /**

@@ -194,6 +194,9 @@ function AgentDetailContent() {
                   ? 'Access has been revoked. The client must reconnect and sign in again.'
                   : `Connected ${formatDateTime(agent?.createdAt ?? null)}. No API key is stored; the client authenticates with the signed-in user's Palouse credentials.`}
               </p>
+              <p className="text-muted-foreground mt-1 text-xs">
+                Last active: {formatDateTime(agent?.lastActiveAt ?? null)}
+              </p>
             </div>
             {agent && !agent.archivedAt && canManage && (
               <Button variant="outline" size="sm" onClick={() => void disconnect()}>
