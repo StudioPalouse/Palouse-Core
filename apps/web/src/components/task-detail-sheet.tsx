@@ -128,7 +128,7 @@ export function TaskDetailSheet({
                 {task.origin === 'agent' && (
                   <Badge variant="outline" className="gap-1">
                     <Bot className="size-3" />
-                    Agent created
+                    {task.createdByAgentName ? `Created by ${task.createdByAgentName}` : 'Agent created'}
                   </Badge>
                 )}
                 {sources.length === 0 ? (
