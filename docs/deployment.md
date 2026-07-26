@@ -126,6 +126,24 @@ any to `0` to disable that bucket:
 | `RATE_LIMIT_OTLP_PER_MIN` | `/v1/otlp` (per agent key) | 300 |
 | `RATE_LIMIT_IMPORT_PER_MIN` | `/v1/objectives/import` (per user) | 10 |
 
+Better-Auth applies a **second, independent** limiter inside `/api/auth/*`, on
+top of the bucket above: 3 requests per 10 seconds on `/sign-in`, `/sign-up`,
+`/change-password` and `/change-email`, and 3 per 60 seconds on the
+password-reset and verification-email paths. It is active only when
+`NODE_ENV=production`, which is why it never appears in local development. The
+limits are Better-Auth defaults and are not configurable through our env vars.
+
+That limiter keys on the client IP, and when it cannot resolve one it puts
+every user in a single shared bucket, which turns the 3-per-10s sign-in rule
+into a global lockout. Its own parser discards a multi-hop `X-Forwarded-For`
+unless every proxy CIDR is enumerated, so behind Fly it resolved nothing. The
+API therefore resolves the IP once (same rule as the table above) and stamps it
+as `X-Palouse-Client-IP`, a single value, which Better-Auth is configured to
+read (`apps/api/src/client-ip.ts`, `packages/auth/src/index.ts`). The API
+overwrites that header on every request, so a client cannot supply its own.
+Any front proxy must therefore set `Fly-Client-IP` or `X-Forwarded-For`; if
+neither arrives, both limiters fall back to one shared bucket.
+
 The MCP HTTP endpoint (`apps/mcp`) is a separate process and is not yet
 rate-limited; edge limits (Fly) are the current backstop there.
 

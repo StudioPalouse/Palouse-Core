@@ -1,6 +1,7 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError } from 'better-auth/api';
+import { CLIENT_IP_HEADER } from '@palouse/shared';
 import { loadEnv } from '@palouse/config';
 import { getDb } from '@palouse/db';
 import { renderBasicEmail, sendEmail } from '@palouse/mail';
@@ -42,7 +43,19 @@ function build() {
     baseURL: env.BETTER_AUTH_URL,
     trustedOrigins: [env.WEB_BASE_URL],
     // Tables use uuid PKs with gen_random_uuid() defaults — let Postgres mint ids.
-    advanced: { database: { generateId: false } },
+    advanced: {
+      database: { generateId: false },
+      // Better-Auth rate-limits /sign-in and /sign-up to 3 requests per 10
+      // seconds keyed on the client IP, and when it cannot resolve one it
+      // buckets every user together, so three attempts from anyone lock out
+      // sign-in for everyone. Its own parser discards a multi-hop
+      // X-Forwarded-For unless every proxy CIDR is listed, which behind Fly is
+      // an edge range plus a per-deploy private address. The API resolves the
+      // IP once from the headers it trusts and stamps CLIENT_IP_HEADER as a
+      // single value (apps/api/src/client-ip.ts); x-forwarded-for stays as the
+      // fallback for deployments fronted by a proxy that sets it alone.
+      ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER, 'x-forwarded-for'] },
+    },
     // Encrypt social-provider access/refresh/id tokens at rest (symmetric, with
     // the auth secret) so a database-only compromise does not expose usable
     // provider tokens. Better-Auth's isLikelyEncrypted heuristic reads any
