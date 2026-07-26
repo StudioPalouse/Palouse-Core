@@ -72,17 +72,39 @@ export function mcpOAuthPlugins(env: Env, db: Database) {
           if (!selection || selection.userId !== session.userId) return true;
           return Date.now() - selection.updatedAt.getTime() > SELECTION_TTL_MS;
         },
+        // Note this receives the scopes actually being *granted*, which the
+        // consent screen may have narrowed, not the ones the client asked for.
         consentReferenceId: async ({ session, scopes }) => {
-          if (!isMcpConnect(scopes)) return undefined;
           const selection = await db.query.mcpConnectSelections.findFirst({
             where: (t, { eq }) => eq(t.sessionId, session.id as string),
           });
-          if (!selection || selection.userId !== session.userId) {
+          const selected =
+            selection && selection.userId === session.userId ? selection : undefined;
+
+          if (!isMcpConnect(scopes)) {
+            // Either a plain OIDC sign-in, which never reaches the workspace
+            // step and correctly has no reference id, or an MCP connect the
+            // user narrowed until no agent scope was left. A fresh selection
+            // in this session separates the two, because it is written only by
+            // /mcp-connect/workspace. Refusing beats minting a token with no
+            // palouse_agent_id, which apps/mcp can only answer with a 401 on
+            // every call the client goes on to make.
+            const cameFromWorkspaceStep =
+              selected !== undefined &&
+              Date.now() - selected.updatedAt.getTime() <= SELECTION_TTL_MS;
+            if (!cameFromWorkspaceStep) return undefined;
+            throw new APIError('BAD_REQUEST', {
+              message:
+                'Choose at least one permission for this connection, then approve again.',
+            });
+          }
+
+          if (!selected) {
             throw new APIError('BAD_REQUEST', {
               message: 'No workspace selected for this connection. Restart the connect flow.',
             });
           }
-          return selection.agentId;
+          return selected.agentId;
         },
       },
       // Runs on both the authorization-code and refresh-token grants, so this

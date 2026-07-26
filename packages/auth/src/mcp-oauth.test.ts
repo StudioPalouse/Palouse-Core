@@ -14,6 +14,27 @@ function envWith(overrides: Partial<Env>): Env {
 
 const db = {} as Database;
 
+/** A db whose only queried table is mcp_connect_selections. */
+function dbWithSelection(selection: unknown): Database {
+  return {
+    query: { mcpConnectSelections: { findFirst: async () => selection } },
+  } as unknown as Database;
+}
+
+type ConsentReferenceId = (info: {
+  session?: { id: string; userId: string };
+  scopes: string[];
+}) => Promise<string | undefined>;
+
+function consentReferenceIdFor(database: Database): ConsentReferenceId {
+  const provider = mcpOAuthPlugins(envWith({}), database).find((p) => p.id === 'oauth-provider');
+  expect(provider, 'oauth-provider plugin should be registered').toBeDefined();
+  const hook = (provider as { options: { postLogin?: { consentReferenceId?: unknown } } }).options
+    .postLogin?.consentReferenceId;
+  expect(hook, 'postLogin.consentReferenceId should be configured').toBeTypeOf('function');
+  return hook as ConsentReferenceId;
+}
+
 function validAudiencesFor(env: Env): unknown {
   const provider = mcpOAuthPlugins(env, db).find((p) => p.id === 'oauth-provider');
   expect(provider, 'oauth-provider plugin should be registered').toBeDefined();
@@ -40,5 +61,56 @@ describe('mcpOAuthPlugins validAudiences (GHSA-p2fr-6hmx-4528 mitigation)', () =
   it('falls back to the local MCP URL when PUBLIC_MCP_URL is unset', () => {
     const env = envWith({ PUBLIC_MCP_URL: undefined, MCP_HTTP_PORT: 9999 });
     expect(validAudiencesFor(env)).toEqual(['http://localhost:9999/mcp']);
+  });
+});
+
+// The consent screen lets a user switch individual agent scopes off. The
+// provider hands this hook the *granted* scopes, so "no agent scope" is
+// ambiguous: it is either a plain OIDC sign-in or an MCP connect narrowed to
+// nothing. Getting that wrong either breaks OIDC sign-in or mints a token with
+// no palouse_agent_id, which apps/mcp rejects on every subsequent call.
+describe('consentReferenceId', () => {
+  const session = { id: 'sess_1', userId: 'user_1' };
+  const fresh = {
+    userId: 'user_1',
+    agentId: 'agent_1',
+    updatedAt: new Date(Date.now() - 30_000),
+  };
+
+  it('pins the selected agent when agent scopes are granted', async () => {
+    const hook = consentReferenceIdFor(dbWithSelection(fresh));
+    await expect(hook({ session, scopes: ['openid', 'tasks:read'] })).resolves.toBe('agent_1');
+  });
+
+  it('still pins the agent when the user narrows to a single scope', async () => {
+    const hook = consentReferenceIdFor(dbWithSelection(fresh));
+    await expect(hook({ session, scopes: ['tasks:read'] })).resolves.toBe('agent_1');
+  });
+
+  it('refuses an MCP connect narrowed until no agent scope is left', async () => {
+    const hook = consentReferenceIdFor(dbWithSelection(fresh));
+    await expect(hook({ session, scopes: ['openid', 'email'] })).rejects.toThrow(
+      /at least one permission/i,
+    );
+  });
+
+  it('leaves a plain OIDC sign-in alone when no workspace was ever selected', async () => {
+    const hook = consentReferenceIdFor(dbWithSelection(undefined));
+    await expect(hook({ session, scopes: ['openid', 'email'] })).resolves.toBeUndefined();
+  });
+
+  // Without the freshness check, an OIDC sign-in in a browser session that had
+  // connected an MCP client earlier would be refused for no visible reason.
+  it('leaves a plain OIDC sign-in alone when the selection has aged out', async () => {
+    const stale = { ...fresh, updatedAt: new Date(Date.now() - 60 * 60_000) };
+    const hook = consentReferenceIdFor(dbWithSelection(stale));
+    await expect(hook({ session, scopes: ['openid', 'email'] })).resolves.toBeUndefined();
+  });
+
+  it('refuses an MCP connect whose selection belongs to another user', async () => {
+    const hook = consentReferenceIdFor(dbWithSelection({ ...fresh, userId: 'user_2' }));
+    await expect(hook({ session, scopes: ['tasks:read'] })).rejects.toThrow(
+      /No workspace selected/i,
+    );
   });
 });
