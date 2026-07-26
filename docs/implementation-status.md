@@ -157,8 +157,12 @@ plus the tasks first-run empty state).
   (`capabilitiesForWorkspace` is auth-free for key-carried callers); GET/PATCH
   `/v1/workspaces/:id/capabilities` (writes gated to owner/admin via `requireRole`); the map rides
   on `WorkspaceProvider` (module-cached, no nav flash); `CapabilityGate` in the app shell swaps
-  disabled routes; new no-dep ARIA `Switch` in `@palouse/ui`. Deferred: gate MCP tools (e.g. task
-  tools when Tasks is off) via `capabilitiesForWorkspace` inside `apps/mcp/src/server.ts`.
+  disabled routes; new no-dep ARIA `Switch` in `@palouse/ui`. Enforcement now reaches every
+  surface: the web nav/route gate (v0.9.0), the MCP tool layer (v0.23.0,
+  `apps/mcp/src/server.ts`), and the REST routes. Projects, Objectives, Decisions, and Audit each
+  gate in-file (`requireProjectsAccess` and friends); Tasks gates via the shared
+  `requireTasksAccess` in `apps/api/src/capability-access.ts`, which both `routes/tasks.ts` and
+  `routes/handoffs.ts` (the review surface behind the web `/reviews` page) call.
 
 ## Next / backlog
 
