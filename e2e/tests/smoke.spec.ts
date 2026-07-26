@@ -9,6 +9,13 @@ import { test, expect } from '@playwright/test';
  * RESEND_API_KEY unset, so email verification is not enforced. Against an
  * environment with mail configured, this flow would need a verification step.
  */
+// Own Better Auth rate-limit bucket for this file. That limiter allows 3
+// sign-ups per 10 seconds keyed on client IP, and CI has no proxy to supply
+// one, so without this every spec shares a single bucket and the suite starts
+// failing on its own size as it grows. The API trusts this header
+// (apps/api/src/middleware/rate-limit.ts) and the Next proxy forwards it.
+test.use({ extraHTTPHeaders: { 'fly-client-ip': '10.77.0.1' } });
+
 test('sign up, sign in, and reach the dashboard', async ({ page }) => {
   const stamp = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
   const email = `e2e-${stamp}@example.com`;
