@@ -59,9 +59,20 @@ jobs:
       # RESEND_API_KEY (packages/auth/src/index.ts), so mail is delivered to
       # Mailpit for the specs that need a link, while signup stays unblocked.
       AUTH_BLOCK_PUBLIC_EMAIL_DOMAINS: 'false'
+      # Every spec signs up a fresh account, and the runner has no client IP to
+      # key on, so Better Auth falls back to one shared bucket for the whole
+      # suite. At the default of 10/min the last spec to run gets a 429 that
+      # looks like a signup bug. Raised here only; the limiter's own behavior is
+      # covered by apps/api/src/middleware/rate-limit.test.ts.
+      RATE_LIMIT_AUTH_PER_MIN: '1000'
       RESEND_API_KEY: ''
       SMTP_URL: smtp://localhost:1025
       MAILPIT_API_URL: http://localhost:8025
+      # The MCP server is part of the stack because agent-authored records have
+      # no REST path: POST /v1/tasks always attributes to the session user, so
+      # the create_task tool is the only way a spec can produce origin 'agent'.
+      MCP_HTTP_PORT: '7777'
+      MCP_HTTP_URL: http://localhost:7777/mcp
     steps:
       - uses: actions/checkout@v7
 
@@ -86,9 +97,12 @@ jobs:
       - name: Start web
         run: nohup pnpm -F @palouse/web start > web.log 2>&1 &
 
+      - name: Start MCP
+        run: nohup pnpm -F @palouse/mcp start > mcp.log 2>&1 &
+
       - name: Wait for the stack
         run: |
-          for url in http://localhost:4000/health http://localhost:3000; do
+          for url in http://localhost:4000/health http://localhost:3000 http://localhost:7777/healthz; do
             echo "Waiting for $url"
             for i in $(seq 1 60); do
               if curl -fsS "$url" > /dev/null 2>&1; then echo "up: $url"; break; fi
@@ -108,6 +122,7 @@ jobs:
         run: |
           echo '--- api.log ---'; cat api.log || true
           echo '--- web.log ---'; cat web.log || true
+          echo '--- mcp.log ---'; cat mcp.log || true
 
       - name: Upload Playwright report
         if: always()
