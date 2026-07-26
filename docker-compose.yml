@@ -35,6 +35,22 @@ services:
       timeout: 5s
       retries: 10
 
+  mailpit:
+    # Catches every outbound mail so local dev and the E2E suite can read the
+    # one-time links the product sends (invites, workspace deletion). Point
+    # SMTP_URL at smtp://localhost:1025; the web UI and JSON API are on 8025.
+    # Pinned instead of :latest so local dev is reproducible.
+    image: axllent/mailpit:v1.21.8
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:1025:1025'
+      - '127.0.0.1:8025:8025'
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:8025/readyz']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   minio:
     # Pinned instead of :latest so local dev is reproducible. Dependabot bumps it.
     image: minio/minio:RELEASE.2025-04-22T22-12-26Z
