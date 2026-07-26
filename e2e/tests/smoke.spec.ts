@@ -29,9 +29,12 @@ test('sign up, sign in, and reach the dashboard', async ({ page }) => {
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Sign in' }).click();
 
-  // A brand-new account has no workspace, so it is routed to create one.
+  // A brand-new account has no workspace, so it is routed to create one. The
+  // name has to be unique per run like the email: the slug is derived from it,
+  // and a taken slug blocks the form. CI never noticed because it gets a fresh
+  // Postgres each time, but locally the second run of this spec failed here.
   await page.waitForURL('**/workspaces/new');
-  await page.getByLabel('Name').fill('E2E Workspace');
+  await page.getByLabel('Name').fill(`E2E Workspace ${stamp}`);
   await page.getByRole('button', { name: 'Create workspace' }).click();
 
   // Landing on the dashboard confirms the round trip through the API.
