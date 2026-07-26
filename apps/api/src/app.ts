@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { withResolvedClientIp } from './client-ip.js';
 import { bodyLimits } from './middleware/body-limits.js';
 import { rateLimit } from './middleware/rate-limit.js';
 import { securityHeaders } from './middleware/security-headers.js';
@@ -66,7 +67,7 @@ export function buildApp() {
 
   // Better-Auth mounts /api/auth/* — see https://better-auth.com/docs
   const auth = getAuth();
-  app.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(c.req.raw));
+  app.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(withResolvedClientIp(c)));
 
   // OAuth 2.1 discovery for MCP clients (docs/PLAN-mcp-oauth.md). RFC 8414
   // requires these at the origin root, outside /api/auth; the web app proxies
