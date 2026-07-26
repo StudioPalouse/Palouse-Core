@@ -15,9 +15,11 @@
   },
   "dependencies": {
     "@palouse/config": "workspace:*",
+    "nodemailer": "^9.0.3",
     "resend": "^6.17.2"
   },
   "devDependencies": {
+    "@types/nodemailer": "^8.0.1",
     "typescript": "^5.9.3"
   }
 }

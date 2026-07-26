@@ -29,6 +29,17 @@ jobs:
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 5s --health-timeout 5s --health-retries 10
+      # Catches outbound mail so specs can read the one-time links the product
+      # sends. Tokens are stored hashed and never returned by an API, so the
+      # message is the only place a test can get them.
+      mailpit:
+        image: axllent/mailpit:v1.21.8
+        ports:
+          - 1025:1025
+          - 8025:8025
+        options: >-
+          --health-cmd "wget -qO- http://localhost:8025/readyz || exit 1"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       NODE_ENV: production
       DATABASE_URL: postgres://palouse:palouse@localhost:5432/palouse
@@ -44,8 +55,13 @@ jobs:
       PALOUSE_API_URL: http://localhost:4000
       # Any address allowed, and empty RESEND_API_KEY means email verification is
       # not enforced, so the smoke test can sign in right after signing up.
+      # Note SMTP_URL does NOT re-enable verification: mailConfigured is tied to
+      # RESEND_API_KEY (packages/auth/src/index.ts), so mail is delivered to
+      # Mailpit for the specs that need a link, while signup stays unblocked.
       AUTH_BLOCK_PUBLIC_EMAIL_DOMAINS: 'false'
       RESEND_API_KEY: ''
+      SMTP_URL: smtp://localhost:1025
+      MAILPIT_API_URL: http://localhost:8025
     steps:
       - uses: actions/checkout@v7
 

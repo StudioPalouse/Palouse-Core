@@ -1,11 +1,17 @@
+import nodemailer, { type Transporter } from 'nodemailer';
 import { Resend } from 'resend';
 import { loadEnv } from '@palouse/config';
 
 /**
- * Transactional mail via Resend — the project's single mail-send path.
+ * Transactional mail — the project's single mail-send path.
  *
- * Self-hosted deployments that leave RESEND_API_KEY unset get a logged no-op
- * instead of an error, so mail stays strictly optional infrastructure.
+ * Transport is chosen per send, most specific first:
+ *   SMTP_URL set        -> SMTP (local dev and the E2E stack use Mailpit)
+ *   RESEND_API_KEY set  -> Resend (hosted staging and prod)
+ *   neither             -> logged no-op
+ *
+ * Self-hosted deployments that set neither get a logged no-op instead of an
+ * error, so mail stays strictly optional infrastructure.
  *
  * The sending domain must be verified in the Resend dashboard before
  * MAIL_FROM can use it; until then Resend's shared onboarding sender only
@@ -27,14 +33,35 @@ export interface SendEmailResult {
 }
 
 let client: Resend | undefined;
+let transporter: Transporter | undefined;
 
 function getClient(apiKey: string): Resend {
   if (!client) client = new Resend(apiKey);
   return client;
 }
 
+function getTransporter(smtpUrl: string): Transporter {
+  if (!transporter) transporter = nodemailer.createTransport(smtpUrl);
+  return transporter;
+}
+
 export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
   const env = loadEnv();
+
+  // SMTP wins when configured: it is the explicit, locally-pointed transport,
+  // so a dev or CI box with both set never sends real mail through Resend.
+  if (env.SMTP_URL) {
+    const info = await getTransporter(env.SMTP_URL).sendMail({
+      from: env.MAIL_FROM,
+      to: Array.isArray(input.to) ? input.to : [input.to],
+      subject: input.subject,
+      html: input.html,
+      text: input.text ?? (input.html ? undefined : ''),
+      replyTo: input.replyTo,
+    });
+    return { sent: true, id: info.messageId ?? null };
+  }
+
   if (!env.RESEND_API_KEY) {
     console.warn(
       `[mail] RESEND_API_KEY not set, skipping email "${input.subject}" to ${

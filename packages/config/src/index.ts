@@ -61,6 +61,10 @@ const envSchema = z.object({
   // Transactional mail (Resend). Unset = mail is a logged no-op, so
   // self-hosted deployments work without a mail provider.
   RESEND_API_KEY: z.string().optional(),
+  // SMTP transport, used ahead of Resend when set. Local dev and the E2E stack
+  // point this at Mailpit so tests can read the one-time links the product
+  // mails; self-hosted installs can point it at their own relay.
+  SMTP_URL: z.string().optional(),
   // Must use a domain verified in the Resend dashboard for real delivery;
   // the onboarding default only delivers to the Resend account owner.
   MAIL_FROM: z.string().default('Palouse <onboarding@resend.dev>'),
