@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { activeWorkspaceId, signUpAndCreateWorkspace } from './helpers/auth';
 import { callTool, createAgentWithKey } from './helpers/agent';
 
@@ -11,7 +11,30 @@ import { callTool, createAgentWithKey } from './helpers/agent';
  * that, so anything asserting on how the list refreshes would break on a change
  * that users cannot see. There are no fixed-duration waits anywhere here:
  * Playwright's auto-retrying assertions settle as soon as the state lands.
+ *
+ * One account and workspace is shared across the file, created once. Better
+ * Auth rate-limits /sign-up and /sign-in to 3 requests per 10 seconds and, on
+ * a CI runner where it cannot resolve a client IP, every spec shares a single
+ * bucket. Signing up per test therefore fails the suite as it grows, for
+ * reasons that have nothing to do with what is being tested. Tasks are named
+ * uniquely per test, so sharing a workspace does not let them interfere.
  */
+test.describe.configure({ mode: 'serial' });
+
+let context: BrowserContext;
+let page: Page;
+let workspaceId: string;
+
+test.beforeAll(async ({ browser }) => {
+  context = await browser.newContext();
+  page = await context.newPage();
+  await signUpAndCreateWorkspace(page, 'tasks');
+  workspaceId = await activeWorkspaceId(page);
+});
+
+test.afterAll(async () => {
+  await context.close();
+});
 
 /**
  * The clickable row for a task. Anchored to the start of the accessible name
@@ -26,8 +49,7 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-test('create, update, and comment on a task from the board', async ({ page }) => {
-  await signUpAndCreateWorkspace(page, 'tasks');
+test('create, update, and comment on a task from the board', async () => {
   const title = `Write the release notes ${Date.now()}`;
 
   await page.goto('/tasks');
@@ -68,8 +90,7 @@ test('create, update, and comment on a task from the board', async ({ page }) =>
   await expect(row).toContainText('High');
 });
 
-test('completing a task from the row moves it out of the default view', async ({ page }) => {
-  await signUpAndCreateWorkspace(page, 'tasks-done');
+test('completing a task from the row moves it out of the default view', async () => {
   const title = `Ship the thing ${Date.now()}`;
 
   await page.goto('/tasks');
@@ -84,9 +105,7 @@ test('completing a task from the row moves it out of the default view', async ({
   await expect(taskRow(page, title)).toBeHidden();
 });
 
-test('an agent-created task shows which agent created it', async ({ page }) => {
-  await signUpAndCreateWorkspace(page, 'agent-task');
-  const workspaceId = await activeWorkspaceId(page);
+test('an agent-created task shows which agent created it', async () => {
   const agentName = `Scout ${Date.now()}`;
   const { apiKey } = await createAgentWithKey(page, workspaceId, agentName);
 
