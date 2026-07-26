@@ -35,9 +35,13 @@ async function getJson<T>(path: string): Promise<T> {
 }
 
 /**
- * Deletes every stored message. Call in beforeEach so a spec never reads mail
- * left behind by a neighbour; Playwright runs fullyParallel locally, so
- * addresses should also be unique per run.
+ * Deletes every stored message, for a spec that needs an empty mailbox.
+ *
+ * Do NOT call this routinely. It is global, and Playwright runs fullyParallel
+ * locally, so one spec clearing the mailbox can delete a message another spec
+ * is waiting for. Uniqueness of the recipient address is what isolates specs
+ * from each other, and `waitForMessage` already filters on it; clearing adds
+ * nothing except that race.
  */
 export async function clearMessages(): Promise<void> {
   const res = await fetch(`${apiUrl}/api/v1/messages`, { method: 'DELETE' });

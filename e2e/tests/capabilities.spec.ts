@@ -14,6 +14,8 @@ import { activeWorkspaceId, signUpAndCreateWorkspace } from './helpers/auth';
  * tasks.spec.ts.
  */
 test.describe.configure({ mode: 'serial' });
+// Own Better Auth rate-limit bucket for this file, as in the other specs.
+test.use({ extraHTTPHeaders: { 'fly-client-ip': '10.77.0.5' } });
 
 let context: BrowserContext;
 let page: Page;
