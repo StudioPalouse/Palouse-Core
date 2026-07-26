@@ -120,9 +120,13 @@ test('a revoked invitation stops working', async () => {
   await admin.getByRole('button', { name: 'Revoke' }).click();
   await expect(teamRow(admin, throwaway)).toHaveCount(0);
 
-  // Following it now fails rather than silently adding anyone.
+  // Following it now fails rather than silently adding anyone. Asserting the
+  // success state is absent first so that a revoked token which somehow still
+  // worked fails loudly here, rather than looking like the slow-render flake
+  // this assertion hit once on CI. The longer timeout covers that render.
   await invitee.goto(link);
-  await expect(invitee.getByText('Invitation problem')).toBeVisible();
+  await expect(invitee.getByText('You are in')).toBeHidden();
+  await expect(invitee.getByText('Invitation problem')).toBeVisible({ timeout: 15_000 });
 });
 
 test('a removed member loses access to the workspace', async () => {

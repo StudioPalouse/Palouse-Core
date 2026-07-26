@@ -11,11 +11,29 @@ import { taskService } from '@palouse/core';
 import { loadEnv } from '@palouse/config';
 import { getDb } from '@palouse/db';
 import { enqueuePush } from '@palouse/queue';
-import { getSyncQueue } from '../queue.js';
+import { getEventBus, getSyncQueue } from '../queue.js';
 import { requireTasksAccess } from '../capability-access.js';
 import { requireSession, type SessionVars } from '../middleware/session.js';
 
 export const taskRoutes = new Hono<SessionVars>();
+
+/**
+ * Tells open boards in this workspace that a task moved. Fire and forget, like
+ * the sync push next to it: a Redis hiccup must never fail the mutation the
+ * user actually asked for.
+ */
+function publishTaskChanged(
+  workspaceId: string,
+  taskId: string,
+  action: 'created' | 'updated' | 'commented',
+): void {
+  getEventBus().publish(workspaceId, {
+    type: 'task.changed',
+    taskId,
+    action,
+    at: new Date().toISOString(),
+  });
+}
 
 taskRoutes.use('*', requireSession);
 
@@ -37,6 +55,7 @@ taskRoutes.post('/', async (c) => {
   const db = getDb(loadEnv().DATABASE_URL);
   await requireTasksAccess(db, workspaceId, c.get('userId'));
   const task = await taskService.createTask(db, workspaceId, userActor(c.get('userId')), parsed.data);
+  publishTaskChanged(workspaceId, task.id, 'created');
   return c.json({ task }, 201);
 });
 
@@ -67,6 +86,7 @@ taskRoutes.patch('/:id', async (c) => {
   // Mirror the change back to any linked external systems (worker no-ops
   // when the task has no sources).
   await enqueuePush(getSyncQueue(), task.id, workspaceId).catch(() => {});
+  publishTaskChanged(workspaceId, task.id, 'updated');
   return c.json({ task });
 });
 
@@ -85,5 +105,6 @@ taskRoutes.post('/:id/comments', async (c) => {
     c.req.param('id'),
     parsed.data,
   );
+  publishTaskChanged(workspaceId, c.req.param('id'), 'commented');
   return c.json({ comment }, 201);
 });

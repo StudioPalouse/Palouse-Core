@@ -9,12 +9,26 @@ import { handoffService, narrateHandoff, usageService } from '@palouse/core';
 import { loadEnv } from '@palouse/config';
 import { getDb } from '@palouse/db';
 import { enqueueNotifyAgent } from '@palouse/queue';
-import { getHandoffQueue } from '../queue.js';
+import { getEventBus, getHandoffQueue } from '../queue.js';
 import { requireTasksAccess } from '../capability-access.js';
 import { requireSession, type SessionVars } from '../middleware/session.js';
 
 // Mounted at /v1 — covers /v1/tasks/:id/handoff and /v1/handoffs/*.
 export const handoffRoutes = new Hono<SessionVars>();
+
+/** Fire and forget, alongside the agent notification. See routes/tasks.ts. */
+function publishHandoffChanged(
+  workspaceId: string,
+  handoff: { id: string; taskId: string; state: string },
+): void {
+  getEventBus().publish(workspaceId, {
+    type: 'handoff.changed',
+    handoffId: handoff.id,
+    taskId: handoff.taskId,
+    state: handoff.state,
+    at: new Date().toISOString(),
+  });
+}
 
 handoffRoutes.use('*', requireSession);
 
@@ -37,6 +51,7 @@ handoffRoutes.post('/tasks/:id/handoff', async (c) => {
   await enqueueNotifyAgent(getHandoffQueue(), handoff.id, workspaceId, handoff.actorAgentId).catch(
     () => {},
   );
+  publishHandoffChanged(workspaceId, handoff);
   return c.json({ handoff }, 201);
 });
 
@@ -85,6 +100,7 @@ handoffRoutes.post('/handoffs/:id/review', async (c) => {
     c.req.param('id'),
     parsed.data,
   );
+  publishHandoffChanged(workspaceId, handoff);
   return c.json({ handoff });
 });
 
@@ -96,5 +112,6 @@ handoffRoutes.post('/handoffs/:id/cancel', async (c) => {
   const db = getDb(loadEnv().DATABASE_URL);
   await requireTasksAccess(db, workspaceId, c.get('userId'));
   const handoff = await handoffService.cancel(db, workspaceId, c.get('userId'), c.req.param('id'));
+  publishHandoffChanged(workspaceId, handoff);
   return c.json({ handoff });
 });

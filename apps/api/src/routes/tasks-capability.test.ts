@@ -35,7 +35,13 @@ vi.mock('@palouse/auth', () => ({
 }));
 
 // Both routers dispatch best-effort queue jobs; neither needs a live Redis.
-vi.mock('../queue.js', () => ({ getSyncQueue: () => ({}), getHandoffQueue: () => ({}) }));
+vi.mock('../queue.js', () => ({
+  getSyncQueue: () => ({}),
+  getHandoffQueue: () => ({}),
+  // Publishing is fire-and-forget beside the mutation; this suite is about the
+  // capability guard, so the bus is a no-op here.
+  getEventBus: () => ({ publish: () => {}, subscribe: () => () => {}, close: async () => {} }),
+}));
 vi.mock('@palouse/queue', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@palouse/queue')>()),
   enqueuePush: vi.fn(async () => {}),

@@ -17,6 +17,7 @@ import { decisionRoutes } from './routes/decisions.js';
 import { objectiveRoutes } from './routes/objectives.js';
 import { projectRoutes } from './routes/projects.js';
 import { handoffRoutes } from './routes/handoffs.js';
+import { eventRoutes } from './routes/events.js';
 import { health } from './routes/health.js';
 import { integrationRoutes } from './routes/integrations.js';
 import { invitationRoutes } from './routes/invitations.js';
@@ -91,6 +92,7 @@ export function buildApp() {
   app.route('/v1/projects', projectRoutes);
   app.route('/v1/agents', agentRoutes);
   app.route('/v1/audit', auditRoutes);
+  app.route('/v1/events', eventRoutes);
   app.route('/v1', handoffRoutes); // /v1/tasks/:id/handoff + /v1/handoffs/*
   app.route('/v1', usageRoutes); // /v1/usage/* + /v1/model-prices*
   app.route('/v1/otlp', otlpRoutes); // agent-key auth; full path /v1/otlp/v1/traces
