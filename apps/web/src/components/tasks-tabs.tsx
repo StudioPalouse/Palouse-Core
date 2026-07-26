@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Badge, cn } from '@palouse/ui';
 import { api } from '@/lib/api';
 import { HANDOFFS_CHANGED_EVENT } from '@/lib/handoff-meta';
 import { useActiveWorkspace } from '@/lib/workspace-context';
+import { pollIntervalFor, useWorkspaceEvents } from '@/lib/workspace-events';
 
 const TABS = [
   { href: '/tasks', label: 'Inbox' },
@@ -19,6 +20,12 @@ const POLL_MS = 15_000;
 function usePendingReviewCount(): number {
   const { workspace } = useActiveWorkspace();
   const [count, setCount] = useState(0);
+  const [eventTick, setEventTick] = useState(0);
+  const { connected } = useWorkspaceEvents(
+    workspace?.id,
+    ['handoff.changed'],
+    useCallback(() => setEventTick((n) => n + 1), []),
+  );
 
   useEffect(() => {
     if (!workspace) return;
@@ -34,14 +41,14 @@ function usePendingReviewCount(): number {
         });
     };
     load();
-    const t = setInterval(load, POLL_MS);
+    const t = setInterval(load, pollIntervalFor(connected, POLL_MS));
     window.addEventListener(HANDOFFS_CHANGED_EVENT, load);
     return () => {
       cancelled = true;
       clearInterval(t);
       window.removeEventListener(HANDOFFS_CHANGED_EVENT, load);
     };
-  }, [workspace]);
+  }, [workspace, connected, eventTick]);
 
   return count;
 }

@@ -11,6 +11,7 @@ import {
 } from '@palouse/shared';
 import { Badge, Button } from '@palouse/ui';
 import { api, ApiError } from '@/lib/api';
+import { pollIntervalFor, useWorkspaceEvents } from '@/lib/workspace-events';
 import {
   emitHandoffsChanged,
   formatDateTime,
@@ -61,12 +62,21 @@ export function HandoffPanel({ workspaceId, taskId }: { workspaceId: string; tas
     void refresh();
   }, [refresh]);
 
-  // Live-ish updates while an agent is on the task.
+  // Live updates while an agent is on the task: the stream drives them, and the
+  // interval stays as the fallback at its old cadence whenever the stream is
+  // down. A finished handoff needs neither.
+  const { connected } = useWorkspaceEvents(
+    workspaceId,
+    ['handoff.changed', 'task.changed'],
+    useCallback(() => {
+      if (latest && !isTerminal(latest.state)) void refresh();
+    }, [latest, refresh]),
+  );
   useEffect(() => {
     if (!latest || isTerminal(latest.state)) return;
-    const t = setInterval(() => void refresh(), POLL_MS);
+    const t = setInterval(() => void refresh(), pollIntervalFor(connected, POLL_MS));
     return () => clearInterval(t);
-  }, [latest, refresh]);
+  }, [latest, refresh, connected]);
 
   async function cancel(handoffId: string) {
     if (!window.confirm('Cancel this agent task? The agent stops working on it.')) return;

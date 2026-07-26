@@ -25,6 +25,7 @@ import { HANDOFFS_CHANGED_EVENT } from '@/lib/handoff-meta';
 import { useActiveWorkspace } from '@/lib/workspace-context';
 import { isCompletedStatus, providerLabel, STATUS_LABELS, STATUS_ORDER } from '@/lib/task-meta';
 import { DEFAULT_DISPLAY, PRESETS, type DisplayConfig } from '@/lib/task-views';
+import { pollIntervalFor, useWorkspaceEvents } from '@/lib/workspace-events';
 
 // Bumped to v2 when the default view changed to group-by-status; the old key is
 // ignored so existing users pick up the new default instead of their saved one.
@@ -154,18 +155,30 @@ function TasksContent() {
     return () => clearTimeout(t);
   }, [refresh, search]);
 
-  // Agent work (create_task, status updates, completions) lands server-side
-  // with nothing to signal the client, so the list itself polls on the same
-  // cadence as the handoff badges. In-app hand-off actions refetch immediately
-  // via the handoffs-changed event.
+  // Agent work (create_task, status updates, completions) lands server-side, so
+  // the board learns about it from the event stream. Polling stays as the
+  // fallback, at its old cadence while the stream is down and a long safety net
+  // while it is up. In-app hand-off actions still refetch immediately via the
+  // handoffs-changed event.
+  // A tick alongside the refetch, so the handoff-badge effect below reacts to
+  // the same events without opening a second subscription.
+  const [eventTick, setEventTick] = useState(0);
+  const { connected } = useWorkspaceEvents(
+    workspace?.id,
+    ['task.changed', 'handoff.changed'],
+    useCallback(() => {
+      refresh();
+      setEventTick((n) => n + 1);
+    }, [refresh]),
+  );
   useEffect(() => {
-    const t = setInterval(refresh, HANDOFF_POLL_MS);
+    const t = setInterval(refresh, pollIntervalFor(connected, HANDOFF_POLL_MS));
     window.addEventListener(HANDOFFS_CHANGED_EVENT, refresh);
     return () => {
       clearInterval(t);
       window.removeEventListener(HANDOFFS_CHANGED_EVENT, refresh);
     };
-  }, [refresh]);
+  }, [refresh, connected]);
 
   // Active agent handoffs, so rows can show what agents are up to. Kept
   // fresh with a light poll plus the handoffs-changed signal from actions
@@ -189,14 +202,14 @@ function TasksContent() {
         });
     };
     load();
-    const t = setInterval(load, HANDOFF_POLL_MS);
+    const t = setInterval(load, pollIntervalFor(connected, HANDOFF_POLL_MS));
     window.addEventListener(HANDOFFS_CHANGED_EVENT, load);
     return () => {
       cancelled = true;
       clearInterval(t);
       window.removeEventListener(HANDOFFS_CHANGED_EVENT, load);
     };
-  }, [workspace]);
+  }, [workspace, connected, eventTick]);
 
   // Selection only holds visible tasks that are still eligible for hand-off;
   // rows that gain an active handoff or drop out of the filter fall away.
