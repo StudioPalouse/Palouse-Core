@@ -21,6 +21,13 @@ import { callTool, createAgentWithKey } from './helpers/agent';
  */
 test.describe.configure({ mode: 'serial' });
 
+// Own Better Auth rate-limit bucket for this file. That limiter allows 3
+// sign-ups per 10 seconds keyed on client IP, and CI has no proxy to supply
+// one, so without this every spec shares a single bucket and the suite starts
+// failing on its own size as it grows. The API trusts this header
+// (apps/api/src/middleware/rate-limit.ts) and the Next proxy forwards it.
+test.use({ extraHTTPHeaders: { 'fly-client-ip': '10.77.0.2' } });
+
 let context: BrowserContext;
 let page: Page;
 let workspaceId: string;
