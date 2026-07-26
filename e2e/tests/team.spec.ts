@@ -1,6 +1,6 @@
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { signUpAndCreateWorkspace } from './helpers/auth';
-import { clearMessages, firstLink, waitForMessage } from './helpers/mail';
+import { firstLink, waitForMessage } from './helpers/mail';
 
 /**
  * The multi-user path: invite, accept, change role, remove, revoke. High blast
@@ -45,7 +45,6 @@ test.afterAll(async () => {
 
 /** Sends an invite from Settings > Team and returns the emailed accept link. */
 async function invite(email: string, role: string): Promise<string> {
-  await clearMessages();
   await admin.goto('/settings/team');
   await admin.getByRole('button', { name: 'Invite member' }).click();
   await admin.getByLabel('Email').fill(email);
