@@ -11,7 +11,7 @@
     "lint": "echo 'TODO: eslint'"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.1",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^22.20.0",
     "typescript": "^5.9.3"
   }

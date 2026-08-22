@@ -14,16 +14,16 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@better-auth/oauth-provider": "^1.6.23",
+    "@better-auth/oauth-provider": "^1.7.1",
     "@palouse/config": "workspace:*",
     "@palouse/core": "workspace:*",
     "@palouse/db": "workspace:*",
     "@palouse/mail": "workspace:*",
     "@palouse/shared": "workspace:*",
-    "better-auth": "^1.6.23"
+    "better-auth": "^1.7.1"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }
