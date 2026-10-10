@@ -22,8 +22,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.0",
-    "prettier": "^3.9.5",
-    "turbo": "^2.10.4",
+    "prettier": "^3.9.9",
+    "turbo": "^2.11.7",
     "typescript": "^5.9.3"
   },
   "pnpm": {
