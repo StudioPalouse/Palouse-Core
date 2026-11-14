@@ -18,12 +18,12 @@
     "@palouse/core": "workspace:^",
     "@palouse/db": "workspace:*",
     "@palouse/shared": "workspace:^",
-    "commander": "^15.0.0",
-    "drizzle-orm": "^0.45.2"
+    "commander": "^15.1.0",
+    "drizzle-orm": "^0.45.4"
   },
   "devDependencies": {
     "@types/node": "^22.20.0",
-    "tsx": "^4.23.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3"
   }
 }
